@@ -37,5 +37,11 @@ rumqttc = { version = "0.24.0", default-features = false, features = [
 ] }
 rustls-native-certs = "0.7.0"
 # parking_lot = "0.12.2"
+reqwest = { version = "0.12.4", features = ["rustls-tls", "json", "blocking"] }
+cookie = "0.18.1"
+rand = "0.8.5"
+base64 = "0.22.1"
+regex = "1.10.4"
+# strum = { version = "0.26.2", features = ["derive"] }
 
 # notify-rust = { version = "4.11.0", features = ["async"] }

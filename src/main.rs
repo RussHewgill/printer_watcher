@@ -7,6 +7,10 @@
 #![allow(unexpected_cfgs)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+pub mod auth;
+pub mod config;
+pub mod conn_manager;
+
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
