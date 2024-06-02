@@ -12,7 +12,7 @@ use tokio::sync::RwLock;
 use crate::{
     auth::bambu_auth::AuthDb,
     config::{printer_config::PrinterConfigBambu, printer_id::PrinterId, AppConfig},
-    conn_manager::WorkerCmd,
+    conn_manager::{worker_message::WorkerMsg, WorkerCmd},
 };
 
 use super::{bambu_listener::BambuListener, command::Command, message::Message};
@@ -82,7 +82,7 @@ impl rumqttc::tokio_rustls::rustls::client::danger::ServerCertVerifier
 pub struct BambuClient {
     config: Arc<RwLock<PrinterConfigBambu>>,
     client: rumqttc::AsyncClient,
-    tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, Message)>,
+    tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
     cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
     topic_device_request: String,
     topic_device_report: String,
@@ -93,7 +93,7 @@ impl BambuClient {
         // auth: Arc<RwLock<AuthDb>>,
         config: AppConfig,
         printer_cfg: Arc<RwLock<PrinterConfigBambu>>,
-        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, Message)>,
+        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
         kill_rx: tokio::sync::oneshot::Receiver<()>,
     ) -> Result<Self> {
@@ -107,7 +107,7 @@ impl BambuClient {
     async fn _new_and_init_cloud(
         auth: Arc<RwLock<AuthDb>>,
         printer_cfg: Arc<RwLock<PrinterConfigBambu>>,
-        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, Message)>,
+        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
         kill_rx: tokio::sync::oneshot::Receiver<()>,
     ) -> Result<Self> {
@@ -161,7 +161,7 @@ impl BambuClient {
 
     async fn _new_and_init_lan(
         printer_cfg: Arc<RwLock<PrinterConfigBambu>>,
-        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, Message)>,
+        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
         kill_rx: tokio::sync::oneshot::Receiver<()>,
     ) -> Result<Self> {
@@ -240,7 +240,8 @@ impl BambuClient {
                                 .tx
                                 .send((
                                     listener.printer_cfg.read().await.id.clone(),
-                                    Message::Disconnected,
+                                    // Message::Disconnected,
+                                    WorkerMsg::Disconnected,
                                 ))
                                 .unwrap();
                         }

@@ -1,20 +1,23 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use rumqttc::Incoming;
 use tracing::{debug, error, info, trace, warn};
 
+use rumqttc::Incoming;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::{
     config::{printer_config::PrinterConfigBambu, printer_id::PrinterId},
-    conn_manager::conn_bambu::{command::Command, message::Message},
+    conn_manager::{
+        conn_bambu::{command::Command, message::Message},
+        worker_message::WorkerMsg,
+    },
 };
 
 pub(super) struct BambuListener {
     pub(super) printer_cfg: Arc<RwLock<PrinterConfigBambu>>,
     pub(super) client: rumqttc::AsyncClient,
     pub(super) eventloop: rumqttc::EventLoop,
-    pub(super) tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, Message)>,
+    pub(super) tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
     pub(super) topic_device_report: String,
     pub(super) topic_device_request: String,
 }
@@ -24,7 +27,7 @@ impl BambuListener {
         printer_cfg: Arc<RwLock<PrinterConfigBambu>>,
         client: rumqttc::AsyncClient,
         eventloop: rumqttc::EventLoop,
-        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, Message)>,
+        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
         topic_device_report: String,
         topic_device_request: String,
     ) -> Self {
@@ -88,7 +91,7 @@ impl BambuListener {
                     let msg = crate::conn_manager::conn_bambu::parse::parse_message(&p);
                     // debug!("incoming publish: {:?}", msg);
                     let id = self.printer_cfg.read().await.id.clone();
-                    self.tx.send((id, msg))?;
+                    self.tx.send((id, msg.into()))?;
                 }
                 Event::Incoming(event) => {
                     debug!("incoming other event: {:?}", event);

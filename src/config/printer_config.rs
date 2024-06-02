@@ -64,7 +64,22 @@ impl PrinterConfigBambu {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigKlipper {
     pub id: PrinterId,
+    pub name: String,
     pub host: String,
+}
+
+impl PrinterConfigKlipper {
+    pub fn new(name: String, host: String) -> Self {
+        Self {
+            id: PrinterId::generate(),
+            name,
+            host,
+        }
+    }
+
+    pub fn from_id(name: String, host: String, id: PrinterId) -> Self {
+        Self { id, name, host }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

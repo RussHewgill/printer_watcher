@@ -1,5 +1,6 @@
 pub mod conn_bambu;
 pub mod conn_klipper;
+pub mod worker_message;
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -8,6 +9,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use dashmap::DashMap;
 use tokio::sync::RwLock;
+use worker_message::WorkerMsg;
 
 use crate::{
     config::{printer_config::PrinterConfig, printer_id::PrinterId, AppConfig},
@@ -49,9 +51,9 @@ pub struct PrinterConnManager {
     // /// for cloning to pass to worker tasks
     // // worker_cmd_rx: tokio::sync::mpsc::UnboundedReceiver<(PrinterId, PrinterConnCmd)>,
     /// for cloning to pass to worker tasks
-    worker_msg_tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, Message)>,
+    worker_msg_tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
     /// to receive messages from worker tasks
-    worker_msg_rx: tokio::sync::mpsc::UnboundedReceiver<(PrinterId, Message)>,
+    worker_msg_rx: tokio::sync::mpsc::UnboundedReceiver<(PrinterId, WorkerMsg)>,
 
     kill_chans: HashMap<PrinterId, tokio::sync::oneshot::Sender<()>>,
     // error_map: ErrorMap,
@@ -67,7 +69,7 @@ impl PrinterConnManager {
         msg_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnMsg>,
     ) -> Self {
         let (worker_msg_tx, mut worker_msg_rx) =
-            tokio::sync::mpsc::unbounded_channel::<(PrinterId, Message)>();
+            tokio::sync::mpsc::unbounded_channel::<(PrinterId, WorkerMsg)>();
 
         // let (worker_cmd_tx, worker_cmd_rx) =
         //     tokio::sync::mpsc::unbounded_channel::<(PrinterId, PrinterConnCmd)>();
@@ -137,11 +139,10 @@ impl PrinterConnManager {
         }
         self.kill_chans.insert(id.clone(), kill_tx);
 
+        let (worker_cmd_tx, worker_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<WorkerCmd>();
+
         match printer {
             PrinterConfig::Bambu(_, printer) => {
-                let (worker_cmd_tx, worker_cmd_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<WorkerCmd>();
-
                 let mut client = conn_bambu::bambu_proto::BambuClient::new_and_init(
                     self.config.clone(),
                     printer.clone(),
@@ -151,8 +152,25 @@ impl PrinterConnManager {
                 )
                 .await?;
 
-                // self.printers.insert(id.clone(), client);
                 self.worker_cmd_txs.insert(id.clone(), worker_cmd_tx);
+            }
+            PrinterConfig::Klipper(_, printer) => {
+                let mut klipper = conn_klipper::KlipperClient::new(
+                    id.clone(),
+                    printer.clone(),
+                    self.worker_msg_tx.clone(),
+                    worker_cmd_rx,
+                    kill_rx,
+                );
+                self.worker_cmd_txs.insert(id.clone(), worker_cmd_tx);
+
+                tokio::task::spawn(async move {
+                    loop {
+                        if let Err(e) = klipper.run().await {
+                            error!("error running klipper client: {:?}", e);
+                        }
+                    }
+                });
             }
             _ => todo!(),
         }
@@ -163,12 +181,7 @@ impl PrinterConnManager {
 
 /// handle messages, commands
 impl PrinterConnManager {
-    async fn handle_printer_msg(
-        &mut self,
-        // printer: Arc<PrinterConfig>,
-        id: PrinterId,
-        msg: Message,
-    ) -> Result<()> {
+    async fn handle_printer_msg(&mut self, id: PrinterId, msg: WorkerMsg) -> Result<()> {
         let Some(printer) = self.config.get_printer(&id) else {
             bail!("printer not found: {:?}", id);
         };

@@ -19,11 +19,17 @@ use crate::{
 
 #[derive(Clone)]
 pub struct AppConfig {
-    auth: Arc<RwLock<AuthDb>>,
+    auth_bambu: Arc<RwLock<AuthDb>>,
     logged_in: Arc<AtomicBool>,
 
     ids: Arc<RwLock<HashSet<PrinterId>>>,
     printers: Arc<DashMap<PrinterId, PrinterConfig>>,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 
 /// getters, setters
@@ -38,18 +44,18 @@ impl AppConfig {
     }
 
     pub fn auth(&self) -> &Arc<RwLock<AuthDb>> {
-        &self.auth
+        &self.auth_bambu
     }
 
     pub async fn get_token_async(&self) -> Result<Option<crate::auth::bambu_auth::Token>> {
         {
-            let token = self.auth.read().await.get_token_cached();
+            let token = self.auth_bambu.read().await.get_token_cached();
             if let Some(token) = token {
                 return Ok(Some(token));
             }
         }
 
-        self.auth.write().await.get_token()
+        self.auth_bambu.write().await.get_token()
     }
 }
 
@@ -57,7 +63,7 @@ impl AppConfig {
 impl AppConfig {
     pub fn empty() -> Self {
         Self {
-            auth: Arc::new(RwLock::new(AuthDb::empty())),
+            auth_bambu: Arc::new(RwLock::new(AuthDb::empty())),
             logged_in: Arc::new(AtomicBool::new(false)),
 
             ids: Arc::new(RwLock::new(HashSet::new())),

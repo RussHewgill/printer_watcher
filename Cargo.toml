@@ -35,6 +35,13 @@ chrono = { version = "0.4.38", features = ["serde"] }
 cocoon = "0.4.1"
 dashmap = "5.5.3"
 
+tokio-tungstenite = { version = "0.21", features = [
+    "rustls",
+    "tokio-rustls",
+    "rustls-native-certs",
+    "rustls-tls-native-roots",
+] }
+
 rumqttc = { version = "0.24.0", default-features = false, features = [
     # "use-native-tls",
     "use-rustls",
@@ -49,3 +56,11 @@ regex = "1.10.4"
 # strum = { version = "0.26.2", features = ["derive"] }
 
 # notify-rust = { version = "4.11.0", features = ["async"] }
+
+iced = { version = "0.12.1", features = ["advanced", "lazy"] }
+iced_winit = "0.12.2"
+iced_wgpu = "0.12.1"
+iced_aw = { version = "0.9.3", default-features = false, features = [
+    "tabs",
+    "grid",
+] }
