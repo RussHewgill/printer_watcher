@@ -41,6 +41,7 @@ tokio-tungstenite = { version = "0.21", features = [
     "rustls-native-certs",
     "rustls-tls-native-roots",
 ] }
+async-stream = "0.3.5"
 
 rumqttc = { version = "0.24.0", default-features = false, features = [
     # "use-native-tls",

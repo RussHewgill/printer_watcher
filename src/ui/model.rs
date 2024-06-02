@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,8 @@ use crate::{
     status::GenericPrinterState,
 };
 
+use super::printer_widget::PrinterWidget;
+
 pub struct AppModel {
     pub current_tab: Tab,
 
@@ -17,9 +19,14 @@ pub struct AppModel {
     pub cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
 
     // pub stream_cmd_tx: Option<tokio::sync::mpsc::UnboundedSender<StreamCmd>>,
-    pub msg_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
+    // pub msg_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
+    pub msg_rx: Arc<std::sync::Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>>>>,
 
-    pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
+    // pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
+    pub printer_order: HashMap<GridLocation, PrinterId>,
+    pub unplaced_printers: Vec<PrinterId>,
+
+    pub printer_widgets: HashMap<PrinterId, PrinterWidget>,
 
     pub app_options: AppOptions,
 }
@@ -30,12 +37,13 @@ pub struct AppFlags {
     pub config: AppConfig,
     pub msg_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
     pub cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
-    pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
+    // pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
 }
 
 #[derive(Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct SavedAppState {
     pub current_tab: Tab,
+    pub printer_order: HashMap<GridLocation, String>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -54,6 +62,18 @@ impl Default for Tab {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct GridLocation {
+    pub col: usize,
+    pub row: usize,
+}
+
+impl GridLocation {
+    pub fn new(col: usize, row: usize) -> Self {
+        Self { col, row }
+    }
+}
+
 pub struct AppOptions {
     pub dark_mode: bool,
     pub dashboard_size: (usize, usize),
@@ -63,8 +83,8 @@ impl Default for AppOptions {
     fn default() -> Self {
         Self {
             dark_mode: false,
-            // dashboard_size: (4, 2),
-            dashboard_size: (6, 4),
+            dashboard_size: (4, 2),
+            // dashboard_size: (6, 8),
         }
     }
 }

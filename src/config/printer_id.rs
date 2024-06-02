@@ -16,6 +16,10 @@ impl PrinterId {
     pub fn inner(&self) -> &Arc<String> {
         &self.0
     }
+
+    pub fn to_string(&self) -> String {
+        self.0.to_string()
+    }
 }
 
 impl From<Arc<String>> for PrinterId {

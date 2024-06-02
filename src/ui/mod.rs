@@ -1,6 +1,12 @@
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use tracing::{debug, error, info, trace, warn};
+
+use std::{collections::HashMap, sync::Arc};
+
 use iced::{
     widget::{
         button, column, container, horizontal_space, row, scrollable, text, vertical_space, Column,
+        Row,
     },
     Alignment, Application, Color, Command, Element, Length, Theme,
 };
@@ -11,6 +17,13 @@ mod printer_widget;
 
 use message::AppMsg;
 use model::{AppFlags, AppModel};
+use printer_widget::{PrinterWidget, PrinterWidgetBambu};
+
+use crate::{
+    config::printer_config::PrinterConfig,
+    conn_manager::{worker_message::WorkerMsg, PrinterConnMsg},
+    status::GenericPrinterState,
+};
 
 impl Application for AppModel {
     type Executor = iced::executor::Default;
@@ -19,12 +32,39 @@ impl Application for AppModel {
     type Theme = Theme;
 
     fn new(flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        let printer_order = flags
+            .state
+            .printer_order
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect();
+
+        let mut printer_widgets = HashMap::new();
+
+        for printer in flags.config.printers() {
+            match printer {
+                PrinterConfig::Bambu(id, _) => {
+                    let s = GenericPrinterState::default();
+                    printer_widgets.insert(
+                        id.clone(),
+                        printer_widget::PrinterWidget::Bambu(PrinterWidgetBambu::new(s)),
+                    );
+                }
+                PrinterConfig::Klipper(_, _) => todo!(),
+                PrinterConfig::Prusa(_, _) => todo!(),
+            }
+        }
+
         let mut out = Self {
             current_tab: Default::default(),
             config: flags.config,
             cmd_tx: flags.cmd_tx,
-            msg_rx: flags.msg_rx,
-            printer_states: flags.printer_states,
+            // msg_rx: flags.msg_rx,
+            msg_rx: Arc::new(std::sync::Mutex::new(Some(flags.msg_rx))),
+            // printer_states: flags.printer_states,
+            printer_order,
+            printer_widgets,
+            unplaced_printers: vec![],
             app_options: Default::default(),
         };
 
@@ -44,129 +84,74 @@ impl Application for AppModel {
     }
 
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+        match message {
+            AppMsg::PrinterConnMsg(msg) => {
+                debug!("got msg: {:?}", msg);
+                self.handle_printer_msg(msg);
+            }
+        }
         Command::none()
     }
 
-    #[cfg(feature = "nope")]
-    fn view(&self) -> iced::Element<Self::Message> {
-        let scroll_to_end_button = || {
-            button("Scroll to end").padding(10)
-            // .on_press(Message::ScrollToEnd)
-        };
+    fn subscription(&self) -> iced::Subscription<Self::Message> {
+        // Subscription::batch(self.downloads.iter().map(Download::subscription))
+        // unimplemented!()
+        // iced::subscription::run(|_| {
+        // })
+        // iced::Subscription::none()
 
-        let scroll_to_beginning_button = || {
-            button("Scroll to beginning").padding(10)
-            // .on_press(Message::ScrollToBeginning)
-        };
+        // let rx = self.msg_rx.lock().unwrap().take().unwrap();
 
-        let content = iced::widget::scrollable(
-            //horizontal content
-            row![
-                column![
-                    text("Let's do some scrolling!"),
-                    vertical_space().height(2400)
-                ],
-                scroll_to_end_button(),
-                text("Horizontal - Beginning!"),
-                horizontal_space().width(1200),
-                //vertical content
-                column![
-                    text("Horizontal - Middle!"),
-                    scroll_to_end_button(),
-                    text("Vertical - Beginning!"),
-                    vertical_space().height(1200),
-                    text("Vertical - Middle!"),
-                    vertical_space().height(1200),
-                    text("Vertical - End!"),
-                    scroll_to_beginning_button(),
-                    vertical_space().height(40),
-                ]
-                .spacing(40),
-                horizontal_space().width(1200),
-                text("Horizontal - End!"),
-                scroll_to_beginning_button(),
-            ]
-            .align_items(Alignment::Center)
-            .padding([0, 40, 0, 40])
-            .spacing(40),
-        )
-        .direction({
-                let properties = scrollable::Properties::new()
-                    .width(10)
-                    .margin(0)
-                    .scroller_width(10)
-                    .alignment(scrollable::Alignment::Start);
+        if let Some(rx) = self.msg_rx.lock().unwrap().take() {
+            debug!("spawning subscription");
+            message::subscribe(rx)
+        } else {
+            debug!("no subscription");
+            iced::Subscription::none()
+        }
 
-                scrollable::Direction::Both {
-                    horizontal: properties,
-                    vertical: properties,
-                }
-            })
-        .width(Length::Fill)
-        .height(Length::Fill)
-        // .id(SCROLLABLE_ID.clone())
-        // .on_scroll(Message::Scrolled)
-        ;
+        // message::subscribe(rx)
 
-        container(content).padding(20).into()
+        // iced::Subscription::from_recipe(message::AppMsgRecipe { rx: rx })
+        // iced::subscription::channel("AppMsgSubscription", 25, |mut output| async move {
+        //     loop {
+        //         //
+        //     }
+        // })
     }
 
     fn view(&self) -> iced::Element<Self::Message> {
-        // let mut col = Column::new()
-        //     .spacing(20)
-        //     .align_items(iced::Alignment::Center)
-        //     .width(Length::Fill);
+        let mut cols = Column::new()
+            .spacing(4)
+            .align_items(iced::Alignment::Start)
+            // .width(Length::Fill);
+            ;
 
-        // for y in 0..self.app_options.dashboard_size.1 {
-        //     col = col.push(
-        //         // container(text(format!("Row {}", y)))
-        //         // container(row![text("1"), text("2"),])
-        //         //     .width(280.)
-        //         //     .height(150.0),
-        //         row![text("1"), text("2"),],
-        //     );
-        // }
+        for y in 0..self.app_options.dashboard_size.1 {
+            let mut row = Row::new()
+                .spacing(4)
+                // .width(Length::Fill);
+                .align_items(iced::Alignment::Start);
 
-        let printer_box = || {
-            // canvas()
-            container(text("X"))
-                .width(Length::Fixed(200.))
-                .height(Length::Fixed(300.))
-                // .style(iced::theme::Container::)
-                .style(
-                    iced::widget::container::Appearance::default()
-                        .with_background(iced::Background::Color(Color::from_rgb8(255, 0, 0)))
-                        .with_border(Color::from_rgb8(0, 255, 0), 3),
-                )
-        };
+            for x in 0..self.app_options.dashboard_size.0 {
+                let pos = model::GridLocation::new(x, y);
+                let content = if let Some(id) = self.printer_order.get(&pos) {
+                    if let Some(w) = self.printer_widgets.get(&id) {
+                        w.view()
+                    } else {
+                        text("Printer not found").into()
+                    }
+                } else {
+                    text("Empty").into()
+                };
 
-        #[rustfmt::skip]
+                row = row.push(container(content).width(280.).height(150.0));
+            }
+            cols = cols.push(row);
+        }
+
         let content = iced::widget::scrollable(
-            // col
-            // text("1"),
-            column![
-                printer_box(),
-                printer_box(),
-            ],
-            #[cfg(feature = "nope")]
-            column![
-                row![
-                    text("1"),
-                    horizontal_space().width(1200),
-                    text("2"),
-                ],
-                vertical_space().height(600),
-                row![
-                    text("3"),
-                    text("4"),
-                ],
-                vertical_space().height(600),
-                row![
-                    text("5"),
-                    text("6"),
-                ],
-                // vertical_space().height(2400)
-            ],
+            cols
         )
             .direction({
                 let properties = scrollable::Properties::new()
@@ -187,43 +172,22 @@ impl Application for AppModel {
         // container(content).padding(20).into()
         content.into()
     }
+}
 
-    #[cfg(feature = "nope")]
-    fn view(&self) -> iced::Element<Self::Message> {
-        // printer_widget::PrinterWidgetBambu::default().into()
+impl AppModel {
+    pub fn handle_printer_msg(&mut self, msg: PrinterConnMsg) {
+        match msg {
+            PrinterConnMsg::WorkerMsg(id, msg) => match msg {
+                WorkerMsg::StatusUpdate(update) => {
+                    let Some(entry) = self.printer_widgets.get_mut(&id) else {
+                        warn!("printer not found: {:?}", id);
+                        return;
+                    };
 
-        let mut column = Column::new()
-            .spacing(20)
-            .align_items(iced::Alignment::Center)
-            .width(Length::Fill);
-
-        for y in 0..self.app_options.dashboard_size.1 {
-            // column = column.push(text(format!("Row {}", y)));
-            column = column.push(container(text("X")).width(280.).height(150.0));
+                    entry.update(update);
+                }
+                _ => unimplemented!(),
+            },
         }
-
-        let properties = scrollable::Properties::new()
-            .width(10)
-            .margin(0)
-            .scroller_width(10)
-            .alignment(scrollable::Alignment::Start);
-
-        scrollable(container(column))
-            .direction(scrollable::Direction::Both {
-                vertical: properties,
-                horizontal: properties,
-            })
-            // .direction(scrollable::Direction::Vertical(
-            //     scrollable::Properties::new(),
-            // ))
-            .height(250.0)
-            .width(300.0)
-            .into()
-        // container(column)
-        //     // .width(Length::Fill)
-        //     // .height(Length::Fill)
-        //     // .center_x()
-        //     // .center_y()
-        //     .into()
     }
 }

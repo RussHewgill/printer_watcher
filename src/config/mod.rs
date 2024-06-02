@@ -92,6 +92,17 @@ impl AppConfig {
         Ok(())
     }
 
+    pub fn add_printer_blocking(&self, config: PrinterConfig) -> Result<()> {
+        let id = config.id();
+        let mut ids = self.ids.blocking_write();
+        if ids.contains(&id) {
+            bail!("printer already exists");
+        }
+        ids.insert(id.clone());
+        self.printers.insert(id, config);
+        Ok(())
+    }
+
     // pub fn printer_ids(&self) -> Vec<PrinterId> {
     //     self.ids.blocking_read().iter().cloned().collect()
     // }
