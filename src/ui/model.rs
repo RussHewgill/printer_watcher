@@ -20,7 +20,7 @@ pub struct AppModel {
 
     // pub stream_cmd_tx: Option<tokio::sync::mpsc::UnboundedSender<StreamCmd>>,
     // pub msg_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
-    pub msg_rx: Arc<std::sync::Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>>>>,
+    pub msg_rx: Arc<tokio::sync::Mutex<tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>>>,
 
     // pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
     pub printer_order: HashMap<GridLocation, PrinterId>,

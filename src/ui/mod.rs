@@ -60,7 +60,7 @@ impl Application for AppModel {
             config: flags.config,
             cmd_tx: flags.cmd_tx,
             // msg_rx: flags.msg_rx,
-            msg_rx: Arc::new(std::sync::Mutex::new(Some(flags.msg_rx))),
+            msg_rx: Arc::new(tokio::sync::Mutex::new(flags.msg_rx)),
             // printer_states: flags.printer_states,
             printer_order,
             printer_widgets,
@@ -102,22 +102,45 @@ impl Application for AppModel {
 
         // let rx = self.msg_rx.lock().unwrap().take().unwrap();
 
-        if let Some(rx) = self.msg_rx.lock().unwrap().take() {
-            debug!("spawning subscription");
-            message::subscribe(rx)
-        } else {
-            debug!("no subscription");
-            iced::Subscription::none()
-        }
+        // if let Some(rx) = self.msg_rx.lock().unwrap().take() {
+        //     debug!("spawning subscription");
+        //     message::subscribe(rx)
+        // } else {
+        //     debug!("no subscription");
+        //     iced::Subscription::none()
+        // }
 
-        // message::subscribe(rx)
+        // message::subscribe(&self.msg_rx)
+        // unimplemented!()
+
+        struct Listener;
+
+        let rx = self.msg_rx.clone();
 
         // iced::Subscription::from_recipe(message::AppMsgRecipe { rx: rx })
-        // iced::subscription::channel("AppMsgSubscription", 25, |mut output| async move {
-        //     loop {
-        //         //
-        //     }
-        // })
+        iced::subscription::channel(
+            std::any::TypeId::of::<Listener>(),
+            25,
+            |mut output| async move {
+                loop {
+                    let mut rx = rx.lock().await;
+                    match rx.recv().await {
+                        Some(msg) => {
+                            if let Err(e) =
+                                futures::SinkExt::send(&mut output, AppMsg::PrinterConnMsg(msg))
+                                    .await
+                            {
+                                error!("error sending message: {:?}", e);
+                            }
+                        }
+                        None => {
+                            error!("no message");
+                        }
+                    }
+                    //
+                }
+            },
+        )
     }
 
     fn view(&self) -> iced::Element<Self::Message> {

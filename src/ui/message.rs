@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
@@ -9,6 +11,35 @@ pub enum AppMsg {
     //
 }
 
+// enum State {
+//     Starting,
+//     Ready(mpsc::Receiver<PrinterConnMsg>),
+// }
+
+// fn some_worker() -> Subscription<Event> {
+//     struct SomeWorker;
+
+pub fn subscribe(
+    rx: &Arc<std::sync::Mutex<tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>>>,
+) -> iced::Subscription<AppMsg> {
+    debug!("subscribing to printer connection messages");
+    // iced::Subscription::from_recipe(subscribe())
+
+    struct Connect;
+
+    // subscription::channel(
+    //     std::any::TypeId::of::<Connect>(),
+    //     100,
+    //     |mut output| async move {
+    //         loop {
+    //             //
+    //         }
+    //     },
+    // )
+    unimplemented!()
+}
+
+#[cfg(feature = "nope")]
 pub fn subscribe(
     mut rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
 ) -> iced::Subscription<AppMsg> {
