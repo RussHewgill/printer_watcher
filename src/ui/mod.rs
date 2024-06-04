@@ -11,13 +11,16 @@ use iced::{
     Alignment, Application, Color, Command, Element, Length, Theme,
 };
 
+pub mod dashboard;
+pub mod icons;
 pub mod message;
 pub mod model;
+pub mod options;
 mod printer_widget;
 
 use message::AppMsg;
-use model::{AppFlags, AppModel};
-use printer_widget::{PrinterWidget, PrinterWidgetBambu};
+use model::{AppFlags, AppModel, AppOptions, Tab};
+use printer_widget::{PrinterWidget, PrinterWidgetBambu, PRINTER_WIDGET_SIZE};
 
 use crate::{
     config::printer_config::PrinterConfig,
@@ -43,11 +46,11 @@ impl Application for AppModel {
 
         for printer in flags.config.printers() {
             match printer {
-                PrinterConfig::Bambu(id, _) => {
+                PrinterConfig::Bambu(id, config) => {
                     let s = GenericPrinterState::default();
                     printer_widgets.insert(
                         id.clone(),
-                        printer_widget::PrinterWidget::Bambu(PrinterWidgetBambu::new(s)),
+                        printer_widget::PrinterWidget::Bambu(PrinterWidgetBambu::new(config, s)),
                     );
                 }
                 PrinterConfig::Klipper(_, _) => todo!(),
@@ -56,7 +59,7 @@ impl Application for AppModel {
         }
 
         let mut out = Self {
-            current_tab: Default::default(),
+            current_tab: Tab::default(),
             config: flags.config,
             cmd_tx: flags.cmd_tx,
             // msg_rx: flags.msg_rx,
@@ -64,8 +67,9 @@ impl Application for AppModel {
             // printer_states: flags.printer_states,
             printer_order,
             printer_widgets,
+            dragged_printer: None,
             unplaced_printers: vec![],
-            app_options: Default::default(),
+            app_options: AppOptions::default(),
         };
 
         (out, iced::Command::none())
@@ -89,6 +93,7 @@ impl Application for AppModel {
                 // debug!("got msg: {:?}", msg);
                 self.handle_printer_msg(msg);
             }
+            AppMsg::SwitchTab(t) => self.current_tab = t,
         }
         Command::none()
     }
@@ -144,56 +149,25 @@ impl Application for AppModel {
     }
 
     fn view(&self) -> iced::Element<Self::Message> {
-        let mut cols = Column::new()
-            .spacing(4)
-            .align_items(iced::Alignment::Start)
-            // .width(Length::Fill);
-            ;
+        iced_aw::Tabs::new(AppMsg::SwitchTab)
+            .push(
+                Tab::Dashboard,
+                iced_aw::TabLabel::Text("Dashboard".to_string()),
+                self.show_dashboard(),
+            )
+            .push(
+                Tab::Options,
+                iced_aw::TabLabel::Text("Options".to_string()),
+                self.show_options(),
+            )
+            .set_active_tab(&self.current_tab)
+            .into()
 
-        for y in 0..self.app_options.dashboard_size.1 {
-            let mut row = Row::new()
-                .spacing(4)
-                // .width(Length::Fill);
-                .align_items(iced::Alignment::Start);
+        // text("wat").into()
 
-            for x in 0..self.app_options.dashboard_size.0 {
-                let pos = model::GridLocation::new(x, y);
-                let content = if let Some(id) = self.printer_order.get(&pos) {
-                    if let Some(w) = self.printer_widgets.get(&id) {
-                        w.view()
-                    } else {
-                        text("Printer not found").into()
-                    }
-                } else {
-                    text("Empty").into()
-                };
-
-                row = row.push(container(content).width(280.).height(150.0));
-            }
-            cols = cols.push(row);
-        }
-
-        let content = iced::widget::scrollable(
-            cols
-        )
-            .direction({
-                let properties = scrollable::Properties::new()
-                    .width(10)
-                    .margin(0)
-                    .scroller_width(10)
-                    .alignment(scrollable::Alignment::Start);
-
-                scrollable::Direction::Both {
-                    horizontal: properties,
-                    vertical: properties,
-                }
-            })
-            // .width(Length::Fill)
-            // .height(Length::Fill)
-            ;
-
-        // container(content).padding(20).into()
-        content.into()
+        // match self.current_tab {
+        // }
+        // unimplemented!()
     }
 }
 

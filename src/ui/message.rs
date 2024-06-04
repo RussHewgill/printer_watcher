@@ -5,8 +5,11 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::conn_manager::PrinterConnMsg;
 
+use super::model::Tab;
+
 #[derive(Debug, Clone)]
 pub enum AppMsg {
+    SwitchTab(Tab),
     PrinterConnMsg(PrinterConnMsg),
     //
 }

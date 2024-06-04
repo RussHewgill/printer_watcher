@@ -25,6 +25,7 @@ pub struct AppModel {
     // pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
     pub printer_order: HashMap<GridLocation, PrinterId>,
     pub unplaced_printers: Vec<PrinterId>,
+    pub dragged_printer: Option<PrinterId>,
 
     pub printer_widgets: HashMap<PrinterId, PrinterWidget>,
 
@@ -46,7 +47,7 @@ pub struct SavedAppState {
     pub printer_order: HashMap<GridLocation, String>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Tab {
     Dashboard,
     Graphs,

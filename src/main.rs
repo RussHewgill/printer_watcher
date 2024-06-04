@@ -80,6 +80,7 @@ fn main() -> Result<()> {
     let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnMsg>();
     // let printer_states = Arc::new(dashmap::DashMap::new());
 
+    debug!("spawning tokio runtime");
     let configs2 = config.clone();
     let cmd_tx2 = cmd_tx.clone();
     std::thread::spawn(|| {
