@@ -86,7 +86,7 @@ impl Application for AppModel {
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
         match message {
             AppMsg::PrinterConnMsg(msg) => {
-                debug!("got msg: {:?}", msg);
+                // debug!("got msg: {:?}", msg);
                 self.handle_printer_msg(msg);
             }
         }

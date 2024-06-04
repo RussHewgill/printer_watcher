@@ -39,6 +39,22 @@ impl PrinterWidgetBambu {
     }
 
     pub fn view(&self) -> Element<'_, AppMsg> {
+        let content = text("test");
+
+        container(content)
+            .width(Length::Fixed(200.))
+            .height(Length::Fixed(300.))
+            .padding(10)
+            .style(
+                iced::widget::container::Appearance::default()
+                    .with_background(iced::Background::Color(Color::from_rgb8(255, 0, 0)))
+                    .with_border(Color::from_rgb8(0, 255, 0), 3),
+            )
+            .into()
+    }
+
+    #[cfg(feature = "nope")]
+    pub fn view(&self) -> Element<'_, AppMsg> {
         let content = column![
             text(&format!("Bambu Printer")),
             text(&format!("State: {:?}", self.printer_state.state)),
@@ -63,50 +79,5 @@ impl PrinterWidgetBambu {
                     .with_border(Color::from_rgb8(0, 255, 0), 3),
             )
             .into()
-    }
-}
-
-#[cfg(feature = "nope")]
-impl<Message, Theme, R> Widget<Message, Theme, R> for PrinterWidgetBambu
-where
-    R: iced::advanced::renderer::Renderer,
-{
-    fn size(&self) -> iced::Size<iced::Length> {
-        Size {
-            width: Length::Shrink,
-            height: Length::Shrink,
-        }
-    }
-
-    fn layout(
-        &self,
-        tree: &mut iced::advanced::widget::Tree,
-        renderer: &R,
-        limits: &iced::advanced::layout::Limits,
-    ) -> iced::advanced::layout::Node {
-        iced::advanced::layout::Node::new(Size::new(250., 340.))
-    }
-
-    fn draw(
-        &self,
-        tree: &iced::advanced::widget::Tree,
-        renderer: &mut R,
-        theme: &Theme,
-        style: &iced::advanced::renderer::Style,
-        layout: iced::advanced::Layout<'_>,
-        cursor: iced::advanced::mouse::Cursor,
-        viewport: &iced::Rectangle,
-    ) {
-        unimplemented!()
-    }
-}
-
-#[cfg(feature = "nope")]
-impl<'a, Message, Theme, R> From<PrinterWidgetBambu> for Element<'a, Message, Theme, R>
-where
-    R: iced::advanced::renderer::Renderer,
-{
-    fn from(w: PrinterWidgetBambu) -> Self {
-        Element::new(w)
     }
 }

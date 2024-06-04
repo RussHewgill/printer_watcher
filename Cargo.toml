@@ -58,7 +58,7 @@ regex = "1.10.4"
 
 # notify-rust = { version = "4.11.0", features = ["async"] }
 
-iced = { version = "0.12.1", features = ["advanced", "lazy"] }
+iced = { version = "0.12.1", features = ["advanced", "lazy", "image"] }
 iced_winit = "0.12.2"
 iced_wgpu = "0.12.1"
 iced_aw = { version = "0.9.3", default-features = false, features = [

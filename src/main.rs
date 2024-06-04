@@ -8,6 +8,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod auth;
+pub mod camera;
 pub mod config;
 pub mod conn_manager;
 pub mod logging;
