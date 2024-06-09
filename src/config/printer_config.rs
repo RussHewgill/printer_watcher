@@ -84,5 +84,7 @@ impl PrinterConfigKlipper {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigPrusa {
-    //
+    name: String,
+    host: String,
+    key: String,
 }

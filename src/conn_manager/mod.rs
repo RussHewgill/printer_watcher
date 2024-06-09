@@ -1,5 +1,6 @@
 pub mod conn_bambu;
 pub mod conn_klipper;
+pub mod conn_prusa;
 pub mod worker_message;
 
 use std::{collections::HashMap, sync::Arc};
@@ -174,7 +175,9 @@ impl PrinterConnManager {
                     }
                 });
             }
-            _ => todo!(),
+            PrinterConfig::Prusa(_, printer) => {
+                unimplemented!()
+            }
         }
 
         Ok(())

@@ -8,19 +8,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod auth;
-pub mod camera;
+// pub mod camera;
 pub mod config;
 pub mod conn_manager;
 pub mod logging;
 pub mod status;
 pub mod ui;
+// pub mod ui;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use config::printer_id::PrinterId;
-use iced::Settings;
 use tracing::{debug, error, info, trace, warn};
-use ui::model::SavedAppState;
 
+// use iced::Settings;
 use std::{env, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -28,21 +27,23 @@ use crate::{
     config::{printer_config::PrinterConfig, AppConfig},
     conn_manager::{PrinterConnCmd, PrinterConnMsg},
 };
+use config::printer_id::PrinterId;
+// use ui::model::SavedAppState;
 
-fn main() -> Result<()> {
-    dotenvy::dotenv()?;
+fn main() -> eframe::Result<()> {
+    let _ = dotenvy::dotenv();
     logging::init_logs();
 
     let mut config = AppConfig::empty();
-    let mut printer_order = std::collections::HashMap::new();
+    // let mut printer_order = std::collections::HashMap::new();
 
     /// add bambu
     // #[cfg(feature = "nope")]
     {
-        let host = env::var("BAMBU_IP")?;
-        let access_code = env::var("BAMBU_ACCESS_CODE")?;
-        let serial = env::var("BAMBU_IDENT")?;
-        let id = env::var("BAMBU_ID")?;
+        let host = env::var("BAMBU_IP").unwrap();
+        let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
+        let serial = env::var("BAMBU_IDENT").unwrap();
+        let id = env::var("BAMBU_ID").unwrap();
         let id: PrinterId = id.into();
 
         let printer = config::printer_config::PrinterConfigBambu::from_id(
@@ -54,8 +55,8 @@ fn main() -> Result<()> {
         );
         let printer = PrinterConfig::Bambu(id.clone(), Arc::new(RwLock::new(printer)));
 
-        config.add_printer_blocking(printer.clone())?;
-        printer_order.insert(ui::model::GridLocation::new(0, 0), id.to_string());
+        config.add_printer_blocking(printer.clone()).unwrap();
+        // printer_order.insert(ui::model::GridLocation::new(0, 0), id.to_string());
     }
 
     /// add klipper
@@ -101,40 +102,33 @@ fn main() -> Result<()> {
         });
     });
 
-    /// start UI
-    // #[cfg(feature = "nope")]
-    {
-        let state = SavedAppState {
-            current_tab: Default::default(),
-            printer_order,
-        };
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            // .with_icon(icon)
+            .with_inner_size([850.0, 750.0])
+            .with_min_inner_size([550.0, 400.0]),
+        ..Default::default()
+    };
 
-        let flags = ui::model::AppFlags {
-            state,
-            config,
-            cmd_tx,
-            msg_rx,
-            // printer_states,
-        };
-
-        let flags = iced::Settings::with_flags(flags);
-
-        <crate::ui::model::AppModel as iced::Application>::run(flags)?;
-    }
-
-    // let rt = tokio::runtime::Runtime::new().unwrap();
-    // rt.block_on(async move {
-    //     loop {
-    //         if let Some(msg) = msg_rx.recv().await {
-    //             debug!("msg: {:?}", msg);
-    //             //
-    //         } else {
-    //             panic!("msg_rx closed");
-    //         }
-    //     }
-    // });
-
-    Ok(())
+    eframe::run_native(
+        "Bambu Watcher",
+        native_options,
+        Box::new(move |cc| {
+            //     Box::new(ui::ui_types::App::new(
+            //         // // tray_c,
+            //         // printer_states,
+            //         // config,
+            //         // cc,
+            //         // // alert_tx,
+            //         // cmd_tx,
+            //         // msg_rx,
+            //         // stream_cmd_tx,
+            //         // handles,
+            //         // graphs,
+            //     ))
+            unimplemented!()
+        }),
+    )
 }
 
 /// klipper test
