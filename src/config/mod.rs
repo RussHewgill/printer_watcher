@@ -120,8 +120,8 @@ impl AppConfig {
         self.printers.iter().map(|v| v.value().clone()).collect()
     }
 
-    pub fn get_printer(&self, serial: &PrinterId) -> Option<PrinterConfig> {
-        self.printers.get(serial).map(|v| v.value().clone())
+    pub fn get_printer(&self, id: &PrinterId) -> Option<PrinterConfig> {
+        self.printers.get(id).map(|v| v.value().clone())
     }
 
     // pub fn printers(&self) -> Vec<Arc<RwLock<PrinterConfig>>> {

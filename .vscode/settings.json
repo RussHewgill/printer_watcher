@@ -2,7 +2,12 @@
     "cmake.configureOnOpen": false,
     "rust-analyzer.showUnlinkedFileNotification": false,
     "rust-analyzer.server.extraEnv": {
-        "CARGO_TARGET_DIR": "target/analyzer"
+        "CARGO_TARGET_DIR": "target/analyzer",
+        "PATH": "${env:PATH};C:\\Program Files\\NASM;C:\\Program Files\\CMake\\bin",
+        "LIBCLANG_PATH": "Q:\\Software\\LLVM\\bin",
+        "OPENSSL_DIR": "Q:\\code\\~repos\\vcpkg\\installed\\x64-windows-static",
+        "VCPKG_ROOT": "Q:\\code\\~repos\\vcpkg",
+        "VCPKGRS_DYNAMIC": "1",
     },
     "rust-analyzer.check.extraArgs": [
         "--target-dir=target/analyzer"

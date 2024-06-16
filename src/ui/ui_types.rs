@@ -27,3 +27,22 @@ impl GridLocation {
         Self { col, row }
     }
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct AppOptions {
+    // pub dark_mode: bool,
+    pub dashboard_size: (usize, usize),
+    // pub selected_printer: Option<PrinterId>,
+    // pub selected_printer_cfg: Option<NewPrinterEntry>,
+}
+
+impl Default for AppOptions {
+    fn default() -> Self {
+        Self {
+            // dark_mode: false,
+            dashboard_size: (4, 2),
+            // selected_printer: None,
+            // selected_printer_cfg: None,
+        }
+    }
+}

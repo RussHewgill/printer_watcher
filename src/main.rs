@@ -30,6 +30,62 @@ use crate::{
 use config::printer_id::PrinterId;
 // use ui::model::SavedAppState;
 
+// #[cfg(feature = "nope")]
+#[tokio::main]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    let host = env::var("PRUSA_CONNECT_HOST")?;
+    // let host = "https://connect.prusa3d.com".to_string();
+    // let key = env::var("PRUSA_CONNECT_KEY")?;
+    // let token = env::var("PRUSA_CONNECT_TOKEN")?;
+    // let serial = env::var("PRUSA_SERIAL")?;
+
+    let key = env::var("PRUSA_LINK_KEY")?;
+
+    // let printer = config::printer_config::PrinterConfigPrusa {
+    //     name: "test_printer".to_string(),
+    //     host: host.clone(),
+    //     key,
+    //     serial,
+    //     token,
+    // };
+
+    const URL_VERSION: &'static str = "api/version";
+    const URL_INFO: &'static str = "api/v1/info";
+    const URL_STATUS: &'static str = "api/v1/status";
+    const URL_JOB: &'static str = "api/v1/job";
+
+    // let client = conn_manager::conn_prusa::PrusaClient::new(Arc::new(RwLock::new(printer)))?;
+
+    // client.get_info().await?;
+
+    // let url = format!("https://{}:443/{}", host, URL_INFO);
+    let url = format!("http://{}/{}", host, URL_INFO);
+
+    let client = reqwest::ClientBuilder::new()
+        .use_rustls_tls()
+        .danger_accept_invalid_certs(true)
+        .build()?;
+    let res = client
+        .get(&url)
+        // .header("Authorization", &format!("Bearer {}", token.get_token()))
+        // .header("Content-Type", "application/json")
+        .header("X-Api-Key", key)
+        .send()
+        .await?;
+
+    // let text: serde_json::Value = res.json().await?;
+    let text = res.text().await?;
+
+    debug!("text = {:#?}", text);
+
+    Ok(())
+}
+
+/// MARK: Main
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -114,19 +170,13 @@ fn main() -> eframe::Result<()> {
         "Bambu Watcher",
         native_options,
         Box::new(move |cc| {
-            //     Box::new(ui::ui_types::App::new(
-            //         // // tray_c,
-            //         // printer_states,
-            //         // config,
-            //         // cc,
-            //         // // alert_tx,
-            //         // cmd_tx,
-            //         // msg_rx,
-            //         // stream_cmd_tx,
-            //         // handles,
-            //         // graphs,
-            //     ))
-            unimplemented!()
+            Box::new(ui::app::App::new(
+                cc, config, cmd_tx,
+                msg_rx,
+                // stream_cmd_tx,
+                // handles,
+                // graphs,
+            ))
         }),
     )
 }

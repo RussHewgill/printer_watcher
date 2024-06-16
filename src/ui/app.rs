@@ -11,7 +11,7 @@ use crate::{
     conn_manager::{PrinterConnCmd, PrinterConnMsg},
 };
 
-use super::ui_types::{GridLocation, Tab};
+use super::ui_types::{AppOptions, GridLocation, Tab};
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -39,9 +39,7 @@ pub struct App {
     pub selected_stream: Option<PrinterId>,
     // #[serde(skip)]
     // pub printer_config_page: PrinterConfigPage,
-
-    // pub options: AppOptions,
-
+    pub options: AppOptions,
     // #[serde(skip)]
     // pub login_window: Option<AppLogin>,
 
@@ -97,5 +95,75 @@ impl App {
         }
 
         out
+    }
+}
+
+/// MARK: App
+impl eframe::App for App {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // self.read_channels();
+
+        if cfg!(debug_assertions) && ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.current_tab, Tab::Dashboard, "Dashboard");
+                // ui.selectable_value(&mut self.current_tab, Tab::Graphs, "Graphs");
+                // ui.selectable_value(&mut self.current_tab, Tab::Printers, "Printers");
+                // ui.selectable_value(&mut self.current_tab, Tab::Projects, "Projects");
+                ui.selectable_value(&mut self.current_tab, Tab::Options, "Options");
+            });
+        });
+
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.label("bottom");
+        });
+
+        match self.current_tab {
+            Tab::Dashboard => {
+                if let Some(id) = self.selected_stream.as_ref() {
+                    // self.show_stream(ctx, id.clone());
+                    let id = id.clone();
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        // self.show_fullscreen_printer(ui, id);
+                        unimplemented!()
+                    });
+                } else {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        egui::containers::ScrollArea::both()
+                            .auto_shrink(false)
+                            .show(ui, |ui| {
+                                self.show_dashboard(ui);
+                            });
+                    });
+                }
+            }
+            Tab::Graphs => {
+                // egui::CentralPanel::default().show(ctx, |ui| {
+                //     self.show_graphs(ui);
+                // });
+                unimplemented!()
+            }
+            Tab::Projects => {
+                // self.show_project_view(ctx);
+                unimplemented!()
+            }
+            Tab::Printers => {
+                // self.show_printers_config(ctx);
+                unimplemented!()
+            }
+            Tab::Options => {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    // self.show_options(ui);
+                    unimplemented!()
+                });
+            }
+        }
     }
 }
