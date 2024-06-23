@@ -38,19 +38,19 @@ async fn main() -> Result<()> {
 
     let host = env::var("PRUSA_CONNECT_HOST")?;
     // let host = "https://connect.prusa3d.com".to_string();
-    // let key = env::var("PRUSA_CONNECT_KEY")?;
-    // let token = env::var("PRUSA_CONNECT_TOKEN")?;
-    // let serial = env::var("PRUSA_SERIAL")?;
+    // let connect_key = env::var("PRUSA_CONNECT_KEY")?;
+    let token = env::var("PRUSA_CONNECT_TOKEN")?;
+    let serial = env::var("PRUSA_SERIAL")?;
 
-    let key = env::var("PRUSA_LINK_KEY")?;
+    let link_key = env::var("PRUSA_LINK_KEY")?;
 
-    // let printer = config::printer_config::PrinterConfigPrusa {
-    //     name: "test_printer".to_string(),
-    //     host: host.clone(),
-    //     key,
-    //     serial,
-    //     token,
-    // };
+    let printer = config::printer_config::PrinterConfigPrusa {
+        name: "test_printer".to_string(),
+        host: host.clone(),
+        key: link_key,
+        serial,
+        token,
+    };
 
     const URL_VERSION: &'static str = "api/version";
     const URL_INFO: &'static str = "api/v1/info";
@@ -58,28 +58,31 @@ async fn main() -> Result<()> {
     const URL_JOB: &'static str = "api/v1/job";
 
     // let client = conn_manager::conn_prusa::PrusaClient::new(Arc::new(RwLock::new(printer)))?;
+    let client = conn_manager::conn_prusa::prusa_local::PrusaClientLocal::new(Arc::new(
+        RwLock::new(printer),
+    ))?;
 
-    // client.get_info().await?;
+    client.get_info().await?;
 
-    // let url = format!("https://{}:443/{}", host, URL_INFO);
-    let url = format!("http://{}/{}", host, URL_INFO);
+    // // let url = format!("https://{}:443/{}", host, URL_INFO);
+    // let url = format!("http://{}/{}", host, URL_STATUS);
 
-    let client = reqwest::ClientBuilder::new()
-        .use_rustls_tls()
-        .danger_accept_invalid_certs(true)
-        .build()?;
-    let res = client
-        .get(&url)
-        // .header("Authorization", &format!("Bearer {}", token.get_token()))
-        // .header("Content-Type", "application/json")
-        .header("X-Api-Key", key)
-        .send()
-        .await?;
+    // let client = reqwest::ClientBuilder::new()
+    //     .use_rustls_tls()
+    //     .danger_accept_invalid_certs(true)
+    //     .build()?;
+    // let res = client
+    //     .get(&url)
+    //     // .header("Authorization", &format!("Bearer {}", token.get_token()))
+    //     // .header("Content-Type", "application/json")
+    //     .header("X-Api-Key", key)
+    //     .send()
+    //     .await?;
 
     // let text: serde_json::Value = res.json().await?;
-    let text = res.text().await?;
+    // // let text = res.text().await?;
 
-    debug!("text = {:#?}", text);
+    // debug!("text = {:#?}", text);
 
     Ok(())
 }
