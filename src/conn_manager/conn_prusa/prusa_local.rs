@@ -33,6 +33,25 @@ impl PrusaClientLocal {
 }
 
 impl PrusaClientLocal {
+    async fn set_headers(&self, req: RequestBuilder) -> Result<RequestBuilder> {
+        let printer = self.printer_cfg.read().await;
+
+        let timestamp = chrono::Utc::now().timestamp();
+
+        let req = req
+            // .header("timestamp", &format!("{}", timestamp))
+            // .header("Token", &printer.token)
+            .header("X-Api-Key", &printer.key)
+            // .header("User-Agent", "printer_watcher")
+            // .header("User-Agent-Printer", "")
+            // .header("User-Agent-Version", "")
+            ;
+
+        Ok(req)
+    }
+}
+
+impl PrusaClientLocal {
     pub async fn get_info(&self) -> Result<()> {
         let printer = self.printer_cfg.read().await;
 
@@ -40,7 +59,7 @@ impl PrusaClientLocal {
         debug!("url: {}", url);
         let req = self.client.get(&url);
 
-        // let req = self.set_headers(req).await?;
+        let req = self.set_headers(req).await?;
         let resp = req.send().await?;
 
         let status = resp.status();
