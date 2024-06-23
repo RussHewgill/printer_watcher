@@ -1,3 +1,6 @@
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use tracing::{debug, error, info, trace, warn};
+
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -9,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     config::{printer_id::PrinterId, AppConfig},
     conn_manager::{PrinterConnCmd, PrinterConnMsg},
+    status::GenericPrinterState,
 };
 
 use super::ui_types::{AppOptions, GridLocation, Tab};
@@ -29,8 +33,9 @@ pub struct App {
     #[serde(skip)]
     pub msg_rx: Option<tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>>,
 
-    // #[serde(skip)]
-    // pub printer_states: Arc<DashMap<PrinterId, PrinterStatus>>,
+    #[serde(skip)]
+    pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
+
     pub printer_order: HashMap<GridLocation, PrinterId>,
     #[serde(skip)]
     pub unplaced_printers: Vec<PrinterId>,
@@ -50,10 +55,12 @@ pub struct App {
     // pub printer_textures: Arc<DashMap<PrinterId, WebcamTexture>>,
 }
 
+/// new
 impl App {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         config: AppConfig,
+        printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
         cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
         msg_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
     ) -> Self {
@@ -65,14 +72,17 @@ impl App {
             Self::default()
         };
 
-        // out.printer_states = printer_states;
         out.config = config;
+        out.printer_states = printer_states;
 
         out.cmd_tx = Some(cmd_tx);
         out.msg_rx = Some(msg_rx);
         // out.stream_cmd_tx = Some(stream_cmd_tx);
 
         out.unplaced_printers = out.config.printer_ids();
+
+        debug!("unplaced_printers: {:?}", out.unplaced_printers);
+
         /// for each printer that isn't in printer_order, queue to add
         for (_, id) in out.printer_order.iter() {
             out.unplaced_printers.retain(|p| p != id);
@@ -98,6 +108,33 @@ impl App {
     }
 }
 
+/// sync
+impl App {
+    fn read_channels(&mut self) {
+        let rx = self.msg_rx.as_mut().unwrap();
+
+        let msg = match rx.try_recv() {
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty) => return,
+            Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
+                error!("Disconnected from printer connection manager");
+                return;
+            }
+            Ok(msg) => msg,
+        };
+
+        match msg {
+            // PrinterConnMsg::WorkerMsg(_) => {}
+            // PrinterConnMsg::LoggedIn => {}
+            // PrinterConnMsg::SyncedProjects(projects) => {
+            //     self.projects = projects;
+            // }
+            _ => {
+                warn!("unhandled message: {:?}", msg);
+            }
+        }
+    }
+}
+
 /// MARK: App
 impl eframe::App for App {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -105,7 +142,7 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // self.read_channels();
+        self.read_channels();
 
         if cfg!(debug_assertions) && ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);

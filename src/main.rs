@@ -17,6 +17,8 @@ pub mod ui;
 // pub mod ui;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use dashmap::DashMap;
+use status::GenericPrinterState;
 use tracing::{debug, error, info, trace, warn};
 
 // use iced::Settings;
@@ -30,8 +32,8 @@ use crate::{
 use config::printer_id::PrinterId;
 // use ui::model::SavedAppState;
 
-// #[cfg(feature = "nope")]
-#[tokio::main]
+#[cfg(feature = "nope")]
+// #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -62,7 +64,11 @@ async fn main() -> Result<()> {
         RwLock::new(printer),
     ))?;
 
-    client.get_info().await?;
+    // let resp: serde_json::Value = client.get_response("api/v1/status").await?;
+    // debug!("resp = {}", serde_json::to_string_pretty(&resp).unwrap());
+
+    let resp = client.get_job().await?;
+    debug!("resp = {:#?}", resp);
 
     // // let url = format!("https://{}:443/{}", host, URL_INFO);
     // let url = format!("http://{}/{}", host, URL_STATUS);
@@ -88,7 +94,7 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -97,7 +103,7 @@ fn main() -> eframe::Result<()> {
     // let mut printer_order = std::collections::HashMap::new();
 
     /// add bambu
-    // #[cfg(feature = "nope")]
+    #[cfg(feature = "nope")]
     {
         let host = env::var("BAMBU_IP").unwrap();
         let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
@@ -121,8 +127,8 @@ fn main() -> eframe::Result<()> {
     /// add klipper
     #[cfg(feature = "nope")]
     {
-        let host = env::var("KLIPPER_HOST")?;
-        let id = env::var("KLIPPER_ID")?;
+        let host = env::var("KLIPPER_HOST").unwrap();
+        let id = env::var("KLIPPER_ID").unwrap();
         let id: PrinterId = id.into();
 
         let printer = config::printer_config::PrinterConfigKlipper::from_id(
@@ -136,9 +142,38 @@ fn main() -> eframe::Result<()> {
         printer_order.insert(ui::model::GridLocation::new(1, 0), id.to_string());
     }
 
+    /// add prusa
+    // #[cfg(feature = "nope")]
+    {
+        let host = env::var("PRUSA_CONNECT_HOST").unwrap();
+        let token = env::var("PRUSA_CONNECT_TOKEN").unwrap();
+        let serial = env::var("PRUSA_SERIAL").unwrap();
+
+        let id = env::var("PRUSA_IDENT").unwrap();
+        let id: PrinterId = id.into();
+
+        let link_key = env::var("PRUSA_LINK_KEY").unwrap();
+
+        let printer = config::printer_config::PrinterConfigPrusa {
+            id: id.clone(),
+            name: "test_printer".to_string(),
+            host,
+            key: link_key,
+            serial,
+            token,
+        };
+
+        let printer = PrinterConfig::Prusa(id.clone(), Arc::new(RwLock::new(printer)));
+        // printer_order.insert(ui::model::GridLocation::new(1, 0), id.to_string());
+        config.add_printer_blocking(printer).unwrap();
+    }
+
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnCmd>();
     let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnMsg>();
     // let printer_states = Arc::new(dashmap::DashMap::new());
+
+    let printer_states: Arc<DashMap<PrinterId, GenericPrinterState>> = Arc::new(DashMap::new());
+    let printer_states2 = printer_states.clone();
 
     debug!("spawning tokio runtime");
     let configs2 = config.clone();
@@ -146,8 +181,14 @@ fn main() -> eframe::Result<()> {
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
-            let mut conn =
-                conn_manager::PrinterConnManager::new(configs2, cmd_tx2, cmd_rx, msg_tx).await;
+            let mut conn = conn_manager::PrinterConnManager::new(
+                configs2,
+                printer_states2,
+                cmd_tx2,
+                cmd_rx,
+                msg_tx,
+            )
+            .await;
             debug!("starting conn manager");
 
             conn.init().await.unwrap();
@@ -174,7 +215,10 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(move |cc| {
             Box::new(ui::app::App::new(
-                cc, config, cmd_tx,
+                cc,
+                config,
+                printer_states,
+                cmd_tx,
                 msg_rx,
                 // stream_cmd_tx,
                 // handles,

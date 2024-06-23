@@ -3,6 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[derive(Debug, Clone)]
 pub enum PrinterState {
     Idle,
+    Busy,
     Printing,
     Paused,
     Error,
@@ -12,6 +13,21 @@ pub enum PrinterState {
 impl Default for PrinterState {
     fn default() -> Self {
         PrinterState::Disconnected
+    }
+}
+
+impl PrinterState {
+    pub fn to_text(&self) -> &'static str {
+        match self {
+            PrinterState::Idle => "Idle",
+            // PrinterState::Finished => "Finished",
+            PrinterState::Busy => "Busy",
+            PrinterState::Printing => "Printing",
+            PrinterState::Error => "Error",
+            PrinterState::Paused => "Paused",
+            PrinterState::Disconnected => "Disconnected",
+            // PrinterState::Unknown(s) => "Unknown",
+        }
     }
 }
 
@@ -52,7 +68,7 @@ impl GenericPrinterState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct GenericPrinterStateUpdate {
     pub state: Option<PrinterState>,
     pub nozzle_temp: Option<f32>,

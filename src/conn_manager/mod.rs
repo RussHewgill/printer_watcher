@@ -39,7 +39,7 @@ pub struct PrinterConnManager {
     config: AppConfig,
 
     // printers: HashMap<PrinterId, BambuClient>,
-    // printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
+    printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
     worker_cmd_txs: HashMap<PrinterId, tokio::sync::mpsc::UnboundedSender<WorkerCmd>>,
 
     cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
@@ -63,7 +63,7 @@ pub struct PrinterConnManager {
 impl PrinterConnManager {
     pub async fn new(
         config: AppConfig,
-        // printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
+        printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
         cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnCmd>,
         msg_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnMsg>,
@@ -83,7 +83,7 @@ impl PrinterConnManager {
             // printer_states,
 
             // printers: HashMap::new(),
-            // printer_states,
+            printer_states,
             worker_cmd_txs: HashMap::new(),
             cmd_tx,
             cmd_rx,
@@ -176,7 +176,21 @@ impl PrinterConnManager {
                 });
             }
             PrinterConfig::Prusa(_, printer) => {
-                unimplemented!()
+                let mut client = conn_prusa::prusa_local::PrusaClientLocal::new(
+                    printer.clone(),
+                    self.worker_msg_tx.clone(),
+                    worker_cmd_rx,
+                    kill_rx,
+                    None,
+                )?;
+                self.worker_cmd_txs.insert(id.clone(), worker_cmd_tx);
+                tokio::task::spawn(async move {
+                    loop {
+                        if let Err(e) = client.run().await {
+                            error!("error running prusa client: {:?}", e);
+                        }
+                    }
+                });
             }
         }
 
@@ -192,9 +206,13 @@ impl PrinterConnManager {
         };
 
         match &msg {
-            WorkerMsg::StatusUpdate(_) => {
+            WorkerMsg::StatusUpdate(update) => {
                 // debug!("conn manager got status update: {:?}", id);
-                self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;
+
+                let mut state = self.printer_states.entry(id.clone()).or_default();
+                state.update(update.clone());
+
+                // self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;
             }
             WorkerMsg::Connecting => {}
             WorkerMsg::Connected => {}
