@@ -39,6 +39,9 @@ impl App {
         let offset_x = Vec2::new(width + printer_padding, 0.);
         let offset_y = Vec2::new(0., height + printer_padding);
 
+        let fixed_width = width - 16.;
+        let fixed_height = height - 16. * 1.5;
+
         /// drag and drop
         let mut from = None;
         let mut to = None;
@@ -74,30 +77,36 @@ impl App {
                         ui.visuals_mut().widgets.inactive.bg_stroke = prev_inactive;
                         ui.visuals_mut().widgets.active.bg_stroke = prev_active;
 
-                        let Some(id) = id else {
-                            ui.label("Empty");
-                            ui.allocate_space(ui.available_size());
-                            return;
-                        };
+                        egui::containers::Resize::default()
+                            .fixed_size(Vec2::new(fixed_width, fixed_height))
+                            .show(ui, |ui| {
+                                let Some(id) = id else {
+                                    ui.label("Empty");
+                                    // ui.allocate_space(ui.available_size());
+                                    return;
+                                };
 
-                        let Some(printer) = self.config.get_printer(&id) else {
-                            warn!("Printer not found: {:?}", id);
-                            return;
-                        };
+                                let Some(printer) = self.config.get_printer(&id) else {
+                                    warn!("Printer not found: {:?}", id);
+                                    return;
+                                };
 
-                        if self.printer_states.contains_key(&id) {
-                            // let resp = self.printer_widget(ui, pos, &printer);
-                            self.printer_widget(ui, pos, &printer);
-                        } else {
-                            ui.label("Printer not found");
-                            // ui.allocate_space(Vec2::new(w, h));
-                            ui.allocate_space(ui.available_size());
-                            return;
-                        }
+                                if self.printer_states.contains_key(&id) {
+                                    ui.label("Printer");
+                                    // let resp = self.printer_widget(ui, pos, &printer);
+                                    self.printer_widget(ui, pos, &printer);
+                                } else {
+                                    ui.label("Printer not found");
+                                    // ui.allocate_space(Vec2::new(w, h));
+                                    // ui.allocate_space(ui.available_size());
+                                    return;
+                                }
+                            });
 
-                        ui.label(format!("({}, {})", x, y));
+                        // ui.label(format!("({}, {})", x, y));
                     });
 
+                    // ui.allocate_space(ui.available_size());
                     if let Some(dragged_payload) = dropped_payload {
                         from = Some(dragged_payload);
                         to = Some(GridLocation { col: x, row: y });
@@ -110,8 +119,7 @@ impl App {
         }
 
         if let (Some(from), Some(to)) = (from, to) {
-            // self.move_printer(&from, &to);
-            warn!("TODO: move_printer");
+            self.move_printer(&from, &to);
         }
 
         //

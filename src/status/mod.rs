@@ -39,6 +39,8 @@ pub struct GenericPrinterState {
     pub nozzle_temp_target: f32,
     pub bed_temp_target: f32,
     pub progress: f32,
+    pub time_printing: Option<chrono::Duration>,
+    pub time_remaining: Option<chrono::Duration>,
     pub current_file: Option<String>,
 }
 
@@ -62,6 +64,16 @@ impl GenericPrinterState {
         if let Some(progress) = update.progress {
             self.progress = progress;
         }
+        match update.time_printing {
+            Some(Some(time_printing)) => self.time_printing = Some(time_printing),
+            Some(None) => self.time_printing = None,
+            None => {}
+        }
+        match update.time_remaining {
+            Some(Some(time_remaining)) => self.time_remaining = Some(time_remaining),
+            Some(None) => self.time_remaining = None,
+            None => {}
+        }
         if let Some(current_file) = update.current_file {
             self.current_file = Some(current_file);
         }
@@ -76,6 +88,8 @@ pub struct GenericPrinterStateUpdate {
     pub nozzle_temp_target: Option<f32>,
     pub bed_temp_target: Option<f32>,
     pub progress: Option<f32>,
+    pub time_printing: Option<Option<chrono::Duration>>,
+    pub time_remaining: Option<Option<chrono::Duration>>,
     pub current_file: Option<String>,
 }
 

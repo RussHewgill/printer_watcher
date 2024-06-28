@@ -14,15 +14,16 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
     fn from(msg: super::conn_bambu::message::Message) -> Self {
         use super::conn_bambu::message::Message;
         match msg {
-            Message::Print(print) => Self::StatusUpdate(GenericPrinterStateUpdate {
-                state: None,
-                nozzle_temp: print.print.nozzle_temper.map(|v| v as f32),
-                bed_temp: print.print.bed_temper.map(|v| v as f32),
-                nozzle_temp_target: print.print.nozzle_target_temper.map(|v| v as f32),
-                bed_temp_target: print.print.bed_target_temper.map(|v| v as f32),
-                progress: None,
-                current_file: None,
-            }),
+            Message::Print(print) => todo!(),
+            // Message::Print(print) => Self::StatusUpdate(GenericPrinterStateUpdate {
+            //     state: None,
+            //     nozzle_temp: print.print.nozzle_temper.map(|v| v as f32),
+            //     bed_temp: print.print.bed_temper.map(|v| v as f32),
+            //     nozzle_temp_target: print.print.nozzle_target_temper.map(|v| v as f32),
+            //     bed_temp_target: print.print.bed_target_temper.map(|v| v as f32),
+            //     progress: None,
+            //     current_file: None,
+            // }),
             Message::Info(_) => todo!(),
             Message::System(_) => todo!(),
             Message::Unknown(_) => todo!(),

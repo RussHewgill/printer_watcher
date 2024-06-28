@@ -13,7 +13,7 @@ pub fn run_error_app(error: String) -> eframe::Result<()> {
     };
 
     eframe::run_native(
-        "Bambu Watcher Error",
+        "Printer Watcher Error",
         native_options,
         Box::new(move |cc| Box::new(ErrorApp { error })),
     )

@@ -62,6 +62,8 @@ base64 = "0.22.1"
 regex = "1.10.4"
 # strum = { version = "0.26.2", features = ["derive"] }
 
+retina = "0.4.8"
+
 # notify-rust = { version = "4.11.0", features = ["async"] }
 
 egui = "0.27.2"
@@ -72,6 +74,7 @@ egui_extras = { version = "0.27.2", features = [
     "svg",
     "http",
 ] }
+egui-phosphor = { version = "0.5.0", features = ["fill"] }
 
 # iced = { version = "0.12.1", features = ["advanced", "lazy", "image"] }
 # iced_winit = "0.12.2"

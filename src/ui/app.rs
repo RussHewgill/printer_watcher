@@ -104,6 +104,10 @@ impl App {
                 .retain(|_, v| current_printers.contains(v));
         }
 
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+        cc.egui_ctx.set_fonts(fonts);
+
         out
     }
 }
@@ -197,8 +201,7 @@ impl eframe::App for App {
             }
             Tab::Options => {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    // self.show_options(ui);
-                    unimplemented!()
+                    self.show_options(ui);
                 });
             }
         }

@@ -118,6 +118,19 @@ impl PrusaClientLocal {
 
         let job = self.get_job().await?;
 
+        let time_printing = match state {
+            PrinterState::Printing | PrinterState::Error | PrinterState::Paused => {
+                Some(Some(chrono::Duration::seconds(job.time_printing)))
+            }
+            _ => None,
+        };
+        let time_remaining = match state {
+            PrinterState::Printing | PrinterState::Error | PrinterState::Paused => {
+                Some(Some(chrono::Duration::seconds(job.time_remaining)))
+            }
+            _ => None,
+        };
+
         Ok(GenericPrinterStateUpdate {
             state: Some(state),
             nozzle_temp: Some(status.printer.temp_nozzle as f32),
@@ -125,6 +138,8 @@ impl PrusaClientLocal {
             nozzle_temp_target: Some(status.printer.target_nozzle as f32),
             bed_temp_target: Some(status.printer.target_bed as f32),
             progress: Some(status.job.progress as f32),
+            time_printing,
+            time_remaining,
             current_file: Some(job.file.display_name),
             ..Default::default()
         })
