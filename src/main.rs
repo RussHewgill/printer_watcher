@@ -103,7 +103,7 @@ fn main() -> eframe::Result<()> {
     // let mut printer_order = std::collections::HashMap::new();
 
     /// add bambu
-    #[cfg(feature = "nope")]
+    // #[cfg(feature = "nope")]
     {
         let host = env::var("BAMBU_IP").unwrap();
         let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
@@ -113,7 +113,7 @@ fn main() -> eframe::Result<()> {
 
         let printer = config::printer_config::PrinterConfigBambu::from_id(
             serial.clone(),
-            "test_printer".to_string(),
+            "test_bambu_printer".to_string(),
             host,
             access_code,
             id.clone(),
@@ -156,7 +156,7 @@ fn main() -> eframe::Result<()> {
 
         let printer = config::printer_config::PrinterConfigPrusa {
             id: id.clone(),
-            name: "test_printer".to_string(),
+            name: "test_prusa_printer".to_string(),
             host,
             key: link_key,
             serial,

@@ -43,31 +43,13 @@ impl App {
             .with_main_justify(true)
             .with_cross_align(egui::Align::Center);
 
-        let text_size_title = 14.;
-        let text_size_eta = 12.;
+        let text_size_title = 12.;
+        let text_size_eta = 11.;
 
-        let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 12.;
+        let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;
         let thumbnail_height = thumbnail_width * 0.5625;
 
-        egui_extras::StripBuilder::new(ui)
-            .clip(true)
-            // .cell_layout(layout)
-            .size(egui_extras::Size::exact(thumbnail_height + 6.))
-            .size(egui_extras::Size::exact(26.))
-            .vertical(|mut strip| {
-                strip.cell(|ui| {
-                    ui.label("test 1");
-                });
-
-                strip.cell(|ui| {
-                    ui.label("test 2");
-                });
-
-                //
-            });
-
         ui.spacing_mut().item_spacing.x = 1.;
-        #[cfg(feature = "nope")]
         egui_extras::StripBuilder::new(ui)
             .clip(true)
             .cell_layout(layout)

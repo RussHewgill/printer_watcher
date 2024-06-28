@@ -153,9 +153,10 @@ pub fn printer_state_icon(ui: &mut egui::Ui, size: f32, state: &PrinterState) {
         }
         PrinterState::Disconnected => {
             egui::include_image!("../../assets/icons/disconnected_poly.svg")
-        } // PrinterState::Unknown(_) => {
-          //     egui::include_image!("../../assets/icons/question-circle_poly.svg")
-          // }
+        }
+        PrinterState::Unknown(_) => {
+            egui::include_image!("../../assets/icons/question-circle_poly.svg")
+        }
     };
 
     #[cfg(feature = "nope")]

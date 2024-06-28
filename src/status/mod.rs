@@ -1,3 +1,5 @@
+// pub mod bambu_status;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone)]
@@ -8,6 +10,7 @@ pub enum PrinterState {
     Paused,
     Error,
     Disconnected,
+    Unknown(String),
 }
 
 impl Default for PrinterState {
@@ -27,6 +30,7 @@ impl PrinterState {
             PrinterState::Paused => "Paused",
             PrinterState::Disconnected => "Disconnected",
             // PrinterState::Unknown(s) => "Unknown",
+            PrinterState::Unknown(_) => "Unknown",
         }
     }
 }
@@ -38,6 +42,7 @@ pub struct GenericPrinterState {
     pub bed_temp: f32,
     pub nozzle_temp_target: f32,
     pub bed_temp_target: f32,
+    pub layer: Option<u32>,
     pub progress: f32,
     pub time_printing: Option<chrono::Duration>,
     pub time_remaining: Option<chrono::Duration>,
@@ -60,6 +65,11 @@ impl GenericPrinterState {
         }
         if let Some(bed_temp_target) = update.bed_temp_target {
             self.bed_temp_target = bed_temp_target;
+        }
+        match update.layer {
+            Some(Some(layer)) => self.layer = Some(layer),
+            Some(None) => self.layer = None,
+            None => {}
         }
         if let Some(progress) = update.progress {
             self.progress = progress;
@@ -87,12 +97,9 @@ pub struct GenericPrinterStateUpdate {
     pub bed_temp: Option<f32>,
     pub nozzle_temp_target: Option<f32>,
     pub bed_temp_target: Option<f32>,
+    pub layer: Option<Option<u32>>,
     pub progress: Option<f32>,
     pub time_printing: Option<Option<chrono::Duration>>,
     pub time_remaining: Option<Option<chrono::Duration>>,
     pub current_file: Option<String>,
-}
-
-pub struct PrinterStateBambu {
-    //
 }

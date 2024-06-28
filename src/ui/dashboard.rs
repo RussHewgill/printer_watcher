@@ -92,7 +92,6 @@ impl App {
                                 };
 
                                 if self.printer_states.contains_key(&id) {
-                                    ui.label("Printer");
                                     // let resp = self.printer_widget(ui, pos, &printer);
                                     self.printer_widget(ui, pos, &printer);
                                 } else {
@@ -127,7 +126,14 @@ impl App {
 
     fn printer_widget(&mut self, ui: &mut egui::Ui, pos: GridLocation, printer: &PrinterConfig) {
         match printer {
-            PrinterConfig::Bambu(id, printer) => todo!(),
+            PrinterConfig::Bambu(id, printer) => {
+                let Ok(printer) = printer.try_read() else {
+                    warn!("printer locked");
+                    return;
+                };
+
+                self.show_printer_bambu(ui, pos, &printer);
+            }
             PrinterConfig::Klipper(id, printer) => todo!(),
             PrinterConfig::Prusa(id, printer) => {
                 let Ok(printer) = printer.try_read() else {
@@ -190,6 +196,7 @@ impl App {
                 PrinterState::Disconnected => Color32::from_rgb(0, 0, 0),
                 // _ => Color32::from_gray(127),
                 // _ => Color32::GREEN,
+                PrinterState::Unknown(_) => Color32::YELLOW,
             }
         } else {
             // debug!("no state");
