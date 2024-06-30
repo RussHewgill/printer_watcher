@@ -1,10 +1,10 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use serde::de::DeserializeOwned;
 use tracing::{debug, error, info, trace, warn};
 
 use std::sync::Arc;
 
 use reqwest::RequestBuilder;
+use serde::de::DeserializeOwned;
 use tokio::sync::RwLock;
 
 use crate::{

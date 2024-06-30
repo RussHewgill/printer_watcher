@@ -8,6 +8,7 @@
         "OPENSSL_DIR": "Q:\\code\\~repos\\vcpkg\\installed\\x64-windows-static",
         "VCPKG_ROOT": "Q:\\code\\~repos\\vcpkg",
         "VCPKGRS_DYNAMIC": "1",
+        "FFMPEG_DIR": "Q:\\code\\~repos\\ffmpeg-7.0.1-full_build-shared",
     },
     "rust-analyzer.check.extraArgs": [
         "--target-dir=target/analyzer"

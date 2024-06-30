@@ -13,6 +13,7 @@ pub mod config;
 pub mod conn_manager;
 pub mod logging;
 pub mod status;
+pub mod streaming;
 pub mod ui;
 // pub mod ui;
 
@@ -94,7 +95,7 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -230,6 +231,75 @@ fn main() -> eframe::Result<()> {
     )
 }
 
+/// ffmpeg test
+fn main() -> Result<()> {
+    dotenvy::dotenv()?;
+    logging::init_logs();
+
+    use ffmpeg_next as ffmpeg;
+
+    let file = "test.mp4";
+
+    let mut ictx = ffmpeg::format::input(&file)?;
+
+    let input = ictx
+        .streams()
+        .best(ffmpeg_next::media::Type::Video)
+        .ok_or(ffmpeg::Error::StreamNotFound)?;
+    let video_stream_index = input.index();
+
+    let context_decoder = ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
+    let mut decoder = context_decoder.decoder().video()?;
+
+    let mut scaler = ffmpeg::software::scaling::context::Context::get(
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
+        ffmpeg::format::Pixel::RGB24,
+        decoder.width(),
+        decoder.height(),
+        ffmpeg::software::scaling::flag::Flags::BILINEAR,
+    )?;
+
+    let mut frame_index = 0;
+
+    let mut receive_and_process_decoded_frames =
+        |decoder: &mut ffmpeg::decoder::Video| -> Result<(), ffmpeg::Error> {
+            let mut decoded = ffmpeg::util::frame::video::Video::empty();
+            while decoder.receive_frame(&mut decoded).is_ok() {
+                let mut rgb_frame = ffmpeg::util::frame::video::Video::empty();
+                scaler.run(&decoded, &mut rgb_frame)?;
+                save_file(&rgb_frame, frame_index).unwrap();
+                frame_index += 1;
+            }
+            Ok(())
+        };
+
+    for (stream, packet) in ictx.packets() {
+        if stream.index() == video_stream_index {
+            decoder.send_packet(&packet)?;
+            receive_and_process_decoded_frames(&mut decoder)?;
+        }
+    }
+    decoder.send_eof()?;
+    receive_and_process_decoded_frames(&mut decoder)?;
+
+    Ok(())
+}
+
+fn save_file(
+    frame: &ffmpeg_next::util::frame::video::Video,
+    index: usize,
+) -> std::result::Result<(), std::io::Error> {
+    let mut file = std::fs::File::create(format!("frame{}.ppm", index))?;
+    std::io::Write::write_all(
+        &mut file,
+        format!("P6\n{} {}\n255\n", frame.width(), frame.height()).as_bytes(),
+    )?;
+    std::io::Write::write_all(&mut file, frame.data(0))?;
+    Ok(())
+}
+
 /// Retina test
 #[cfg(feature = "nope")]
 // #[tokio::main]
@@ -258,7 +328,7 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    let video_stream_i = Some(0);
+    // let video_stream_i = Some(0);
     #[cfg(feature = "nope")]
     let video_stream_i = {
         let s = session.streams().iter().position(|s| {
@@ -280,83 +350,49 @@ async fn main() -> Result<()> {
         s
     };
 
+    let video_stream_i = {
+        let s = session.streams().iter().position(|s| {
+            if s.media() == "video" {
+                if s.encoding_name() == "h264" {
+                    info!("Using h264 video stream");
+                    return true;
+                }
+                info!(
+                    "Ignoring {} video stream because it's unsupported",
+                    s.encoding_name(),
+                );
+            }
+            false
+        });
+        if s.is_none() {
+            info!("No suitable video stream found");
+        }
+        s
+    };
+
     if let Some(i) = video_stream_i {
         session
-            .setup(i, retina::client::SetupOptions::default())
+            .setup(
+                i,
+                retina::client::SetupOptions::default().transport(retina::client::Transport::Udp(
+                    retina::client::UdpTransportOptions::default(),
+                )),
+            )
             .await?;
     }
     if video_stream_i.is_none() {
         bail!("Exiting because no video or audio stream was selected; see info log messages above");
     }
 
-    let result = write_jpeg(session, stop_signal).await;
+    // let result = write_jpeg(session, stop_signal).await;
+    let result = streaming::write_frames(session, stop_signal).await;
 
     // Session has now been dropped, on success or failure. A TEARDOWN should
     // be pending if necessary. session_group.await_teardown() will wait for it.
     if let Err(e) = session_group.await_teardown().await {
         error!("TEARDOWN failed: {}", e);
     }
-    result
-}
-
-/// Writes `.jpeg` files to the specified directory.
-async fn write_jpeg(
-    session: retina::client::Session<retina::client::Described>,
-    stop_signal: std::pin::Pin<Box<dyn futures::Future<Output = Result<(), std::io::Error>>>>,
-) -> Result<()> {
-    let mut session = session
-        .play(
-            retina::client::PlayOptions::default()
-                // .initial_timestamp(opts.initial_timestamp)
-                .enforce_timestamps_with_max_jump_secs(std::num::NonZeroU32::new(10).unwrap()),
-        )
-        .await?
-        .demuxed()?;
-
-    let duration = None;
-
-    let out_dir = std::path::PathBuf::from(".");
-
-    let sleep = match duration {
-        Some(secs) => {
-            futures::future::Either::Left(tokio::time::sleep(std::time::Duration::from_secs(secs)))
-        }
-        None => futures::future::Either::Right(futures::future::pending()),
-    };
-    tokio::pin!(stop_signal);
-    tokio::pin!(sleep);
-
-    let mut frame_count = 0;
-
-    loop {
-        tokio::select! {
-            pkt = futures::StreamExt::next(&mut session) => {
-                match pkt.ok_or_else(|| anyhow!("EOF"))?? {
-                    retina::codec::CodecItem::VideoFrame(f) => {
-                        let out_path = out_dir.join(&format!("{frame_count:05}.jpeg"));
-                        std::fs::write(out_path, f.data())?;
-
-                        frame_count += 1;
-                    },
-                    retina::codec::CodecItem::Rtcp(rtcp) => {
-                        if let (Some(t), Some(Ok(Some(sr)))) = (rtcp.rtp_timestamp(), rtcp.pkts().next().map(retina::rtcp::PacketRef::as_sender_report)) {
-                            println!("{}: SR ts={}", t, sr.ntp_timestamp());
-                        }
-                    },
-                    _ => continue,
-                };
-            },
-            _ = &mut stop_signal => {
-                info!("Stopping due to signal");
-                break;
-            },
-            _ = &mut sleep => {
-                info!("Stopping after {} seconds", duration.unwrap());
-                break;
-            },
-        }
-    }
-
+    // result
     Ok(())
 }
 

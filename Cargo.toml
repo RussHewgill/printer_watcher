@@ -75,11 +75,13 @@ egui_extras = { version = "0.27.2", features = [
     "http",
 ] }
 egui-phosphor = { version = "0.5.0", features = ["fill"] }
+ffmpeg-next = "7.0.2"
+image = { version = "0.25.1", features = ["jpeg", "png"] }
 
 # iced = { version = "0.12.1", features = ["advanced", "lazy", "image"] }
 # iced_winit = "0.12.2"
 # iced_wgpu = "0.12.1"
 # iced_aw = { version = "0.9.3", default-features = false, features = [
 #     "tabs",
-#     "grid",
+# "grid",
 # ] }
