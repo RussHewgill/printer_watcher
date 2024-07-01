@@ -383,6 +383,7 @@ async fn main() -> Result<()> {
         bail!("Exiting because no video or audio stream was selected; see info log messages above");
     }
 
+    debug!("video_stream_i = {:?}", video_stream_i);
     // let result = write_jpeg(session, stop_signal).await;
     let result = streaming::write_frames(session, stop_signal).await;
 

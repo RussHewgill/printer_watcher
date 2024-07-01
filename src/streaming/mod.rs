@@ -1,98 +1,10 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
-use tracing_subscriber::field::debug;
 
-#[derive(Default, Debug)]
-pub struct Sps {
-    pub profile_idc: u8, // u(8)
-    flag: u8,
+use processor::H264Processor;
 
-    pub level_idc: u8,         // u(8)
-    seq_parameter_set_id: u32, // ue(v)
-
-    chroma_format_idc: u32, // ue(v)
-
-    separate_colour_plane_flag: u8,           // u(1)
-    bit_depth_luma_minus8: u32,               // ue(v)
-    bit_depth_chroma_minus8: u32,             // ue(v)
-    qpprime_y_zero_transform_bypass_flag: u8, // u(1)
-
-    seq_scaling_matrix_present_flag: u8, // u(1)
-
-    seq_scaling_list_present_flag: Vec<u8>, // u(1)
-
-    log2_max_frame_num_minus4: u32, // ue(v)
-    pic_order_cnt_type: u32,        // ue(v)
-
-    log2_max_pic_order_cnt_lsb_minus4: u32, // ue(v)
-
-    delta_pic_order_always_zero_flag: u8,       // u(1)
-    offset_for_non_ref_pic: i32,                // se(v)
-    offset_for_top_to_bottom_field: i32,        // se(v)
-    num_ref_frames_in_pic_order_cnt_cycle: u32, // ue(v)
-
-    offset_for_ref_frame: Vec<i32>, // se(v)
-
-    max_num_ref_frames: u32,                  // ue(v)
-    gaps_in_frame_num_value_allowed_flag: u8, // u(1)
-
-    pic_width_in_mbs_minus1: u32,        // ue(v)
-    pic_height_in_map_units_minus1: u32, // ue(v)
-    frame_mbs_only_flag: u8,             // u(1)
-
-    mb_adaptive_frame_field_flag: u8, // u(1)
-
-    direct_8x8_inference_flag: u8, // u(1)
-
-    frame_cropping_flag: u8, // u(1)
-
-    frame_crop_left_offset: u32,   // ue(v)
-    frame_crop_right_offset: u32,  // ue(v)
-    frame_crop_top_offset: u32,    // ue(v)
-    frame_crop_bottom_offset: u32, // ue(v)
-
-    vui_parameters_present_flag: u8, // u(1)
-}
-
-impl Sps {
-    pub fn parse_from(data: &[u8]) -> Result<Self> {
-        let mut out = Sps::default();
-
-        // let mut r = std::io::Cursor::new(extra);
-        let mut r = bitreader::BitReader::new(&data);
-
-        out.profile_idc = r.read_u8(8)?;
-        out.flag = r.read_u8(8)?;
-        out.level_idc = r.read_u8(8)?;
-        out.seq_parameter_set_id = read_uev(&mut r)?;
-
-        match out.profile_idc {
-            100 | 110 | 122 | 244 | 44 | 83 | 86 | 118 | 128 => {
-                out.chroma_format_idc = read_uev(&mut r)?;
-                if out.chroma_format_idc == 3 {
-                    out.separate_colour_plane_flag = r.read_u8(1)?;
-                }
-                out.bit_depth_luma_minus8 = read_uev(&mut r)?;
-                out.bit_depth_chroma_minus8 = read_uev(&mut r)?;
-
-                out.qpprime_y_zero_transform_bypass_flag = r.read_u8(1)?;
-                out.seq_scaling_matrix_present_flag = r.read_u8(1)?;
-
-                if out.seq_scaling_matrix_present_flag > 0 {
-                    let matrix_dim: usize = if out.chroma_format_idc != 2 { 8 } else { 12 };
-
-                    for _ in 0..matrix_dim {
-                        out.seq_scaling_list_present_flag.push(r.read_u8(1)?);
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        Ok(out)
-    }
-}
-
+/// packets
+#[cfg(feature = "nope")]
 pub async fn write_frames(
     session: retina::client::Session<retina::client::Described>,
     stop_signal: std::pin::Pin<Box<dyn futures::Future<Output = Result<(), std::io::Error>>>>,
@@ -102,15 +14,293 @@ pub async fn write_frames(
 
     tokio::pin!(stop_signal);
 
+    let mut session = session.play(retina::client::PlayOptions::default()).await?;
+
+    /// ffmpeg setup
+    let codec: ffmpeg_next::Codec = ffmpeg::decoder::find(ffmpeg::codec::Id::H264).unwrap();
+
+    let context_decoder = ffmpeg::codec::context::Context::new_with_codec(codec);
+    debug!("getting decoder");
+    let mut decoder: ffmpeg_next::decoder::Video = context_decoder.decoder().video().unwrap();
+    debug!("got decoder");
+
+    debug!("setting decoder params");
+    /// SAFETY: unsure?
+    unsafe {
+        (*decoder.as_mut_ptr()).height = 1080;
+        (*decoder.as_mut_ptr()).width = 1920;
+        // XXX: hardcode for now?
+        (*decoder.as_mut_ptr()).pix_fmt = ffmpeg::ffi::AVPixelFormat::AV_PIX_FMT_YUV420P;
+    }
+
+    let mut scaler = ffmpeg::software::scaling::context::Context::get(
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
+        ffmpeg_next::format::Pixel::RGB24,
+        decoder.width(),
+        decoder.height(),
+        ffmpeg_next::software::scaling::Flags::BILINEAR,
+    )?;
+
+    debug!("getting packets");
+    loop {
+        match futures::StreamExt::next(&mut session).await {
+            Some(Ok(retina::client::PacketItem::Rtp(pkt))) => {
+                debug!("got RTP packet");
+                // debug!("mark: {:?}", pkt.mark());
+                // debug!("stream_id: {:?}", pkt.stream_id());
+                // debug!("ctx: {:?}", pkt.ctx());
+                // debug!("ssrc: {:?}", pkt.ssrc());
+                // debug!("sequence_number: {:?}", pkt.sequence_number());
+                // debug!("raw.len: {:?}", pkt.raw().len());
+                // debug!("payload.len: {:?}", pkt.payload().len());
+                // debug!("loss: {:?}", pkt.loss());
+
+                let data = pkt.payload();
+
+                debug!("frame len: {:?}", data.len());
+
+                let packet = ffmpeg::Packet::copy(&data);
+
+                decoder.send_packet(&packet)?;
+
+                break;
+                //
+            }
+            Some(Ok(retina::client::PacketItem::Rtcp(pkt))) => {
+                warn!("unexpected RTCP packet");
+            }
+            _ => {
+                bail!("unexpected item");
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub mod processor {
+    use anyhow::{anyhow, bail, ensure, Context, Result};
+    use ffmpeg_next as ffmpeg;
+    use tracing::{debug, error, info, trace, warn};
+
+    pub struct H264Processor {
+        decoder: ffmpeg::codec::decoder::Video,
+        scaler: Option<ffmpeg::software::scaling::Context>,
+        frame_i: u64,
+        convert_to_annex_b: bool,
+    }
+
+    impl H264Processor {
+        pub fn new(convert_to_annex_b: bool) -> Self {
+            let mut codec_opts = ffmpeg::Dictionary::new();
+            if !convert_to_annex_b {
+                codec_opts.set("is_avc", "1");
+            }
+            let codec = ffmpeg::codec::decoder::find(ffmpeg::codec::Id::H264).unwrap();
+            let decoder = ffmpeg::codec::decoder::Decoder(ffmpeg::codec::Context::new())
+                .open_as_with(codec, codec_opts)
+                .unwrap()
+                .video()
+                .unwrap();
+            Self {
+                decoder,
+                scaler: None,
+                frame_i: 0,
+                convert_to_annex_b,
+            }
+        }
+
+        pub fn handle_parameters(&mut self, p: &retina::codec::VideoParameters) -> Result<()> {
+            if !self.convert_to_annex_b {
+                let pkt = ffmpeg::codec::packet::Packet::borrow(p.extra_data());
+                self.decoder.send_packet(&pkt)?;
+            } else {
+                // TODO: should convert and supply SPS/PPS, rather than relying on
+                // them existing in-band within frames.
+            }
+
+            // ffmpeg doesn't appear to actually handle the parameters until the
+            // first full frame, so just note that the scaler needs to be
+            // (re)created.
+            self.scaler = None;
+            Ok(())
+        }
+
+        pub fn send_frame(&mut self, f: retina::codec::VideoFrame) -> Result<()> {
+            let mut data = f.into_data();
+            if self.convert_to_annex_b {
+                convert_h264(&mut data)?;
+            }
+            let pkt = ffmpeg::codec::packet::Packet::borrow(&data);
+            self.decoder.send_packet(&pkt)?;
+            self.receive_frames()?;
+            Ok(())
+        }
+
+        pub fn flush(&mut self) -> Result<()> {
+            self.decoder.send_eof()?;
+            self.receive_frames()?;
+            Ok(())
+        }
+
+        fn receive_frames(&mut self) -> Result<()> {
+            let mut decoded = ffmpeg::util::frame::video::Video::empty();
+            loop {
+                match self.decoder.receive_frame(&mut decoded) {
+                    Err(ffmpeg::Error::Other {
+                        errno: ffmpeg::util::error::EAGAIN,
+                    }) => {
+                        // No complete frame available.
+                        break;
+                    }
+                    Err(e) => bail!(e),
+                    Ok(()) => {}
+                }
+
+                // This frame writing logic lifted from ffmpeg-next's examples/dump-frames.rs.
+                let scaler = self.scaler.get_or_insert_with(|| {
+                    info!(
+                        "image parameters: {:?}, {}x{}",
+                        self.decoder.format(),
+                        self.decoder.width(),
+                        self.decoder.height()
+                    );
+                    ffmpeg::software::scaling::Context::get(
+                        self.decoder.format(),
+                        self.decoder.width(),
+                        self.decoder.height(),
+                        ffmpeg::format::Pixel::RGB24,
+                        320,
+                        240,
+                        ffmpeg::software::scaling::Flags::BILINEAR,
+                    )
+                    .unwrap()
+                });
+                let mut scaled = ffmpeg::util::frame::video::Video::empty();
+                scaler.run(&decoded, &mut scaled)?;
+                let filename = format!("frame{}.ppm", self.frame_i);
+                info!("writing {}", &filename);
+                let mut file = std::fs::File::create(filename)?;
+                std::io::Write::write_all(
+                    &mut file,
+                    format!("P6\n{} {}\n255\n", scaled.width(), scaled.height()).as_bytes(),
+                )?;
+                std::io::Write::write_all(&mut file, decoded.data(0))?;
+                self.frame_i += 1;
+            }
+            Ok(())
+        }
+    }
+
+    /// Converts from AVC representation to the Annex B representation.
+    fn convert_h264(data: &mut [u8]) -> Result<()> {
+        let mut i = 0;
+        while i < data.len() - 3 {
+            // Replace each NAL's length with the Annex B start code b"\x00\x00\x00\x01".
+            let len = u32::from_be_bytes([data[i], data[i + 1], data[i + 2], data[i + 3]]) as usize;
+            data[i] = 0;
+            data[i + 1] = 0;
+            data[i + 2] = 0;
+            data[i + 3] = 1;
+            i += 4 + len;
+            if i > data.len() {
+                bail!("partial NAL body");
+            }
+        }
+        if i < data.len() {
+            bail!("partial NAL length");
+        }
+        Ok(())
+    }
+}
+
+pub async fn write_frames(
+    session: retina::client::Session<retina::client::Described>,
+    stop_signal: std::pin::Pin<Box<dyn futures::Future<Output = Result<(), std::io::Error>>>>,
+) -> Result<()> {
+    use ffmpeg_next as ffmpeg;
+
+    ffmpeg::init()?;
+    ffmpeg::util::log::set_level(ffmpeg::util::log::Level::Trace);
+
+    tokio::pin!(stop_signal);
+
     let mut session = session
         .play(retina::client::PlayOptions::default())
         .await?
         .demuxed()?;
 
-    // let mut frame;
+    let video_stream_i = 0;
+
+    let mut processor = H264Processor::new(true);
+
+    if let Some(retina::codec::ParametersRef::Video(v)) =
+        session.streams()[video_stream_i].parameters()
+    {
+        processor.handle_parameters(v)?;
+    }
+
+    debug!("starting loop");
+    loop {
+        debug!("waiting for frame");
+        let f = futures::StreamExt::next(&mut session)
+            .await
+            .unwrap()
+            .unwrap();
+        debug!("got frame");
+        match f {
+            retina::codec::CodecItem::VideoFrame(f) => {
+                if f.has_new_parameters() {
+                    let v = match session.streams()[video_stream_i].parameters() {
+                        Some(retina::codec::ParametersRef::Video(v)) => v,
+                        _ => unreachable!(),
+                    };
+                    processor.handle_parameters(v)?;
+                }
+                processor.send_frame(f)?;
+            }
+            retina::codec::CodecItem::MessageFrame(msg) => {
+                info!("message: {:?}", msg);
+            }
+            _ => warn!("unexpected item"),
+        }
+    }
+
+    // Ok(())
+}
+
+/// demuxed
+#[cfg(feature = "nope")]
+pub async fn write_frames(
+    session: retina::client::Session<retina::client::Described>,
+    stop_signal: std::pin::Pin<Box<dyn futures::Future<Output = Result<(), std::io::Error>>>>,
+) -> Result<()> {
+    use ffmpeg_next as ffmpeg;
+
+    ffmpeg::init()?;
+    ffmpeg::util::log::set_level(ffmpeg::util::log::Level::Trace);
+
+    tokio::pin!(stop_signal);
+
+    let mut session = session
+        .play(retina::client::PlayOptions::default())
+        .await?
+        .demuxed()?;
+
+    /// ffmpeg setup
+    let codec: ffmpeg_next::Codec = ffmpeg::decoder::find(ffmpeg::codec::Id::H264).unwrap();
+
+    let context_decoder = ffmpeg::codec::context::Context::new_with_codec(codec);
+    debug!("getting decoder");
+    let mut decoder: ffmpeg_next::decoder::Video = context_decoder.decoder().video().unwrap();
+    debug!("got decoder");
+
+    let mut frame;
 
     debug!("waiting for first frame");
-    let params = loop {
+    let (ps, sps) = loop {
         let f0 = futures::StreamExt::next(&mut session)
             .await
             .unwrap()
@@ -138,10 +328,10 @@ pub async fn write_frames(
 
                         // debug!("sps: {:#?}", sps);
 
-                        decode_avc_decoder_config(&extra)?;
+                        let sps = decode_avc_decoder_config(&extra)?;
 
-                        /// frame = f0;
-                        break ps;
+                        frame = f0;
+                        break (ps, sps);
                     }
                     retina::codec::ParametersRef::Audio(_) => todo!(),
                     retina::codec::ParametersRef::Message(_) => todo!(),
@@ -151,15 +341,128 @@ pub async fn write_frames(
         }
     };
 
+    debug!("setting decoder params");
+    /// SAFETY: unsure?
+    unsafe {
+        (*decoder.as_mut_ptr()).height = ps.pixel_dimensions().1 as i32;
+        (*decoder.as_mut_ptr()).width = ps.pixel_dimensions().0 as i32;
+        // XXX: hardcode for now?
+        (*decoder.as_mut_ptr()).pix_fmt = ffmpeg::ffi::AVPixelFormat::AV_PIX_FMT_YUV420P;
+    }
+
+    let mut scaler = ffmpeg::software::scaling::context::Context::get(
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
+        ffmpeg_next::format::Pixel::RGB24,
+        decoder.width(),
+        decoder.height(),
+        ffmpeg_next::software::scaling::Flags::BILINEAR,
+    )?;
+
+    debug!("starting loop");
+    loop {
+        match frame {
+            retina::codec::CodecItem::VideoFrame(f) => {
+                debug!("got frame");
+                let stream = &session.streams()[f.stream_id()];
+                let start_ctx = *f.start_ctx();
+
+                // let data = f.data();
+                // let mut data = Vec::new();
+
+                // if !f.data().starts_with(&[0x00, 0x00, 0x00, 0x01]) {
+                //     /// Add start code
+                //     data.extend_from_slice(&[0x00, 0x00, 0x00, 0x01]);
+                // }
+                // /// If it's a fragmented NAL unit, you might need additional processing here
+                // /// For simplicity, we're assuming complete NAL units
+                // data.extend_from_slice(f.data());
+
+                // debug!("frame len: {:?}", data.len());
+
+                let packet = ffmpeg::Packet::copy(&f.data());
+
+                debug!("sending packet");
+                decoder.send_packet(&packet)?;
+                debug!("sent packet");
+
+                let mut decoded_frame = ffmpeg::util::frame::video::Video::empty();
+                // while decoder.receive_frame(&mut decoded_frame).is_ok() {
+                //     // Process the decoded frame
+                //     debug!("Decoded a frame");
+                //     // You might want to do something with the decoded frame here
+                //     debug!("breaking");
+                //     break;
+                // }
+
+                match decoder.receive_frame(&mut decoded_frame) {
+                    Ok(()) => {
+                        debug!("Decoded a frame");
+                        debug!("breaking");
+                        break;
+                    }
+                    Err(e) => warn!("error: {:?}", e),
+                }
+            }
+            retina::codec::CodecItem::MessageFrame(msg) => {
+                info!("message: {:?}", msg);
+            }
+            _ => warn!("unexpected item"),
+        }
+
+        debug!("waiting for frame");
+        let f = futures::StreamExt::next(&mut session)
+            .await
+            .unwrap()
+            .unwrap();
+
+        frame = f;
+
+        debug!("got frame");
+    }
+
     Ok(())
+}
+
+/// https://github.com/scottlamb/retina/blob/main/examples/webrtc-proxy/src/main.rs#L310C1-L339C2
+fn convert_h264(frame: retina::codec::VideoFrame) -> Result<Vec<u8>> {
+    // TODO:
+    // * For each IDR frame, copy the SPS and PPS from the stream's
+    //   parameters, rather than depend on it being present in the frame
+    //   already. In-band parameters aren't guaranteed. This is awkward
+    //   with h264_reader v0.5's h264_reader::avcc::AvcDecoderRecord because it
+    //   strips off the NAL header byte from each parameter. The next major
+    //   version shouldn't do this.
+    // * Copy only the slice data. In particular, don't copy SEI, which confuses
+    //   Safari: <https://github.com/scottlamb/retina/issues/60#issuecomment-1178369955>
+
+    let mut data = frame.into_data();
+    let mut i = 0;
+    while i < data.len() - 3 {
+        // Replace each NAL's length with the Annex B start code b"\x00\x00\x00\x01".
+        let len = u32::from_be_bytes([data[i], data[i + 1], data[i + 2], data[i + 3]]) as usize;
+        data[i] = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
+        data[i + 3] = 1;
+        i += 4 + len;
+        if i > data.len() {
+            bail!("partial NAL body");
+        }
+    }
+    if i < data.len() {
+        bail!("partial NAL length");
+    }
+    Ok(data)
 }
 
 fn decode_avc_decoder_config(data: &[u8]) -> Result<h264_reader::nal::sps::SeqParameterSet> {
     use bytes::Buf;
     use h264_reader::nal::Nal;
 
-    debug!("\n{}", pretty_hex::pretty_hex(&data));
-    debug!("data.len: {:?}", data.len());
+    // debug!("\n{}", pretty_hex::pretty_hex(&data));
+    // debug!("data.len: {:?}", data.len());
 
     // let mut r = bitreader::BitReader::new(&data);
     let mut r = std::io::Cursor::new(data);
@@ -178,12 +481,12 @@ fn decode_avc_decoder_config(data: &[u8]) -> Result<h264_reader::nal::sps::SeqPa
     assert_eq!(r.get_u8(), 0xe1);
 
     let sps_nal_len = r.get_u16();
-    debug!("sps_nal_len: {:?}", sps_nal_len);
+    // debug!("sps_nal_len: {:?}", sps_nal_len);
     let sps_nal = r.copy_to_bytes(sps_nal_len as usize);
 
     assert_eq!(r.get_u8(), 0x01); // number of PPSs
     let pps_nal_len = r.get_u16();
-    debug!("pps_nal_len: {:?}", pps_nal_len);
+    // debug!("pps_nal_len: {:?}", pps_nal_len);
     let pps_nal = r.copy_to_bytes(pps_nal_len as usize);
 
     let sps = h264_reader::rbsp::decode_nal(&sps_nal)?;
@@ -192,7 +495,7 @@ fn decode_avc_decoder_config(data: &[u8]) -> Result<h264_reader::nal::sps::SeqPa
 
     let sps = h264_reader::nal::sps::SeqParameterSet::from_bits(sps_nal.rbsp_bits()).unwrap();
 
-    debug!("sps: {:#?}", sps);
+    // debug!("sps: {:#?}", sps);
 
     // let pps = h264_reader::rbsp::decode_nal(&pps_nal)?;
     // let pps_nal = h264_reader::nal::RefNal::new(&pps_nal, &[], true);
