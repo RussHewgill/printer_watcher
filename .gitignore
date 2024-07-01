@@ -26,6 +26,7 @@ errors.json
 assets/gui/*
 src/ui_iced
 *.mp4
+*.ppm
 
 !icon.png
 !assets/icons8-disconnected-100.png
