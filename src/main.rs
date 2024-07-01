@@ -18,9 +18,10 @@ pub mod ui;
 // pub mod ui;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use tracing::{debug, error, info, trace, warn};
+
 use dashmap::DashMap;
 use status::GenericPrinterState;
-use tracing::{debug, error, info, trace, warn};
 
 // use iced::Settings;
 use std::{env, sync::Arc};
@@ -232,6 +233,7 @@ fn main() -> eframe::Result<()> {
 }
 
 /// ffmpeg test
+#[cfg(feature = "nope")]
 fn main() -> Result<()> {
     dotenvy::dotenv()?;
     logging::init_logs();
@@ -251,6 +253,10 @@ fn main() -> Result<()> {
     let context_decoder = ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
     let mut decoder = context_decoder.decoder().video()?;
 
+    debug!("format = {:?}", decoder.format());
+    debug!("width = {:?}", decoder.width());
+    debug!("height = {:?}", decoder.height());
+
     let mut scaler = ffmpeg::software::scaling::context::Context::get(
         decoder.format(),
         decoder.width(),
@@ -269,16 +275,30 @@ fn main() -> Result<()> {
             while decoder.receive_frame(&mut decoded).is_ok() {
                 let mut rgb_frame = ffmpeg::util::frame::video::Video::empty();
                 scaler.run(&decoded, &mut rgb_frame)?;
-                save_file(&rgb_frame, frame_index).unwrap();
+                // save_file(&rgb_frame, frame_index).unwrap();
                 frame_index += 1;
             }
             Ok(())
         };
 
+    let mut n = 0;
     for (stream, packet) in ictx.packets() {
         if stream.index() == video_stream_index {
+            let data = packet.data().unwrap();
+
+            debug!("data = {:?}", data.len());
+
+            let d = &data[..16];
+            debug!("d = {:?}", d);
+
             decoder.send_packet(&packet)?;
-            receive_and_process_decoded_frames(&mut decoder)?;
+            // receive_and_process_decoded_frames(&mut decoder)?;
+            // debug!("n = {}", n);
+            // n += 1;
+            // if n > 10 {
+            //     break;
+            // }
+            break;
         }
     }
     decoder.send_eof()?;
@@ -287,6 +307,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "nope")]
 fn save_file(
     frame: &ffmpeg_next::util::frame::video::Video,
     index: usize,
@@ -301,8 +322,8 @@ fn save_file(
 }
 
 /// Retina test
-#[cfg(feature = "nope")]
-// #[tokio::main]
+// #[cfg(feature = "nope")]
+#[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv()?;
     logging::init_logs();
@@ -327,28 +348,6 @@ async fn main() -> Result<()> {
             .user_agent("Retina jpeg example".to_owned()), // .teardown(opts.teardown),
     )
     .await?;
-
-    // let video_stream_i = Some(0);
-    #[cfg(feature = "nope")]
-    let video_stream_i = {
-        let s = session.streams().iter().position(|s| {
-            if s.media() == "image" || s.media() == "video" {
-                if s.encoding_name() == "jpeg" {
-                    info!("Using jpeg video stream");
-                    return true;
-                }
-                info!(
-                    "Ignoring {} video stream because it's unsupported",
-                    s.encoding_name(),
-                );
-            }
-            false
-        });
-        if s.is_none() {
-            info!("No suitable video stream found");
-        }
-        s
-    };
 
     let video_stream_i = {
         let s = session.streams().iter().position(|s| {
