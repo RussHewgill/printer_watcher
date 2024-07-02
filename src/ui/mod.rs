@@ -5,6 +5,7 @@ pub mod launch_error;
 pub mod options;
 pub mod ui_types;
 pub mod ui_utils;
+pub mod video_player;
 pub mod widget_bambu;
 pub mod widget_klipper;
 pub mod widget_prusa;

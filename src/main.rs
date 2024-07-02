@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -322,8 +322,8 @@ fn save_file(
 }
 
 /// Retina test
-// #[cfg(feature = "nope")]
-#[tokio::main]
+#[cfg(feature = "nope")]
+// #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv()?;
     logging::init_logs();
