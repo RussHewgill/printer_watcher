@@ -1,6 +1,10 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
+use std::sync::Arc;
+
+use ffmpeg_next as ffmpeg;
+
 use processor::H264Processor;
 
 pub mod processor {
@@ -13,10 +17,16 @@ pub mod processor {
         scaler: Option<ffmpeg::software::scaling::Context>,
         frame_i: u64,
         convert_to_annex_b: bool,
+        handle: egui::TextureHandle,
     }
 
     impl H264Processor {
-        pub fn new(convert_to_annex_b: bool) -> Self {
+        pub fn new(
+            // convert_to_annex_b: bool
+            handle: egui::TextureHandle,
+        ) -> Self {
+            let convert_to_annex_b = false;
+
             let mut codec_opts = ffmpeg::Dictionary::new();
             if !convert_to_annex_b {
                 codec_opts.set("is_avc", "1");
@@ -32,12 +42,13 @@ pub mod processor {
                 scaler: None,
                 frame_i: 0,
                 convert_to_annex_b,
+                handle,
             }
         }
 
         pub fn handle_parameters(
             &mut self,
-            stream: &retina::client::Stream,
+            // stream: &retina::client::Stream,
             p: &retina::codec::VideoParameters,
         ) -> Result<()> {
             if !self.convert_to_annex_b {
@@ -71,12 +82,12 @@ pub mod processor {
 
         pub fn send_frame(
             &mut self,
-            stream: &retina::client::Stream,
+            // stream: &retina::client::Stream,
             f: retina::codec::VideoFrame,
         ) -> Result<()> {
             // let data = convert_h264(f)?;
             let data = if self.convert_to_annex_b {
-                convert_h264(stream, f)?
+                convert_h264(f)?
             } else {
                 f.into_data()
             };
@@ -92,6 +103,68 @@ pub mod processor {
             Ok(())
         }
 
+        fn receive_frames(&mut self) -> Result<()> {
+            let mut decoded = ffmpeg::util::frame::video::Video::empty();
+            loop {
+                match self.decoder.receive_frame(&mut decoded) {
+                    Err(ffmpeg::Error::Other {
+                        errno: ffmpeg::util::error::EAGAIN,
+                    }) => {
+                        // No complete frame available.
+                        break;
+                    }
+                    Err(e) => bail!(e),
+                    Ok(()) => {}
+                }
+
+                // This frame writing logic lifted from ffmpeg-next's examples/dump-frames.rs.
+                let scaler = self.scaler.get_or_insert_with(|| {
+                    info!(
+                        "image parameters: {:?}, {}x{}",
+                        self.decoder.format(),
+                        self.decoder.width(),
+                        self.decoder.height()
+                    );
+                    ffmpeg::software::scaling::Context::get(
+                        self.decoder.format(),
+                        self.decoder.width(),
+                        self.decoder.height(),
+                        ffmpeg::format::Pixel::RGB24,
+                        self.decoder.width(),
+                        self.decoder.height(),
+                        ffmpeg::software::scaling::Flags::BILINEAR,
+                    )
+                    .unwrap()
+                });
+                let mut scaled = ffmpeg::util::frame::video::Video::empty();
+                scaler.run(&decoded, &mut scaled)?;
+
+                // let image = image::load_from_memory(&scaled.data(0))?;
+                let image = image::ImageBuffer::<image::Rgb<u8>, Vec<u8>>::from_raw(
+                    scaled.width(),
+                    scaled.height(),
+                    scaled.data(0).to_vec(),
+                )
+                .unwrap();
+
+                let filename = format!("frame_test.jpg");
+                image.save(filename)?;
+
+                let image: image::DynamicImage = image.into();
+
+                let img_size = [image.width() as _, image.height() as _];
+                let image_buffer = image.to_rgba8();
+                let pixels = image_buffer.as_flat_samples();
+                // let pixels = image.as_flat_samples();
+                let img = egui::ColorImage::from_rgba_unmultiplied(img_size, pixels.as_slice());
+
+                self.handle.set(img, egui::TextureOptions::default());
+            }
+
+            Ok(())
+        }
+
+        #[cfg(feature = "nope")]
         fn receive_frames(&mut self) -> Result<()> {
             let mut decoded = ffmpeg::util::frame::video::Video::empty();
             loop {
@@ -151,7 +224,7 @@ pub mod processor {
 
     /// https://github.com/scottlamb/retina/blob/main/examples/webrtc-proxy/src/main.rs#L310C1-L339C2
     fn convert_h264(
-        stream: &retina::client::Stream,
+        // stream: &retina::client::Stream,
         frame: retina::codec::VideoFrame,
     ) -> Result<Vec<u8>> {
         // TODO:
@@ -180,13 +253,149 @@ pub mod processor {
     }
 }
 
-// #[cfg(feature = "nope")]
+#[derive(Clone)]
+pub struct RtspCreds {
+    pub host: String,
+    pub username: String,
+    pub password: String,
+}
+
+pub async fn rtsp_task(
+    creds: RtspCreds,
+    texture: egui::TextureHandle,
+    kill_rx: tokio::sync::mpsc::Receiver<()>,
+) -> Result<()> {
+    /// Init ffmpeg
+    ffmpeg_next::init().unwrap();
+    ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Trace);
+
+    let url = url::Url::parse(&format!("rtsp://{}", creds.host))?;
+
+    let creds: retina::client::Credentials = retina::client::Credentials {
+        username: creds.username.to_string(),
+        password: creds.password.to_string(),
+    };
+
+    let session_group = Arc::new(retina::client::SessionGroup::default());
+    let mut session = retina::client::Session::describe(
+        url,
+        retina::client::SessionOptions::default()
+            .creds(Some(creds))
+            .session_group(session_group.clone())
+            .user_agent("printer_watcher".to_owned())
+            .teardown(retina::client::TeardownPolicy::Auto), // XXX: auto?
+    )
+    .await?;
+
+    let video_stream_i = {
+        let s = session.streams().iter().position(|s| {
+            if s.media() == "video" {
+                if s.encoding_name() == "h264" {
+                    info!("Using h264 video stream");
+                    return true;
+                }
+                info!(
+                    "Ignoring {} video stream because it's unsupported",
+                    s.encoding_name(),
+                );
+            }
+            false
+        });
+        match s {
+            None => {
+                warn!("No suitable video stream found");
+                bail!("No suitable video stream found");
+            }
+            Some(s) => s,
+        }
+    };
+
+    session
+        .setup(
+            video_stream_i,
+            retina::client::SetupOptions::default().transport(retina::client::Transport::Udp(
+                retina::client::UdpTransportOptions::default(),
+            )),
+        )
+        .await?;
+
+    let result = rtsp_loop(session, video_stream_i, texture, kill_rx).await;
+
+    if let Err(e) = session_group.await_teardown().await {
+        error!("TEARDOWN failed: {}", e);
+    }
+
+    result
+}
+
+async fn rtsp_loop(
+    session: retina::client::Session<retina::client::Described>,
+    video_stream_i: usize,
+    handle: egui::TextureHandle,
+    kill_rx: tokio::sync::mpsc::Receiver<()>,
+) -> Result<()> {
+    debug!("starting rtsp loop");
+
+    let mut session = session
+        .play(retina::client::PlayOptions::default())
+        .await?
+        .demuxed()?;
+
+    let mut processor = H264Processor::new(handle);
+
+    if let Some(retina::codec::ParametersRef::Video(v)) =
+        session.streams()[video_stream_i].parameters()
+    {
+        debug!("initial parameters: {:#?}", v);
+        processor.handle_parameters(v)?;
+    }
+
+    loop {
+        let f = match futures::StreamExt::next(&mut session).await {
+            Some(Ok(f)) => f,
+            Some(Err(e)) => {
+                error!("error reading frame: {}", e);
+                continue;
+            }
+            None => {
+                info!("end of stream");
+                break;
+            }
+        };
+
+        match f {
+            retina::codec::CodecItem::VideoFrame(f) => {
+                let stream = &session.streams()[f.stream_id()];
+                let start_ctx = *f.start_ctx();
+                if f.has_new_parameters() {
+                    let v = match stream.parameters() {
+                        Some(retina::codec::ParametersRef::Video(v)) => {
+                            debug!("new parameters: {:#?}", v);
+                            v
+                        }
+                        _ => unreachable!(),
+                    };
+                    processor.handle_parameters(v)?;
+                }
+                processor.send_frame(f)?;
+                break;
+            }
+            retina::codec::CodecItem::MessageFrame(msg) => {
+                info!("message: {:?}", msg);
+            }
+            _ => warn!("unexpected item"),
+        }
+    }
+
+    processor.flush()?;
+    Ok(())
+}
+
+#[cfg(feature = "nope")]
 pub async fn write_frames(
     session: retina::client::Session<retina::client::Described>,
     stop_signal: std::pin::Pin<Box<dyn futures::Future<Output = Result<(), std::io::Error>>>>,
 ) -> Result<()> {
-    use ffmpeg_next as ffmpeg;
-
     ffmpeg::init()?;
     ffmpeg::util::log::set_level(ffmpeg::util::log::Level::Trace);
 
@@ -206,7 +415,7 @@ pub async fn write_frames(
         session.streams()[video_stream_i].parameters()
     {
         debug!("initial parameters: {:#?}", v);
-        processor.handle_parameters(&session.streams()[video_stream_i], v)?;
+        processor.handle_parameters(v)?;
     }
 
     debug!("starting loop");
@@ -229,9 +438,9 @@ pub async fn write_frames(
                         }
                         _ => unreachable!(),
                     };
-                    processor.handle_parameters(stream, v)?;
+                    processor.handle_parameters(v)?;
                 }
-                processor.send_frame(stream, f)?;
+                processor.send_frame(f)?;
                 break;
             }
             retina::codec::CodecItem::MessageFrame(msg) => {
@@ -245,6 +454,7 @@ pub async fn write_frames(
     Ok(())
 }
 
+#[cfg(feature = "nope")]
 fn decode_avc_decoder_config(
     data: &[u8],
 ) -> Result<(h264_reader::nal::sps::SeqParameterSet, Vec<u8>, Vec<u8>)> {

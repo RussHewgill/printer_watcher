@@ -1,7 +1,89 @@
+pub mod bambu;
 pub mod rtsp;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use rtsp::RtspCreds;
 use tracing::{debug, error, info, trace, warn};
+
+use egui::TextureHandle;
+
+use crate::config::printer_id::PrinterId;
+
+#[derive(Clone)]
+pub enum StreamCmd {
+    StartRtsp(PrinterId, TextureHandle, RtspCreds),
+}
+
+#[derive(Clone)]
+pub enum StreamWorkerMsg {
+    Panic(PrinterId),
+}
+
+pub struct StreamManager {
+    cmd_rx: tokio::sync::mpsc::UnboundedReceiver<StreamCmd>,
+
+    worker_tx: tokio::sync::mpsc::UnboundedSender<StreamWorkerMsg>,
+    worker_rx: tokio::sync::mpsc::UnboundedReceiver<StreamWorkerMsg>,
+}
+
+impl StreamManager {
+    pub fn new(
+        cmd_rx: tokio::sync::mpsc::UnboundedReceiver<StreamCmd>,
+        // cmd_rx: tokio::sync::mpsc::UnboundedReceiver<StreamCmd>,
+    ) -> Self {
+        let (worker_tx, worker_rx) = tokio::sync::mpsc::unbounded_channel();
+        Self {
+            cmd_rx,
+            worker_tx,
+            worker_rx,
+        }
+    }
+
+    pub async fn run(&mut self) -> Result<()> {
+        loop {
+            tokio::select! {
+                msg = self.worker_rx.recv() => {
+                    //
+                }
+                cmd = self.cmd_rx.recv() => match cmd {
+                    None => return Ok(()),
+                    Some(StreamCmd::StartRtsp(id, texture_handle, creds)) => {
+                        let (kill_tx, kill_rx) = tokio::sync::mpsc::channel(1);
+                        debug!("starting RTSP stream for printer: {:?}", id);
+                        self.start_stream_rtsp(id, texture_handle, creds, kill_rx).await?;
+                    }
+                }
+            }
+        }
+    }
+
+    async fn start_stream_rtsp(
+        &mut self,
+        id: PrinterId,
+        texture_handle: TextureHandle,
+        creds: RtspCreds,
+        kill_rx: tokio::sync::mpsc::Receiver<()>,
+    ) -> Result<()> {
+        let worker_tx = self.worker_tx.clone();
+        // tokio::spawn(async move {
+        //     crate::streaming::rtsp::rtsp_task(creds, texture_handle, kill_rx)
+        //         .await
+        //         .unwrap();
+        //     //
+        // });
+
+        /// ffmpeg doesn't work across tasks
+        std::thread::spawn(|| {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async move {
+                crate::streaming::rtsp::rtsp_task(creds, texture_handle, kill_rx)
+                    .await
+                    .unwrap();
+            })
+        });
+        Ok(())
+    }
+}
 
 /// packets
 #[cfg(feature = "nope")]

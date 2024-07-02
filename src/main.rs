@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -151,7 +151,7 @@ fn main() -> eframe::Result<()> {
         let token = env::var("PRUSA_CONNECT_TOKEN").unwrap();
         let serial = env::var("PRUSA_SERIAL").unwrap();
 
-        let id = env::var("PRUSA_IDENT").unwrap();
+        let id = env::var("PRUSA_ID").unwrap();
         let id: PrinterId = id.into();
 
         let link_key = env::var("PRUSA_LINK_KEY").unwrap();
@@ -232,93 +232,50 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-/// ffmpeg test
-#[cfg(feature = "nope")]
-fn main() -> Result<()> {
-    dotenvy::dotenv()?;
+/// video widget test
+// #[cfg(feature = "nope")]
+fn main() -> eframe::Result<()> {
+    let _ = dotenvy::dotenv();
     logging::init_logs();
 
-    use ffmpeg_next as ffmpeg;
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            // .with_icon(icon)
+            .with_inner_size([850.0, 750.0])
+            .with_min_inner_size([550.0, 400.0]),
+        ..Default::default()
+    };
 
-    let file = "test.mp4";
+    let (stream_tx, stream_rx) = tokio::sync::mpsc::unbounded_channel::<streaming::StreamCmd>();
 
-    let mut ictx = ffmpeg::format::input(&file)?;
+    debug!("spawning tokio runtime");
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            let mut stream_manager = streaming::StreamManager::new(stream_rx);
 
-    let input = ictx
-        .streams()
-        .best(ffmpeg_next::media::Type::Video)
-        .ok_or(ffmpeg::Error::StreamNotFound)?;
-    let video_stream_index = input.index();
-
-    let context_decoder = ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
-    let mut decoder = context_decoder.decoder().video()?;
-
-    debug!("format = {:?}", decoder.format());
-    debug!("width = {:?}", decoder.width());
-    debug!("height = {:?}", decoder.height());
-
-    let mut scaler = ffmpeg::software::scaling::context::Context::get(
-        decoder.format(),
-        decoder.width(),
-        decoder.height(),
-        ffmpeg::format::Pixel::RGB24,
-        decoder.width(),
-        decoder.height(),
-        ffmpeg::software::scaling::flag::Flags::BILINEAR,
-    )?;
-
-    let mut frame_index = 0;
-
-    let mut receive_and_process_decoded_frames =
-        |decoder: &mut ffmpeg::decoder::Video| -> Result<(), ffmpeg::Error> {
-            let mut decoded = ffmpeg::util::frame::video::Video::empty();
-            while decoder.receive_frame(&mut decoded).is_ok() {
-                let mut rgb_frame = ffmpeg::util::frame::video::Video::empty();
-                scaler.run(&decoded, &mut rgb_frame)?;
-                // save_file(&rgb_frame, frame_index).unwrap();
-                frame_index += 1;
+            debug!("starting stream manager");
+            loop {
+                if let Err(e) = stream_manager.run().await {
+                    error!("error in stream manager: {:?}", e);
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    debug!("restarting stream manager");
+                }
             }
-            Ok(())
-        };
+        });
+    });
 
-    let mut n = 0;
-    for (stream, packet) in ictx.packets() {
-        if stream.index() == video_stream_index {
-            let data = packet.data().unwrap();
+    eframe::run_native(
+        "Printer Watcher",
+        native_options,
+        Box::new(move |cc| {
+            egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            debug!("data = {:?}", data.len());
-
-            let d = &data[..16];
-            debug!("d = {:?}", d);
-
-            decoder.send_packet(&packet)?;
-            // receive_and_process_decoded_frames(&mut decoder)?;
-            // debug!("n = {}", n);
-            // n += 1;
-            // if n > 10 {
-            //     break;
-            // }
-            break;
-        }
-    }
-    decoder.send_eof()?;
-    receive_and_process_decoded_frames(&mut decoder)?;
-
-    Ok(())
-}
-
-#[cfg(feature = "nope")]
-fn save_file(
-    frame: &ffmpeg_next::util::frame::video::Video,
-    index: usize,
-) -> std::result::Result<(), std::io::Error> {
-    let mut file = std::fs::File::create(format!("frame{}.ppm", index))?;
-    std::io::Write::write_all(
-        &mut file,
-        format!("P6\n{} {}\n255\n", frame.width(), frame.height()).as_bytes(),
-    )?;
-    std::io::Write::write_all(&mut file, frame.data(0))?;
-    Ok(())
+            Box::new(ui::video_player::test_player::TestVideoApp::new(
+                cc, stream_tx,
+            ))
+        }),
+    )
 }
 
 /// Retina test
