@@ -30,6 +30,7 @@ impl TestVideoApp {
                 id,
                 video_player.texture_handle.clone(),
                 creds,
+                cc.egui_ctx.clone(),
             ))
             .unwrap();
 

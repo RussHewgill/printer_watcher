@@ -18,12 +18,14 @@ pub mod processor {
         frame_i: u64,
         convert_to_annex_b: bool,
         handle: egui::TextureHandle,
+        ctx: egui::Context,
     }
 
     impl H264Processor {
         pub fn new(
             // convert_to_annex_b: bool
             handle: egui::TextureHandle,
+            ctx: egui::Context,
         ) -> Self {
             let convert_to_annex_b = false;
 
@@ -43,6 +45,7 @@ pub mod processor {
                 frame_i: 0,
                 convert_to_annex_b,
                 handle,
+                ctx,
             }
         }
 
@@ -85,6 +88,9 @@ pub mod processor {
             // stream: &retina::client::Stream,
             f: retina::codec::VideoFrame,
         ) -> Result<()> {
+            if !f.is_random_access_point() {
+                return Ok(());
+            }
             // let data = convert_h264(f)?;
             let data = if self.convert_to_annex_b {
                 convert_h264(f)?
@@ -94,6 +100,7 @@ pub mod processor {
             let pkt = ffmpeg::codec::packet::Packet::borrow(&data);
             self.decoder.send_packet(&pkt)?;
             self.receive_frames()?;
+            self.ctx.request_repaint();
             Ok(())
         }
 
@@ -147,77 +154,26 @@ pub mod processor {
                 )
                 .unwrap();
 
-                let filename = format!("frame_test.jpg");
-                image.save(filename)?;
-
-                let image: image::DynamicImage = image.into();
+                // // let filename = format!("frame_test.jpg");
+                // let filename = format!("frame{}.jpg", self.frame_i);
+                // image.save(filename)?;
 
                 let img_size = [image.width() as _, image.height() as _];
-                let image_buffer = image.to_rgba8();
-                let pixels = image_buffer.as_flat_samples();
-                // let pixels = image.as_flat_samples();
-                let img = egui::ColorImage::from_rgba_unmultiplied(img_size, pixels.as_slice());
+                let pixels = image.as_flat_samples();
+                let img = egui::ColorImage::from_rgb(img_size, pixels.as_slice());
+
+                // let image: image::DynamicImage = image.into();
+                // let img_size = [image.width() as _, image.height() as _];
+                // let image_buffer = image.to_rgba8();
+                // let pixels = image_buffer.as_flat_samples();
+                // // let pixels = image.as_flat_samples();
+                // // let img = egui::ColorImage::from_rgba_unmultiplied(img_size, pixels.as_slice());
 
                 self.handle.set(img, egui::TextureOptions::default());
-            }
-
-            Ok(())
-        }
-
-        #[cfg(feature = "nope")]
-        fn receive_frames(&mut self) -> Result<()> {
-            let mut decoded = ffmpeg::util::frame::video::Video::empty();
-            loop {
-                match self.decoder.receive_frame(&mut decoded) {
-                    Err(ffmpeg::Error::Other {
-                        errno: ffmpeg::util::error::EAGAIN,
-                    }) => {
-                        // No complete frame available.
-                        break;
-                    }
-                    Err(e) => bail!(e),
-                    Ok(()) => {}
-                }
-
-                // This frame writing logic lifted from ffmpeg-next's examples/dump-frames.rs.
-                let scaler = self.scaler.get_or_insert_with(|| {
-                    info!(
-                        "image parameters: {:?}, {}x{}",
-                        self.decoder.format(),
-                        self.decoder.width(),
-                        self.decoder.height()
-                    );
-                    ffmpeg::software::scaling::Context::get(
-                        self.decoder.format(),
-                        self.decoder.width(),
-                        self.decoder.height(),
-                        ffmpeg::format::Pixel::RGB24,
-                        self.decoder.width(),
-                        self.decoder.height(),
-                        ffmpeg::software::scaling::Flags::BILINEAR,
-                    )
-                    .unwrap()
-                });
-                let mut scaled = ffmpeg::util::frame::video::Video::empty();
-                scaler.run(&decoded, &mut scaled)?;
-
-                let mut buf = vec![];
-                std::io::Write::write_all(
-                    &mut buf,
-                    format!("P6\n{} {}\n255\n", scaled.width(), scaled.height()).as_bytes(),
-                )?;
-                std::io::Write::write_all(&mut buf, scaled.data(0))?;
-
-                debug!("getting image");
-                let img = image::io::Reader::new(std::io::Cursor::new(buf))
-                    .with_guessed_format()?
-                    .decode()?;
-                debug!("saving image");
-                let filename = format!("frame{}.jpg", self.frame_i);
-                img.save(filename)?;
 
                 self.frame_i += 1;
             }
+
             Ok(())
         }
     }
@@ -264,10 +220,13 @@ pub async fn rtsp_task(
     creds: RtspCreds,
     texture: egui::TextureHandle,
     kill_rx: tokio::sync::mpsc::Receiver<()>,
+    ctx: &egui::Context,
 ) -> Result<()> {
     /// Init ffmpeg
     ffmpeg_next::init().unwrap();
-    ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Trace);
+    if cfg!(debug_assertions) {
+        ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Trace);
+    }
 
     let url = url::Url::parse(&format!("rtsp://{}", creds.host))?;
 
@@ -319,7 +278,7 @@ pub async fn rtsp_task(
         )
         .await?;
 
-    let result = rtsp_loop(session, video_stream_i, texture, kill_rx).await;
+    let result = rtsp_loop(session, video_stream_i, texture, kill_rx, ctx).await;
 
     if let Err(e) = session_group.await_teardown().await {
         error!("TEARDOWN failed: {}", e);
@@ -333,6 +292,7 @@ async fn rtsp_loop(
     video_stream_i: usize,
     handle: egui::TextureHandle,
     kill_rx: tokio::sync::mpsc::Receiver<()>,
+    ctx: &egui::Context,
 ) -> Result<()> {
     debug!("starting rtsp loop");
 
@@ -341,7 +301,7 @@ async fn rtsp_loop(
         .await?
         .demuxed()?;
 
-    let mut processor = H264Processor::new(handle);
+    let mut processor = H264Processor::new(handle, ctx.clone());
 
     if let Some(retina::codec::ParametersRef::Video(v)) =
         session.streams()[video_stream_i].parameters()
@@ -378,7 +338,7 @@ async fn rtsp_loop(
                     processor.handle_parameters(v)?;
                 }
                 processor.send_frame(f)?;
-                break;
+                // break;
             }
             retina::codec::CodecItem::MessageFrame(msg) => {
                 info!("message: {:?}", msg);

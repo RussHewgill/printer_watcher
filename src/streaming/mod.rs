@@ -11,7 +11,7 @@ use crate::config::printer_id::PrinterId;
 
 #[derive(Clone)]
 pub enum StreamCmd {
-    StartRtsp(PrinterId, TextureHandle, RtspCreds),
+    StartRtsp(PrinterId, TextureHandle, RtspCreds, egui::Context),
 }
 
 #[derive(Clone)]
@@ -47,10 +47,10 @@ impl StreamManager {
                 }
                 cmd = self.cmd_rx.recv() => match cmd {
                     None => return Ok(()),
-                    Some(StreamCmd::StartRtsp(id, texture_handle, creds)) => {
+                    Some(StreamCmd::StartRtsp(id, texture_handle, creds, ctx)) => {
                         let (kill_tx, kill_rx) = tokio::sync::mpsc::channel(1);
                         debug!("starting RTSP stream for printer: {:?}", id);
-                        self.start_stream_rtsp(id, texture_handle, creds, kill_rx).await?;
+                        self.start_stream_rtsp(id, texture_handle, creds, kill_rx, ctx).await?;
                     }
                 }
             }
@@ -63,6 +63,7 @@ impl StreamManager {
         texture_handle: TextureHandle,
         creds: RtspCreds,
         kill_rx: tokio::sync::mpsc::Receiver<()>,
+        ctx: egui::Context,
     ) -> Result<()> {
         let worker_tx = self.worker_tx.clone();
         // tokio::spawn(async move {
@@ -76,7 +77,7 @@ impl StreamManager {
         std::thread::spawn(|| {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async move {
-                crate::streaming::rtsp::rtsp_task(creds, texture_handle, kill_rx)
+                crate::streaming::rtsp::rtsp_task(creds, texture_handle, kill_rx, &ctx)
                     .await
                     .unwrap();
             })

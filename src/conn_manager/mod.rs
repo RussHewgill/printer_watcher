@@ -1,5 +1,6 @@
 pub mod conn_bambu;
 pub mod conn_klipper;
+pub mod conn_octoprint;
 pub mod conn_prusa;
 pub mod worker_message;
 
@@ -15,6 +16,7 @@ use worker_message::WorkerMsg;
 use crate::{
     config::{printer_config::PrinterConfig, printer_id::PrinterId, AppConfig},
     status::GenericPrinterState,
+    streaming::StreamCmd,
 };
 use conn_bambu::message::Message;
 
@@ -56,6 +58,8 @@ pub struct PrinterConnManager {
     worker_msg_rx: tokio::sync::mpsc::UnboundedReceiver<(PrinterId, WorkerMsg)>,
 
     kill_chans: HashMap<PrinterId, tokio::sync::oneshot::Sender<()>>,
+
+    stream_tx: tokio::sync::mpsc::UnboundedSender<StreamCmd>,
     // error_map: ErrorMap,
 }
 
@@ -67,6 +71,7 @@ impl PrinterConnManager {
         cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnCmd>,
         msg_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnMsg>,
+        stream_tx: tokio::sync::mpsc::UnboundedSender<StreamCmd>,
     ) -> Self {
         let (worker_msg_tx, mut worker_msg_rx) =
             tokio::sync::mpsc::unbounded_channel::<(PrinterId, WorkerMsg)>();
@@ -92,7 +97,8 @@ impl PrinterConnManager {
             worker_msg_tx,
             worker_msg_rx,
             kill_chans: HashMap::new(),
-            // stream_cmd_tx,
+
+            stream_tx,
             // graphs,
             // error_map,
         }

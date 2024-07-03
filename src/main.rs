@@ -5,7 +5,7 @@
 #![allow(unused_doc_comments)]
 #![allow(unused_labels)]
 #![allow(unexpected_cfgs)]
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod auth;
 // pub mod camera;
@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -177,6 +177,8 @@ fn main() -> eframe::Result<()> {
     let printer_states: Arc<DashMap<PrinterId, GenericPrinterState>> = Arc::new(DashMap::new());
     let printer_states2 = printer_states.clone();
 
+    let (stream_tx, stream_rx) = tokio::sync::mpsc::unbounded_channel::<streaming::StreamCmd>();
+
     debug!("spawning tokio runtime");
     let configs2 = config.clone();
     let cmd_tx2 = cmd_tx.clone();
@@ -189,6 +191,7 @@ fn main() -> eframe::Result<()> {
                 cmd_tx2,
                 cmd_rx,
                 msg_tx,
+                stream_tx,
             )
             .await;
             debug!("starting conn manager");
@@ -199,6 +202,23 @@ fn main() -> eframe::Result<()> {
                     error!("error in conn manager: {:?}", e);
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                     debug!("restarting conn manager");
+                }
+            }
+        });
+    });
+
+    debug!("spawning streaming runtime");
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            let mut stream_manager = streaming::StreamManager::new(stream_rx);
+
+            debug!("starting stream manager");
+            loop {
+                if let Err(e) = stream_manager.run().await {
+                    error!("error in stream manager: {:?}", e);
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    debug!("restarting stream manager");
                 }
             }
         });
@@ -233,7 +253,7 @@ fn main() -> eframe::Result<()> {
 }
 
 /// video widget test
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
