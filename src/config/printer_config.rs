@@ -11,6 +11,7 @@ pub enum PrinterConfig {
     Bambu(PrinterId, Arc<RwLock<PrinterConfigBambu>>),
     Klipper(PrinterId, Arc<RwLock<PrinterConfigKlipper>>),
     Prusa(PrinterId, Arc<RwLock<PrinterConfigPrusa>>),
+    Octoprint(PrinterId, Arc<RwLock<PrinterConfigOcto>>),
 }
 
 /// getters
@@ -20,6 +21,7 @@ impl PrinterConfig {
             PrinterConfig::Bambu(id, _) => id.clone(),
             PrinterConfig::Klipper(id, _) => id.clone(),
             PrinterConfig::Prusa(id, _) => id.clone(),
+            PrinterConfig::Octoprint(id, _) => id.clone(),
         }
     }
 }
@@ -90,5 +92,13 @@ pub struct PrinterConfigPrusa {
     pub key: String,
     pub serial: String,
     // pub fingerprint: String,
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrinterConfigOcto {
+    pub id: PrinterId,
+    pub name: String,
+    pub host: String,
     pub token: String,
 }

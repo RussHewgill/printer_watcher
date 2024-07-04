@@ -22,6 +22,7 @@ pub struct PrusaClientLocal {
     update_timer: tokio::time::Interval,
 }
 
+/// new, run
 impl PrusaClientLocal {
     const URL_VERSION: &'static str = "api/version";
     const URL_INFO: &'static str = "api/v1/info";
@@ -80,6 +81,7 @@ impl PrusaClientLocal {
     }
 }
 
+/// set_headers
 impl PrusaClientLocal {
     async fn set_headers(&self, req: RequestBuilder) -> Result<RequestBuilder> {
         let printer = self.printer_cfg.read().await;
@@ -99,7 +101,13 @@ impl PrusaClientLocal {
     }
 }
 
+/// get_update
 impl PrusaClientLocal {
+    pub async fn get_update(&self) -> Result<GenericPrinterStateUpdate> {
+        unimplemented!()
+    }
+
+    #[cfg(feature = "nope")]
     pub async fn get_update(&self) -> Result<GenericPrinterStateUpdate> {
         let status = self.get_status().await?;
 
@@ -146,6 +154,7 @@ impl PrusaClientLocal {
     }
 }
 
+/// getters
 impl PrusaClientLocal {
     pub async fn get_response<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
         let printer = self.printer_cfg.read().await;

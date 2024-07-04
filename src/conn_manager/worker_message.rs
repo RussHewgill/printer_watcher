@@ -45,18 +45,19 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
                     None
                 };
 
-                Self::StatusUpdate(GenericPrinterStateUpdate {
-                    state,
-                    nozzle_temp: print.print.nozzle_temper.map(|v| v as f32),
-                    bed_temp: print.print.bed_temper.map(|v| v as f32),
-                    nozzle_temp_target: print.print.nozzle_target_temper.map(|v| v as f32),
-                    bed_temp_target: print.print.bed_target_temper.map(|v| v as f32),
-                    progress: None,
-                    current_file: None,
-                    layer: None,
-                    time_printing: None,
-                    time_remaining,
-                })
+                unimplemented!()
+                // Self::StatusUpdate(GenericPrinterStateUpdate {
+                //     state,
+                //     nozzle_temp: print.print.nozzle_temper.map(|v| v as f32),
+                //     bed_temp: print.print.bed_temper.map(|v| v as f32),
+                //     nozzle_temp_target: print.print.nozzle_target_temper.map(|v| v as f32),
+                //     bed_temp_target: print.print.bed_target_temper.map(|v| v as f32),
+                //     progress: None,
+                //     current_file: None,
+                //     layer: None,
+                //     time_printing: None,
+                //     time_remaining,
+                // })
             }
             Message::Info(_) => todo!(),
             Message::System(_) => todo!(),

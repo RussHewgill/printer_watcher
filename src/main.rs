@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -250,6 +250,69 @@ fn main() -> eframe::Result<()> {
             ))
         }),
     )
+}
+
+/// octo test
+#[tokio::main]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    let host = env::var("OCTO_URL")?;
+    let token = env::var("OCTO_TOKEN")?;
+    let id = env::var("OCTO_ID")?;
+    let id: PrinterId = id.into();
+
+    let (worker_msg_tx, mut worker_msg_rx) = tokio::sync::mpsc::unbounded_channel::<(
+        PrinterId,
+        conn_manager::worker_message::WorkerMsg,
+    )>();
+    let (worker_cmd_tx, worker_cmd_rx) =
+        tokio::sync::mpsc::unbounded_channel::<conn_manager::WorkerCmd>();
+    let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let printer = config::printer_config::PrinterConfigOcto {
+        id: id.clone(),
+        name: "test_octo_printer".to_string(),
+        host,
+        token,
+    };
+    let printer = Arc::new(RwLock::new(printer));
+
+    let mut client = conn_manager::conn_octoprint::OctoClientLocal::new(
+        printer,
+        worker_msg_tx,
+        worker_cmd_rx,
+        kill_rx,
+        None,
+    )?;
+
+    // let cmd = conn_manager::conn_octoprint::octo_commands::OctoCmd::Home {
+    //     x: true,
+    //     y: true,
+    //     z: false,
+    // };
+
+    // let cmd = conn_manager::conn_octoprint::octo_commands::OctoCmd::PickupTool(0);
+
+    // debug!("cmd = {:?}", cmd.to_json());
+
+    // let v: serde_json::Value = client.get_response("api/version").await?;
+    // let v: serde_json::Value = client.get_response("api/printer").await?;
+    // let v: serde_json::Value = client.send_command(&cmd).await?;
+    // let res = client.send_command(&cmd).await?;
+
+    let update = client.get_update().await?;
+
+    debug!("update = {:#?}", update);
+
+    // let v = std::fs::read_to_string("example_state.json")?;
+    // // let v: serde_json::Value = serde_json::from_str(&v)?;
+    // let v: conn_manager::conn_octoprint::octo_types::printer_status::PrinterStatus =
+    //     serde_json::from_str(&v)?;
+    // debug!("v = {:#?}", v);
+
+    Ok(())
 }
 
 /// video widget test

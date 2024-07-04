@@ -198,6 +198,9 @@ impl PrinterConnManager {
                     }
                 });
             }
+            PrinterConfig::Octoprint(_, printer) => {
+                todo!();
+            }
         }
 
         Ok(())
