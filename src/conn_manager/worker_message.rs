@@ -1,4 +1,4 @@
-use crate::status::{GenericPrinterStateUpdate, PrinterState};
+use crate::status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate};
 
 #[derive(Debug, Clone)]
 pub enum WorkerMsg {
@@ -16,6 +16,8 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
         match msg {
             // Message::Print(print) => todo!(),
             Message::Print(print) => {
+                let mut out = vec![];
+
                 let time_remaining = print
                     .print
                     .mc_remaining_time
@@ -45,19 +47,26 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
                     None
                 };
 
-                unimplemented!()
-                // Self::StatusUpdate(GenericPrinterStateUpdate {
-                //     state,
-                //     nozzle_temp: print.print.nozzle_temper.map(|v| v as f32),
-                //     bed_temp: print.print.bed_temper.map(|v| v as f32),
-                //     nozzle_temp_target: print.print.nozzle_target_temper.map(|v| v as f32),
-                //     bed_temp_target: print.print.bed_target_temper.map(|v| v as f32),
-                //     progress: None,
-                //     current_file: None,
-                //     layer: None,
-                //     time_printing: None,
-                //     time_remaining,
-                // })
+                if let Some(state) = state {
+                    out.push(PrinterStateUpdate::State(state.clone()));
+                }
+
+                if let Some(t) = print.print.nozzle_temper {
+                    out.push(PrinterStateUpdate::NozzleTemp(
+                        0,
+                        t as f32,
+                        print.print.nozzle_target_temper.map(|v| v as f32),
+                    ));
+                }
+
+                if let Some(t) = print.print.bed_temper {
+                    out.push(PrinterStateUpdate::BedTemp(
+                        t as f32,
+                        print.print.bed_target_temper.map(|v| v as f32),
+                    ));
+                }
+
+                Self::StatusUpdate(GenericPrinterStateUpdate(out))
             }
             Message::Info(_) => todo!(),
             Message::System(_) => todo!(),

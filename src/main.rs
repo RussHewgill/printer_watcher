@@ -34,8 +34,8 @@ use crate::{
 use config::printer_id::PrinterId;
 // use ui::model::SavedAppState;
 
-#[cfg(feature = "nope")]
-// #[tokio::main]
+// #[cfg(feature = "nope")]
+#[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -45,10 +45,13 @@ async fn main() -> Result<()> {
     // let connect_key = env::var("PRUSA_CONNECT_KEY")?;
     let token = env::var("PRUSA_CONNECT_TOKEN")?;
     let serial = env::var("PRUSA_SERIAL")?;
+    let id = env::var("PRUSA_ID")?;
+    let id: PrinterId = id.into();
 
     let link_key = env::var("PRUSA_LINK_KEY")?;
 
     let printer = config::printer_config::PrinterConfigPrusa {
+        id,
         name: "test_printer".to_string(),
         host: host.clone(),
         key: link_key,
@@ -61,36 +64,50 @@ async fn main() -> Result<()> {
     const URL_STATUS: &'static str = "api/v1/status";
     const URL_JOB: &'static str = "api/v1/job";
 
-    // let client = conn_manager::conn_prusa::PrusaClient::new(Arc::new(RwLock::new(printer)))?;
-    let client = conn_manager::conn_prusa::prusa_local::PrusaClientLocal::new(Arc::new(
-        RwLock::new(printer),
-    ))?;
+    let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<conn_manager::WorkerCmd>();
+    let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnMsg>();
 
-    // let resp: serde_json::Value = client.get_response("api/v1/status").await?;
-    // debug!("resp = {}", serde_json::to_string_pretty(&resp).unwrap());
+    let (tx, _) = tokio::sync::mpsc::unbounded_channel::<(
+        PrinterId,
+        conn_manager::worker_message::WorkerMsg,
+    )>();
+
+    let (_, kill_rx) = tokio::sync::oneshot::channel::<()>();
+
+    // let client = conn_manager::conn_prusa::PrusaClient::new(Arc::new(RwLock::new(printer)))?;
+    let client = conn_manager::conn_prusa::prusa_local::PrusaClientLocal::new(
+        Arc::new(RwLock::new(printer)),
+        tx,
+        cmd_rx,
+        kill_rx,
+        None,
+    )?;
 
     let resp = client.get_job().await?;
     debug!("resp = {:#?}", resp);
 
-    // // let url = format!("https://{}:443/{}", host, URL_INFO);
-    // let url = format!("http://{}/{}", host, URL_STATUS);
+    let thumbnail = resp.file.refs.icon.clone();
 
-    // let client = reqwest::ClientBuilder::new()
-    //     .use_rustls_tls()
-    //     .danger_accept_invalid_certs(true)
-    //     .build()?;
-    // let res = client
-    //     .get(&url)
-    //     // .header("Authorization", &format!("Bearer {}", token.get_token()))
-    //     // .header("Content-Type", "application/json")
-    //     .header("X-Api-Key", key)
-    //     .send()
-    //     .await?;
+    debug!("thumbnail = {:?}", thumbnail);
 
-    // let text: serde_json::Value = res.json().await?;
-    // // let text = res.text().await?;
+    let host = env::var("PRUSA_CONNECT_HOST")?;
 
-    // debug!("text = {:#?}", text);
+    let url = format!("http://{}{}", host, thumbnail);
+
+    debug!("url = {:?}", url);
+
+    let client = reqwest::ClientBuilder::new().build()?;
+
+    let key = env::var("PRUSA_LINK_KEY")?;
+    let mut resp = client.get(&url).header("X-Api-Key", &key).send().await?;
+
+    debug!("resp = {:?}", resp);
+
+    let bytes = resp.bytes().await?;
+
+    /// save bytes to png file
+    let path = "icon.png";
+    std::fs::write(path, bytes)?;
 
     Ok(())
 }
@@ -253,7 +270,8 @@ fn main() -> eframe::Result<()> {
 }
 
 /// octo test
-#[tokio::main]
+#[cfg(feature = "nope")]
+// #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -293,18 +311,21 @@ async fn main() -> Result<()> {
     //     z: false,
     // };
 
-    // let cmd = conn_manager::conn_octoprint::octo_commands::OctoCmd::PickupTool(0);
+    // let cmd = conn_manager::conn_octoprint::octo_commands::OctoCmd::ParkTool;
+
+    // let cmd = conn_manager::conn_octoprint::octo_commands::OctoCmd::unload_filament(0);
+    let cmd = conn_manager::conn_octoprint::octo_commands::OctoCmd::load_pla(vec![0]);
+
+    let res = client.send_command(&cmd).await?;
 
     // debug!("cmd = {:?}", cmd.to_json());
 
     // let v: serde_json::Value = client.get_response("api/version").await?;
     // let v: serde_json::Value = client.get_response("api/printer").await?;
     // let v: serde_json::Value = client.send_command(&cmd).await?;
-    // let res = client.send_command(&cmd).await?;
 
-    let update = client.get_update().await?;
-
-    debug!("update = {:#?}", update);
+    // let update = client.get_update().await?;
+    // debug!("update = {:#?}", update);
 
     // let v = std::fs::read_to_string("example_state.json")?;
     // // let v: serde_json::Value = serde_json::from_str(&v)?;

@@ -140,18 +140,26 @@ impl OctoClientLocal {
             OctoCmd::Jog { .. } | OctoCmd::Home { .. } | OctoCmd::SetFeedrate(..) => {
                 "api/printer/printhead"
             }
-            OctoCmd::PickupTool(_) | OctoCmd::ParkTool => "api/printer/command",
-            // _ => unimplemented!(),
+            OctoCmd::PickupTool(_) 
+            | OctoCmd::ParkTool 
+            | OctoCmd::ChangeFilament(_) 
+            // | OctoCmd::ChangeFilament(_) 
+            => "api/printer/command",
+            _ => unimplemented!(),
         };
 
         let url = format!("http://{}:5000/{}", host, url);
+
+        let cmd = cmd.to_json();
+
+        debug!("sending command: {:#?}", cmd);
 
         let res = self
             .client
             .post(&url)
             .header("Content-Type", "application/json")
             .header("X-Api-Key", token)
-            .json(&cmd.to_json())
+            .json(&cmd)
             .send()
             .await?;
 

@@ -16,6 +16,12 @@ impl Default for Tab {
     }
 }
 
+#[derive(Clone)]
+pub enum Thumbnail {
+    None,
+    // Image(),
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct GridLocation {
     pub col: usize,

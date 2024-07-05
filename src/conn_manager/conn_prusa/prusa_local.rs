@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use crate::{
     config::{printer_config::PrinterConfigPrusa, printer_id::PrinterId},
     conn_manager::{worker_message::WorkerMsg, WorkerCmd},
-    status::{GenericPrinterStateUpdate, PrinterState},
+    status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate},
 };
 
 pub struct PrusaClientLocal {
@@ -104,11 +104,8 @@ impl PrusaClientLocal {
 /// get_update
 impl PrusaClientLocal {
     pub async fn get_update(&self) -> Result<GenericPrinterStateUpdate> {
-        unimplemented!()
-    }
+        let mut out = vec![];
 
-    #[cfg(feature = "nope")]
-    pub async fn get_update(&self) -> Result<GenericPrinterStateUpdate> {
         let status = self.get_status().await?;
 
         let state = match status.printer.state.as_ref() {
@@ -123,8 +120,12 @@ impl PrusaClientLocal {
             "READY" => PrinterState::Idle,
             _ => PrinterState::Disconnected,
         };
+        out.push(crate::status::PrinterStateUpdate::State(state.clone()));
 
         let job = self.get_job().await?;
+
+        // let thumbnail = job.file.refs.thumbnail.clone();
+        // debug!("thumbnail = {:#?}", thumbnail);
 
         let time_printing = match state {
             PrinterState::Printing | PrinterState::Error | PrinterState::Paused => {
@@ -139,18 +140,53 @@ impl PrusaClientLocal {
             _ => None,
         };
 
-        Ok(GenericPrinterStateUpdate {
-            state: Some(state),
-            nozzle_temp: Some(status.printer.temp_nozzle as f32),
-            bed_temp: Some(status.printer.temp_bed as f32),
-            nozzle_temp_target: Some(status.printer.target_nozzle as f32),
-            bed_temp_target: Some(status.printer.target_bed as f32),
-            progress: Some(status.job.progress as f32),
-            time_printing,
-            time_remaining,
-            current_file: Some(job.file.display_name),
-            ..Default::default()
-        })
+        out.push(PrinterStateUpdate::Progress(status.job.progress as f32));
+
+        out.push(PrinterStateUpdate::NozzleTemp(
+            0,
+            status.printer.temp_nozzle as f32,
+            Some(status.printer.target_nozzle as f32),
+        ));
+        out.push(PrinterStateUpdate::BedTemp(
+            status.printer.temp_bed as f32,
+            Some(status.printer.target_bed as f32),
+        ));
+
+        out.push(PrinterStateUpdate::CurrentFile(
+            job.file.display_name.clone(),
+        ));
+
+        Ok(GenericPrinterStateUpdate(out))
+        // Ok(GenericPrinterStateUpdate {
+        //     state: Some(state),
+        //     nozzle_temp: Some(status.printer.temp_nozzle as f32),
+        //     bed_temp: Some(status.printer.temp_bed as f32),
+        //     nozzle_temp_target: Some(status.printer.target_nozzle as f32),
+        //     bed_temp_target: Some(status.printer.target_bed as f32),
+        //     progress: Some(status.job.progress as f32),
+        //     time_printing,
+        //     time_remaining,
+        //     current_file: Some(job.file.display_name),
+        //     ..Default::default()
+        // })
+    }
+
+    pub async fn download_thumbnail(&self) -> Result<Vec<u8>> {
+        let job = self.get_job().await?;
+        let thumbnail_url = job.file.refs.thumbnail.clone();
+        let thumbnail_url = format!(
+            "http://{}{}",
+            self.printer_cfg.read().await.host,
+            thumbnail_url
+        );
+        let resp = self
+            .set_headers(self.client.get(&thumbnail_url))
+            .await?
+            .send()
+            .await?;
+
+        let bytes = resp.bytes().await?;
+        Ok(bytes.to_vec())
     }
 }
 

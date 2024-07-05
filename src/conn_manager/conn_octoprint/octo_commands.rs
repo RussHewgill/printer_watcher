@@ -6,6 +6,21 @@ use serde_json::Value;
 /// pick tool:
 ///     G27 P0 Z5
 ///     T[tool] S1 L0 D0
+/// change filaments:
+///     Load PLA in T0:
+///         G27 P0 Z40
+///         M701 S"PLA" T0 W2
+///     Unload T5:
+///         G27 P0 Z40
+///         M702 T4 W2
+///     Unload T0, then load PLA:
+///         G27 P0 Z40
+///         M1600 S"PLA" T0 R
+/// cooldown:
+/// stealth:
+///     disable: M9140
+///     enable: M9150
+///     
 
 pub enum OctoCmd {
     ParkTool,
@@ -24,6 +39,40 @@ pub enum OctoCmd {
         z: bool,
     },
     SetFeedrate(u64),
+    ChangeFilament([Option<ChangeFilament>; 5]),
+    Cooldown,
+    SetStealth(bool),
+}
+
+impl OctoCmd {
+    pub fn unload_filament(tool: usize) -> Self {
+        let mut out = [None; 5];
+        out[tool] = Some(ChangeFilament::Unload(tool));
+        Self::ChangeFilament(out)
+    }
+
+    pub fn load_pla(tools: impl IntoIterator<Item = usize>) -> Self {
+        let mut out = [None; 5];
+        for t in tools.into_iter() {
+            if t >= 5 {
+                continue;
+            }
+            out[t] = Some(ChangeFilament::Load(t, FilamentType::PLA));
+        }
+        Self::ChangeFilament(out)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ChangeFilament {
+    Unload(usize),
+    Load(usize, FilamentType),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FilamentType {
+    PLA,
+    PETG,
 }
 
 impl OctoCmd {
@@ -68,6 +117,35 @@ impl OctoCmd {
                 })
             }
             OctoCmd::SetFeedrate(f) => todo!(),
+            OctoCmd::ChangeFilament(changes) => {
+                let mut cs = vec![];
+
+                for (i, c) in changes.into_iter().enumerate() {
+                    let Some(c) = c else {
+                        continue;
+                    };
+
+                    match c {
+                        ChangeFilament::Unload(tool) => {
+                            cs.push(format!("M702 T{} W2", tool));
+                        }
+                        ChangeFilament::Load(tool, filament) => {
+                            let f = match filament {
+                                FilamentType::PLA => "PLA",
+                                FilamentType::PETG => "PETG",
+                            };
+                            cs.push(format!("M701 S\"{}\" T{} W2", f, tool));
+                        }
+                    }
+                }
+
+                serde_json::json!({
+                    "commands": [
+                        cs
+                    ]
+                })
+            }
+            _ => todo!(),
         }
     }
 }
