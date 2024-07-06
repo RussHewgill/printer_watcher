@@ -26,7 +26,7 @@ impl PrinterConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PrinterConfigBambu {
     pub id: PrinterId,
     pub serial: String,
@@ -63,7 +63,7 @@ impl PrinterConfigBambu {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PrinterConfigKlipper {
     pub id: PrinterId,
     pub name: String,
@@ -84,7 +84,7 @@ impl PrinterConfigKlipper {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PrinterConfigPrusa {
     pub id: PrinterId,
     pub name: String,

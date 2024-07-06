@@ -47,9 +47,18 @@ pub struct GenericPrinterState {
     pub time_printing: Option<chrono::Duration>,
     pub time_remaining: Option<chrono::Duration>,
     pub current_file: Option<String>,
+    // pub thumbnail_path: Option<String>,
+    pub state_prusa: Option<crate::conn_manager::conn_prusa::prusa_local_types::PrusaStatus>,
 }
 
 impl GenericPrinterState {
+    pub fn update_prusa(
+        &mut self,
+        update: crate::conn_manager::conn_prusa::prusa_local_types::PrusaStatus,
+    ) {
+        self.state_prusa = Some(update);
+    }
+
     pub fn update(&mut self, update: GenericPrinterStateUpdate) {
         for u in update.0 {
             self._update(u);

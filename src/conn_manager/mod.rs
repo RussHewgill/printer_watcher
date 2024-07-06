@@ -2,12 +2,13 @@ pub mod conn_bambu;
 pub mod conn_klipper;
 pub mod conn_octoprint;
 pub mod conn_prusa;
+pub mod helpers;
 pub mod worker_message;
-
-use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
+
+use std::{collections::HashMap, sync::Arc};
 
 use dashmap::DashMap;
 use tokio::sync::RwLock;
@@ -30,7 +31,7 @@ pub enum PrinterConnMsg {
 /// messages from UI to PrinterConnManager
 #[derive(Debug, Clone)]
 pub enum PrinterConnCmd {
-    FetchThumbnail(PrinterId),
+    FetchThumbnail(PrinterId, String),
     //
 }
 
@@ -119,11 +120,7 @@ impl PrinterConnManager {
             tokio::select! {
                 Some(cmd) = self.cmd_rx.recv() => {
                     debug!("got cmd");
-                    // match cmd {
-                    //     PrinterConnCmd::Login(_, _) => debug!("got cmd = Login"),
-                    //     _ => debug!("got cmd = {:?}", cmd),
-                    // }
-                    // self.handle_command(cmd).await?;
+                    self.handle_command(cmd).await?;
                 }
                 Some((id, printer_msg)) = self.worker_msg_rx.recv() => {
                     // debug!("got printer_msg, id = {:?} = {:?}", id, printer_msg);
@@ -216,7 +213,7 @@ impl PrinterConnManager {
             bail!("printer not found: {:?}", id);
         };
 
-        match &msg {
+        match msg {
             WorkerMsg::StatusUpdate(update) => {
                 // debug!("conn manager got status update: {:?}", id);
 
@@ -225,6 +222,20 @@ impl PrinterConnManager {
 
                 // self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;
             }
+            WorkerMsg::StatusUpdatePrusa(update) => {
+                // debug!("conn manager got status update: {:?}", id);
+
+                let mut state = self.printer_states.entry(id.clone()).or_default();
+                state.update_prusa(update.clone());
+
+                // self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;
+            }
+
+            WorkerMsg::FetchedThumbnail(id, file, img) => {
+                self.msg_tx
+                    .send(PrinterConnMsg::NewThumbnail(id, file, img))?;
+            }
+
             WorkerMsg::Connecting => {}
             WorkerMsg::Connected => {}
             WorkerMsg::Reconnecting => {}
@@ -235,6 +246,24 @@ impl PrinterConnManager {
     }
 
     async fn handle_command(&mut self, cmd: PrinterConnCmd) -> Result<()> {
+        match cmd {
+            PrinterConnCmd::FetchThumbnail(id, file) => {
+                let Some(printer) = self.config.get_printer(&id) else {
+                    bail!("printer not found: {:?}", id);
+                };
+                let Some(state) = self.printer_states.get(&id) else {
+                    bail!("printer state not found: {:?}", id);
+                };
+                helpers::spawn_fetch_thumbnail(
+                    printer,
+                    state.clone(),
+                    id,
+                    file,
+                    self.worker_msg_tx.clone(),
+                )
+                .await?;
+            }
+        }
         Ok(())
     }
 }

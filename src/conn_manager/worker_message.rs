@@ -1,8 +1,13 @@
-use crate::status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate};
+use crate::{
+    config::printer_id::PrinterId,
+    status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate},
+};
 
 #[derive(Debug, Clone)]
 pub enum WorkerMsg {
     StatusUpdate(GenericPrinterStateUpdate),
+    StatusUpdatePrusa(super::conn_prusa::prusa_local_types::PrusaStatus),
+    FetchedThumbnail(PrinterId, String, Vec<u8>),
 
     Connecting,
     Connected,

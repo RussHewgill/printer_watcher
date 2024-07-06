@@ -9,7 +9,9 @@ use tokio::sync::RwLock;
 
 use crate::{
     config::{printer_config::PrinterConfigPrusa, printer_id::PrinterId},
-    conn_manager::{worker_message::WorkerMsg, WorkerCmd},
+    conn_manager::{
+        conn_prusa::prusa_local_types::PrusaStatus, worker_message::WorkerMsg, WorkerCmd,
+    },
     status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate},
 };
 
@@ -63,13 +65,22 @@ impl PrusaClientLocal {
         loop {
             tokio::select! {
                 _ = self.update_timer.tick() => {
-                    let update = self.get_update().await?;
+                    let (update, status, job) = self.get_update().await?;
                     let id = self.printer_cfg.read().await.id.clone();
                     // debug!("sending update: {:#?}", &update);
                     self.tx.send((
-                        id,
+                        id.clone(),
                         WorkerMsg::StatusUpdate(update),
                     ))?;
+
+                    self.tx.send((
+                        id.clone(),
+                        WorkerMsg::StatusUpdatePrusa(PrusaStatus {
+                            status,
+                            job,
+                        })
+                    ))?;
+
                 }
                 _ = &mut self.kill_rx => {
                     info!("kill_rx fired, exiting");
@@ -105,7 +116,13 @@ impl PrusaClientLocal {
 
 /// get_update
 impl PrusaClientLocal {
-    pub async fn get_update(&self) -> Result<GenericPrinterStateUpdate> {
+    pub async fn get_update(
+        &self,
+    ) -> Result<(
+        GenericPrinterStateUpdate,
+        super::prusa_local_types::Status,
+        super::prusa_local_types::Job,
+    )> {
         let mut out = vec![];
 
         let status = self.get_status().await?;
@@ -158,7 +175,7 @@ impl PrusaClientLocal {
             job.file.display_name.clone(),
         ));
 
-        Ok(GenericPrinterStateUpdate(out))
+        Ok((GenericPrinterStateUpdate(out), status, job))
         // Ok(GenericPrinterStateUpdate {
         //     state: Some(state),
         //     nozzle_temp: Some(status.printer.temp_nozzle as f32),

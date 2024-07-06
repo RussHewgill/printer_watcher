@@ -40,8 +40,7 @@ pub struct App {
     #[serde(skip)]
     pub unplaced_printers: Vec<PrinterId>,
 
-    /// printer_id -> (name, thumbnail)
-    // pub thumbnails: HashMap<PrinterId, (String, Vec<u8>)>,
+    #[serde(skip)]
     pub thumbnails: ThumbnailMap,
 
     #[serde(skip)]
@@ -136,6 +135,9 @@ impl App {
             // PrinterConnMsg::SyncedProjects(projects) => {
             //     self.projects = projects;
             // }
+            PrinterConnMsg::NewThumbnail(id, file, img) => {
+                self.thumbnails.insert(id, (file, img));
+            }
             _ => {
                 warn!("unhandled message: {:?}", msg);
             }

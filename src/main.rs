@@ -87,8 +87,8 @@ async fn main() -> Result<()> {
     // debug!("resp = {:#?}", resp);
 
     // let thumbnail = resp.file.refs.download.clone();
-    // let thumbnail = resp.file.refs.icon.clone();
-    let thumbnail = resp.file.refs.thumbnail.clone();
+    let thumbnail = resp.file.refs.icon.clone();
+    // let thumbnail = resp.file.refs.thumbnail.clone();
 
     debug!("thumbnail = {:?}", thumbnail);
 
@@ -105,10 +105,10 @@ async fn main() -> Result<()> {
         .get(&url)
         .header("X-Api-Key", &key)
         // .header("Digest", &key)
-        .header(
-            "Authorization",
-            r#"Digest username="maker", realm="Printer API", uri="/thumb/l/usb/BAB~AA94.BGC""#,
-        )
+        // .header(
+        //     "Authorization",
+        //     r#"Digest username="maker", realm="Printer API", uri="/thumb/l/usb/BAB~AA94.BGC""#,
+        // )
         .send()
         .await?;
 
@@ -121,7 +121,8 @@ async fn main() -> Result<()> {
     let duration = t1 - t0;
     debug!("duration = {:?}", duration);
 
-    let path = "thumbnail.png";
+    // let path = "thumbnail.png";
+    let path = "icon.png";
     // let path = "dl.gcode";
     std::fs::write(path, bytes)?;
 
@@ -138,7 +139,7 @@ fn main() -> eframe::Result<()> {
     // let mut printer_order = std::collections::HashMap::new();
 
     /// add bambu
-    #[cfg(feature = "nope")]
+    // #[cfg(feature = "nope")]
     {
         let host = env::var("BAMBU_IP").unwrap();
         let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();

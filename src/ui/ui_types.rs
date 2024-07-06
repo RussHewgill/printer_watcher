@@ -26,15 +26,32 @@ pub enum Thumbnail {
     // Image(),
 }
 
-#[derive(Default, Clone, Deserialize, Serialize)]
+// #[derive(Default, Clone, Deserialize, Serialize)]
+#[derive(Default, Clone)]
 pub struct ThumbnailMap {
     in_progress: HashSet<PrinterId>,
-    thumbnails: HashMap<PrinterId, (String, ())>,
+    thumbnails: HashMap<PrinterId, (String, Vec<u8>)>,
 }
 
 impl ThumbnailMap {
-    pub fn get(&self, printer_id: &PrinterId) -> Option<&(String, ())> {
+    pub fn get(&self, printer_id: &PrinterId) -> Option<&(String, Vec<u8>)> {
         self.thumbnails.get(printer_id)
+    }
+
+    pub fn insert(&mut self, printer_id: PrinterId, thumbnail: (String, Vec<u8>)) {
+        self.thumbnails.insert(printer_id, thumbnail);
+    }
+
+    pub fn is_in_progress(&self, printer_id: &PrinterId) -> bool {
+        self.in_progress.contains(printer_id)
+    }
+
+    pub fn set_in_progress(&mut self, printer_id: PrinterId, in_progress: bool) {
+        if in_progress {
+            self.in_progress.insert(printer_id);
+        } else {
+            self.in_progress.remove(&printer_id);
+        }
     }
 }
 

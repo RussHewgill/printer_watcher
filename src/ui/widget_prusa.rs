@@ -82,22 +82,44 @@ impl App {
                 strip.cell(|ui| {
                     // ui.label("Thumbnail");
 
-                    // match self.thumbnails.get(&printer.id) {
-                    //     Some(_) => {
-                    //         ui.label("Thumbnail");
-                    //     }
-                    //     None => {
-                    //         // if self.thumbnails
-                    //         // debug!("")
-                    //         self.cmd_tx
-                    //             .as_ref()
-                    //             .unwrap()
-                    //             .send(crate::conn_manager::PrinterConnCmd::FetchThumbnail(
-                    //                 printer.id.clone(),
-                    //             ))
-                    //             .unwrap();
-                    //     }
-                    // }
+                    let Some(thumbnail_path) = status
+                        .state_prusa
+                        .as_ref()
+                        .and_then(|s| Some(s.job.file.refs.thumbnail.as_str()))
+                    else {
+                        return;
+                    };
+
+                    match self.thumbnails.get(&printer.id) {
+                        Some((file, img)) => {
+                            if file != thumbnail_path {
+                                unimplemented!()
+                            } else {
+                                // ui.label("Thumbnail");
+                                let img = egui::Image::from_bytes(
+                                    format!("bytes://{}", file),
+                                    img.clone(),
+                                )
+                                .fit_to_exact_size(Vec2::new(thumbnail_width, thumbnail_height));
+
+                                ui.add(img);
+                            }
+                        }
+                        None => {
+                            if !self.thumbnails.is_in_progress(&printer.id) {
+                                debug!("sending thumbnail fetch request");
+                                self.thumbnails.set_in_progress(printer.id.clone(), true);
+                                self.cmd_tx
+                                    .as_ref()
+                                    .unwrap()
+                                    .send(crate::conn_manager::PrinterConnCmd::FetchThumbnail(
+                                        printer.id.clone(),
+                                        thumbnail_path.to_string(),
+                                    ))
+                                    .unwrap();
+                            }
+                        }
+                    }
 
                     //
                 });

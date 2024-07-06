@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+/// MARK: General status
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrusaStatus {
+    pub status: Status,
+    pub job: Job,
+}
+
 /// MARK: Version
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Version {
