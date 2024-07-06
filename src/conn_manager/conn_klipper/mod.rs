@@ -36,6 +36,11 @@ impl KlipperClient {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        unimplemented!()
+    }
+
+    #[cfg(feature = "nope")]
+    pub async fn run(&mut self) -> Result<()> {
         let host = self.printer_cfg.read().await.host.clone();
         let url = url::Url::parse(&format!("ws://{}:{}/websocket", host, 80))?;
 

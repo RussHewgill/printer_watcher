@@ -13,7 +13,7 @@ pub fn put_ui(
 
     let layout = egui::Layout::left_to_right(egui::Align::Center);
 
-    let mut ui = ui.child_ui(rect, layout);
+    let mut ui = ui.child_ui(rect, layout, None);
 
     ui.set_max_size(size);
 

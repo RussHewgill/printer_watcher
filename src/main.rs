@@ -34,8 +34,8 @@ use crate::{
 use config::printer_id::PrinterId;
 // use ui::model::SavedAppState;
 
-// #[cfg(feature = "nope")]
-#[tokio::main]
+#[cfg(feature = "nope")]
+// #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -84,9 +84,11 @@ async fn main() -> Result<()> {
     )?;
 
     let resp = client.get_job().await?;
-    debug!("resp = {:#?}", resp);
+    // debug!("resp = {:#?}", resp);
 
-    let thumbnail = resp.file.refs.icon.clone();
+    // let thumbnail = resp.file.refs.download.clone();
+    // let thumbnail = resp.file.refs.icon.clone();
+    let thumbnail = resp.file.refs.thumbnail.clone();
 
     debug!("thumbnail = {:?}", thumbnail);
 
@@ -99,21 +101,35 @@ async fn main() -> Result<()> {
     let client = reqwest::ClientBuilder::new().build()?;
 
     let key = env::var("PRUSA_LINK_KEY")?;
-    let mut resp = client.get(&url).header("X-Api-Key", &key).send().await?;
+    let mut resp = client
+        .get(&url)
+        .header("X-Api-Key", &key)
+        // .header("Digest", &key)
+        .header(
+            "Authorization",
+            r#"Digest username="maker", realm="Printer API", uri="/thumb/l/usb/BAB~AA94.BGC""#,
+        )
+        .send()
+        .await?;
 
     debug!("resp = {:?}", resp);
 
+    let t0 = std::time::Instant::now();
     let bytes = resp.bytes().await?;
+    let t1 = std::time::Instant::now();
 
-    /// save bytes to png file
-    let path = "icon.png";
+    let duration = t1 - t0;
+    debug!("duration = {:?}", duration);
+
+    let path = "thumbnail.png";
+    // let path = "dl.gcode";
     std::fs::write(path, bytes)?;
 
     Ok(())
 }
 
 /// MARK: Main
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -255,7 +271,7 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            Box::new(ui::app::App::new(
+            Ok(Box::new(ui::app::App::new(
                 cc,
                 config,
                 printer_states,
@@ -264,7 +280,7 @@ fn main() -> eframe::Result<()> {
                 // stream_cmd_tx,
                 // handles,
                 // graphs,
-            ))
+            )))
         }),
     )
 }

@@ -28,6 +28,7 @@ src/ui_iced
 *.mp4
 *.ppm
 example*.json
+*.gcode
 
 !icon.png
 !assets/icons8-disconnected-100.png

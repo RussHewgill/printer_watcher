@@ -1,4 +1,8 @@
+use std::collections::{HashMap, HashSet};
+
 use serde::{Deserialize, Serialize};
+
+use crate::config::printer_id::PrinterId;
 
 #[derive(PartialEq, Deserialize, Serialize)]
 pub enum Tab {
@@ -20,6 +24,18 @@ impl Default for Tab {
 pub enum Thumbnail {
     None,
     // Image(),
+}
+
+#[derive(Default, Clone, Deserialize, Serialize)]
+pub struct ThumbnailMap {
+    in_progress: HashSet<PrinterId>,
+    thumbnails: HashMap<PrinterId, (String, ())>,
+}
+
+impl ThumbnailMap {
+    pub fn get(&self, printer_id: &PrinterId) -> Option<&(String, ())> {
+        self.thumbnails.get(printer_id)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]

@@ -24,11 +24,13 @@ use conn_bambu::message::Message;
 #[derive(Debug, Clone)]
 pub enum PrinterConnMsg {
     WorkerMsg(PrinterId, WorkerMsg),
+    NewThumbnail(PrinterId, String, Vec<u8>),
 }
 
 /// messages from UI to PrinterConnManager
 #[derive(Debug, Clone)]
 pub enum PrinterConnCmd {
+    FetchThumbnail(PrinterId),
     //
 }
 

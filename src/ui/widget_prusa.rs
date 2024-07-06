@@ -74,7 +74,25 @@ impl App {
 
                 /// thumbnail/webcam
                 strip.cell(|ui| {
-                    ui.label("Thumbnail");
+                    // ui.label("Thumbnail");
+
+                    // match self.thumbnails.get(&printer.id) {
+                    //     Some(_) => {
+                    //         ui.label("Thumbnail");
+                    //     }
+                    //     None => {
+                    //         // if self.thumbnails
+                    //         // debug!("")
+                    //         self.cmd_tx
+                    //             .as_ref()
+                    //             .unwrap()
+                    //             .send(crate::conn_manager::PrinterConnCmd::FetchThumbnail(
+                    //                 printer.id.clone(),
+                    //             ))
+                    //             .unwrap();
+                    //     }
+                    // }
+
                     //
                 });
 
@@ -112,7 +130,7 @@ impl App {
                                             .strong()
                                             .size(font_size),
                                         )
-                                        .truncate(true),
+                                        .truncate(),
                                     );
                                 });
                             });
@@ -128,7 +146,7 @@ impl App {
                                             .strong()
                                             .size(font_size),
                                         )
-                                        .truncate(true),
+                                        .truncate(),
                                     );
                                 });
                             });
@@ -173,7 +191,7 @@ impl App {
                                 .strong()
                                 .size(text_size_title),
                             )
-                            .truncate(true),
+                            .truncate(),
                         );
                     });
                 });
@@ -338,7 +356,7 @@ impl App {
                                     ))
                                     .strong(),
                                 )
-                                .truncate(true),
+                                .truncate(),
                             );
                             ui.allocate_space(Vec2::new(ui.available_width() - icon_size, 0.));
                         },

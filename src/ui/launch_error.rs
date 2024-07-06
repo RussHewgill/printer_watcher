@@ -15,7 +15,7 @@ pub fn run_error_app(error: String) -> eframe::Result<()> {
     eframe::run_native(
         "Printer Watcher Error",
         native_options,
-        Box::new(move |cc| Box::new(ErrorApp { error })),
+        Box::new(move |cc| Ok(Box::new(ErrorApp { error }))),
     )
 }
 

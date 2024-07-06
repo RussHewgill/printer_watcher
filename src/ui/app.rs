@@ -15,7 +15,7 @@ use crate::{
     status::GenericPrinterState,
 };
 
-use super::ui_types::{AppOptions, GridLocation, Tab};
+use super::ui_types::{AppOptions, GridLocation, Tab, ThumbnailMap};
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -39,6 +39,10 @@ pub struct App {
     pub printer_order: HashMap<GridLocation, PrinterId>,
     #[serde(skip)]
     pub unplaced_printers: Vec<PrinterId>,
+
+    /// printer_id -> (name, thumbnail)
+    // pub thumbnails: HashMap<PrinterId, (String, Vec<u8>)>,
+    pub thumbnails: ThumbnailMap,
 
     #[serde(skip)]
     pub selected_stream: Option<PrinterId>,
@@ -104,9 +108,9 @@ impl App {
                 .retain(|_, v| current_printers.contains(v));
         }
 
-        let mut fonts = egui::FontDefinitions::default();
-        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-        cc.egui_ctx.set_fonts(fonts);
+        // let mut fonts = egui::FontDefinitions::default();
+        // egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+        // cc.egui_ctx.set_fonts(fonts);
 
         out
     }

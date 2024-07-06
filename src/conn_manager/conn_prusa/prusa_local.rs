@@ -20,6 +20,7 @@ pub struct PrusaClientLocal {
     cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
     kill_rx: tokio::sync::oneshot::Receiver<()>,
     update_timer: tokio::time::Interval,
+    // thumbnail: Option<(String, Vec<u8>)>,
 }
 
 /// new, run
@@ -54,6 +55,7 @@ impl PrusaClientLocal {
             cmd_rx,
             kill_rx,
             update_timer,
+            // thumbnail: None,
         })
     }
 
