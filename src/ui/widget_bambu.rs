@@ -400,7 +400,7 @@ impl App {
         let size = Vec2::new(ui.available_width() - 12., icon_size);
         // let size = Vec2::new(ui.available_size_before_wrap().x, icon_size + 4.);
 
-        crate::ui::ui_utils::put_ui(ui, size, |ui| {
+        crate::ui::ui_utils::put_ui(ui, size, None, |ui| {
             let layout = Layout::left_to_right(egui::Align::Center)
                 .with_cross_justify(true)
                 .with_main_justify(true)

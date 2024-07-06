@@ -24,6 +24,7 @@ impl App {
 
         /// Name, state, and controls button
         /// Can't be in strip or response can't get passed up
+        #[cfg(feature = "nope")]
         let resp = ui
             .horizontal(|ui| {
                 // let selected = self
@@ -38,6 +39,10 @@ impl App {
             })
             .response;
 
+        let resp = self.prusa_printer_header(ui, &status, &printer, pos);
+
+        // let resp = ui.label("Prusa");
+
         let layout = Layout::left_to_right(egui::Align::Center)
             .with_cross_justify(true)
             .with_main_justify(true)
@@ -50,6 +55,7 @@ impl App {
         let thumbnail_height = thumbnail_width * 0.5625;
 
         ui.spacing_mut().item_spacing.x = 1.;
+        // #[cfg(feature = "nope")]
         egui_extras::StripBuilder::new(ui)
             .clip(true)
             .cell_layout(layout)
@@ -309,6 +315,7 @@ impl App {
 
 impl App {
     /// MARK: Header
+    // #[cfg(feature = "nope")]
     fn prusa_printer_header(
         &self,
         ui: &mut egui::Ui,
@@ -324,7 +331,52 @@ impl App {
         let size = Vec2::new(ui.available_width() - 12., icon_size);
         // let size = Vec2::new(ui.available_size_before_wrap().x, icon_size + 4.);
 
-        crate::ui::ui_utils::put_ui(ui, size, |ui| {
+        let resp = crate::ui::ui_utils::put_ui(ui, size, None, |ui| {
+            let resp = ui
+                .horizontal(|ui| {
+                    // ui.menu_image_button(icon_menu_with_size(icon_size - 4.), |ui| {
+                    //     ui.label("Menu");
+                    //     // self.printer_menu(ui, status, printer);
+                    // });
+
+                    ui.dnd_drag_source(
+                        egui::Id::new(format!(
+                            "{}_drag_src_{}_{}",
+                            printer.serial, pos.col, pos.row
+                        )),
+                        GridLocation {
+                            col: pos.col,
+                            row: pos.row,
+                        },
+                        |ui| {
+                            printer_state_icon(ui, icon_size, &status.state);
+                            ui.add(
+                                Label::new(
+                                    RichText::new(&format!(
+                                        "{} ({})",
+                                        printer.name,
+                                        status.state.to_text()
+                                    ))
+                                    .strong(),
+                                )
+                                .truncate(),
+                            );
+                            ui.allocate_space(Vec2::new(ui.available_width() - icon_size, 0.));
+                        },
+                    )
+                    .response
+                })
+                .response;
+
+            resp
+        });
+
+        resp.context_menu(|ui| {
+            ui.label("Context menu");
+        });
+
+        #[cfg(feature = "nope")]
+        crate::ui::ui_utils::put_ui(ui, size, None, |ui| {
             let layout = Layout::left_to_right(egui::Align::Center)
                 .with_cross_justify(true)
                 .with_main_justify(true)
@@ -367,6 +419,8 @@ impl App {
                 .response
             })
             .response
-        })
+        });
+
+        resp
     }
 }
