@@ -17,41 +17,43 @@ use crate::{
 use super::{worker_message::WorkerMsg, WorkerCmd};
 
 pub struct OctoClientLocal {
-    pub(super) printer_cfg: Arc<RwLock<PrinterConfigOcto>>,
+    // pub(super) printer_cfg: Arc<RwLock<PrinterConfigOcto>>,
+    pub(super) printer_cfg: PrinterConfigOcto,
     client: reqwest::Client,
-    tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
-    cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
-    kill_rx: tokio::sync::oneshot::Receiver<()>,
-    update_timer: tokio::time::Interval,
+    // tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
+    // cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
+    // kill_rx: tokio::sync::oneshot::Receiver<()>,
+    // update_timer: tokio::time::Interval,
 }
 
 /// new
 impl OctoClientLocal {
     pub fn new(
-        printer_cfg: Arc<RwLock<PrinterConfigOcto>>,
-        tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
-        cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
-        kill_rx: tokio::sync::oneshot::Receiver<()>,
-        interval: Option<std::time::Duration>,
+        // printer_cfg: Arc<RwLock<PrinterConfigOcto>>,
+        printer_cfg: PrinterConfigOcto,
+        // tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
+        // cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
+        // kill_rx: tokio::sync::oneshot::Receiver<()>,
+        // interval: Option<std::time::Duration>,
     ) -> Result<Self> {
         let client = reqwest::ClientBuilder::new()
             // .use_rustls_tls()
             // .danger_accept_invalid_certs(true)
             .build()?;
 
-        let update_timer = if let Some(interval) = interval {
-            tokio::time::interval(interval)
-        } else {
-            tokio::time::interval(std::time::Duration::from_secs(1))
-        };
+        // let update_timer = if let Some(interval) = interval {
+        //     tokio::time::interval(interval)
+        // } else {
+        //     tokio::time::interval(std::time::Duration::from_secs(1))
+        // };
 
         Ok(Self {
             printer_cfg,
             client,
-            tx,
-            cmd_rx,
-            kill_rx,
-            update_timer,
+            // tx,
+            // cmd_rx,
+            // kill_rx,
+            // update_timer,
         })
     }
 }
@@ -59,10 +61,10 @@ impl OctoClientLocal {
 /// get_response, get_update
 impl OctoClientLocal {
     pub async fn get_response<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
-        let printer = self.printer_cfg.read().await;
+        // let printer = self.printer_cfg.read().await;
+        let printer = &self.printer_cfg;
         let token = printer.token.clone();
         let host = printer.host.clone();
-        drop(printer);
 
         let url = format!("http://{}:5000/{}", host, url);
 
@@ -84,7 +86,7 @@ impl OctoClientLocal {
     pub async fn get_update(&self) -> Result<GenericPrinterStateUpdate> {
         let mut out = vec![];
 
-        let job_info = self.get_job_info().await?;
+        // let job_info = self.get_job_info().await?;
 
         let printer_state = self.get_printer_state().await?;
 
@@ -94,20 +96,20 @@ impl OctoClientLocal {
         ));
 
         for (id, tool) in printer_state.temperature.tools {
-            out.push(PrinterStateUpdate::NozzleTemp(id, tool.actual, tool.target));
+            out.push(PrinterStateUpdate::NozzleTemp(Some(id), tool.actual, tool.target));
         }
 
-        let flags = printer_state.state.flags;
-        let state = if flags.printing {
-            PrinterState::Printing
-        } else if flags.paused {
-            PrinterState::Paused
-        } else if flags.error {
-            PrinterState::Error
-        } else {
-            PrinterState::Idle
-        };
-        out.push(PrinterStateUpdate::State(state));
+        // let flags = printer_state.state.flags;
+        // let state = if flags.printing {
+        //     PrinterState::Printing
+        // } else if flags.paused {
+        //     PrinterState::Paused
+        // } else if flags.error {
+        //     PrinterState::Error
+        // } else {
+        //     PrinterState::Idle
+        // };
+        // out.push(PrinterStateUpdate::State(state));
 
         Ok(GenericPrinterStateUpdate(out))
 
@@ -130,10 +132,10 @@ impl OctoClientLocal {
 impl OctoClientLocal {
     // pub async fn send_command<T: DeserializeOwned>(&self, cmd: &OctoCmd) -> Result<T>
     pub async fn send_command(&self, cmd: &OctoCmd) -> Result<reqwest::Response> {
-        let printer = self.printer_cfg.read().await;
+        // let printer = self.printer_cfg.read().await;
+        let printer = &self.printer_cfg;
         let token = printer.token.clone();
         let host = printer.host.clone();
-        drop(printer);
 
         let url = match cmd {
             // OctoCmd::ParkTool => todo!(),

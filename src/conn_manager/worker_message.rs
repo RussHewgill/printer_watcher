@@ -58,7 +58,7 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
 
                 if let Some(t) = print.print.nozzle_temper {
                     out.push(PrinterStateUpdate::NozzleTemp(
-                        0,
+                        None,
                         t as f32,
                         print.print.nozzle_target_temper.map(|v| v as f32),
                     ));

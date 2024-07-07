@@ -16,7 +16,7 @@ impl App {
     ) -> Response {
         /// checked at call site
         let Some(status) = self.printer_states.get(&printer.id) else {
-            warn!("Printer not found: {}", printer.serial);
+            warn!("Printer not found: {:?}", printer.id);
             panic!();
         };
 
@@ -30,7 +30,7 @@ impl App {
                 // let selected = self
                 //     .selected_printer_controls
                 //     .as_ref()
-                //     .map(|s| s == &printer.serial)
+                //     .map(|s| s == &printer.id)
                 //     .unwrap_or(false);
 
                 let resp = self.prusa_printer_header(ui, &status, &printer, pos);
@@ -50,6 +50,7 @@ impl App {
 
         let text_size_title = 12.;
         let text_size_eta = 11.;
+        let text_size_temps = 12.;
 
         let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;
         let thumbnail_height = thumbnail_width * 0.5625;
@@ -70,11 +71,12 @@ impl App {
             // ETA
             .size(egui_extras::Size::exact(text_size_eta + 2.))
             // AMS
-            .size(egui_extras::Size::exact(60. + 2.))
+            .size(egui_extras::Size::exact(text_size_temps + 2.))
+            .size(egui_extras::Size::exact(text_size_temps + 2.))
             // .size(egui_extras::Size::initial(10.))
             .vertical(|mut strip| {
                 let Some(status) = self.printer_states.get(&printer.id) else {
-                    warn!("Printer not found: {}", printer.serial);
+                    warn!("Printer not found: {:?}", printer.id);
                     panic!();
                 };
 
@@ -321,9 +323,54 @@ impl App {
                         });
                 });
 
-                /// AMS
-                strip.cell(|ui| {
-                    //
+                /// Tool Temperatures
+                strip.strip(|mut builder| {
+                    builder
+                        .sizes(egui_extras::Size::relative(0.2), 5)
+                        .horizontal(|mut strip| {
+                            for idx in 0..5 {
+                                strip.cell(|ui| {
+                                    ui.add(
+                                        Label::new(
+                                            RichText::new(format!(
+                                                "{:.1}°C",
+                                                status.nozzle_temps.get(&idx).unwrap_or(&0.),
+                                            ))
+                                            .strong()
+                                            .size(text_size_temps),
+                                        )
+                                        .truncate(),
+                                    );
+                                });
+                            }
+                        });
+                });
+
+                /// Tool Target Temperatures
+                strip.strip(|mut builder| {
+                    builder
+                        .sizes(egui_extras::Size::relative(0.2), 5)
+                        .horizontal(|mut strip| {
+                            for idx in 0..5 {
+                                strip.cell(|ui| {
+                                    ui.add(
+                                        Label::new(
+                                            RichText::new(format!(
+                                                "{:.0}°C",
+                                                status
+                                                    .nozzle_temps_target
+                                                    .get(&idx)
+                                                    .unwrap_or(&0.)
+                                                    .round(),
+                                            ))
+                                            .strong()
+                                            .size(text_size_temps),
+                                        )
+                                        .truncate(),
+                                    );
+                                });
+                            }
+                        });
                 });
 
                 //
@@ -362,10 +409,7 @@ impl App {
                     // });
 
                     ui.dnd_drag_source(
-                        egui::Id::new(format!(
-                            "{}_drag_src_{}_{}",
-                            printer.serial, pos.col, pos.row
-                        )),
+                        egui::Id::new(format!("{:?}_drag_src_{}_{}", printer.id, pos.col, pos.row)),
                         GridLocation {
                             col: pos.col,
                             row: pos.row,
@@ -411,10 +455,7 @@ impl App {
                     });
 
                     let resp = ui.dnd_drag_source(
-                        egui::Id::new(format!(
-                            "{}_drag_src_{}_{}",
-                            printer.serial, pos.col, pos.row
-                        )),
+                        egui::Id::new(format!("{}_drag_src_{}_{}", printer.id, pos.col, pos.row)),
                         GridLocation {
                             col: pos.col,
                             row: pos.row,

@@ -8,6 +8,7 @@ pub mod ui_utils;
 pub mod video_player;
 pub mod widget_bambu;
 pub mod widget_klipper;
+// pub mod widget_octo;
 pub mod widget_prusa;
 
 pub const PRINTER_WIDGET_SIZE: (f32, f32) = (280., 350.);

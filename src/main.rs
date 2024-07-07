@@ -129,8 +129,46 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// MARK: Main
+/// bambu still camera test
 // #[cfg(feature = "nope")]
+#[tokio::main]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    let host = env::var("BAMBU_IP").unwrap();
+    let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
+    let serial = env::var("BAMBU_SERIAL").unwrap();
+    let id = env::var("BAMBU_ID").unwrap();
+    let id: PrinterId = id.into();
+
+    let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
+    let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+
+    let mut ctx = egui::Context::default();
+
+    let image = egui::ColorImage::new([32, 32], egui::Color32::from_gray(0));
+    let handle = ctx.load_texture("icon.png", image, Default::default());
+
+    let mut conn = streaming::bambu::bambu_img::JpegStreamViewer::new(
+        id,
+        serial,
+        host,
+        access_code,
+        handle,
+        kill_rx,
+        msg_tx,
+    )
+    .await
+    .unwrap();
+
+    conn.run().await.unwrap();
+
+    Ok(())
+}
+
+/// MARK: Main
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -143,7 +181,7 @@ fn main() -> eframe::Result<()> {
     {
         let host = env::var("BAMBU_IP").unwrap();
         let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
-        let serial = env::var("BAMBU_IDENT").unwrap();
+        let serial = env::var("BAMBU_SERIAL").unwrap();
         let id = env::var("BAMBU_ID").unwrap();
         let id: PrinterId = id.into();
 
@@ -190,6 +228,11 @@ fn main() -> eframe::Result<()> {
 
         let link_key = env::var("PRUSA_LINK_KEY").unwrap();
 
+        let octo = config::printer_config::PrinterConfigOcto {
+            host: env::var("OCTO_URL").unwrap(),
+            token: env::var("OCTO_TOKEN").unwrap(),
+        };
+
         let printer = config::printer_config::PrinterConfigPrusa {
             id: id.clone(),
             name: "test_prusa_printer".to_string(),
@@ -197,6 +240,7 @@ fn main() -> eframe::Result<()> {
             key: link_key,
             serial,
             token,
+            octo: Some(octo),
         };
 
         let printer = PrinterConfig::Prusa(id.clone(), Arc::new(RwLock::new(printer)));
@@ -241,6 +285,33 @@ fn main() -> eframe::Result<()> {
         });
     });
 
+    /// still stream test
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            let host = env::var("BAMBU_IP").unwrap();
+            let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
+            let serial = env::var("BAMBU_SERIAL").unwrap();
+            let id = env::var("BAMBU_ID").unwrap();
+            let id: PrinterId = id.into();
+
+            let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
+
+            let mut conn = streaming::bambu::bambu_img::JpegStreamViewer::new(
+                id,
+                host,
+                access_code,
+                serial,
+                kill_rx,
+            )
+            .await
+            .unwrap();
+
+            conn.run().await.unwrap();
+        });
+    });
+
+    #[cfg(feature = "nope")]
     debug!("spawning streaming runtime");
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();

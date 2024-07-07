@@ -23,6 +23,7 @@ pub struct PrusaClientLocal {
     kill_rx: tokio::sync::oneshot::Receiver<()>,
     update_timer: tokio::time::Interval,
     // thumbnail: Option<(String, Vec<u8>)>,
+    octo_client: Option<crate::conn_manager::conn_octoprint::OctoClientLocal>,
 }
 
 /// new, run
@@ -32,7 +33,7 @@ impl PrusaClientLocal {
     const URL_STATUS: &'static str = "api/v1/status";
     const URL_JOB: &'static str = "api/v1/job";
 
-    pub fn new(
+    pub async fn new(
         printer_cfg: Arc<RwLock<PrinterConfigPrusa>>,
         tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
@@ -50,6 +51,19 @@ impl PrusaClientLocal {
             tokio::time::interval(std::time::Duration::from_secs(1))
         };
 
+        let octo_client = if let Some(octo_cfg) = printer_cfg.read().await.octo.clone() {
+            let octo_client = crate::conn_manager::conn_octoprint::OctoClientLocal::new(
+                octo_cfg,
+                // tx.clone(),
+                // cmd_rx.clone(),
+                // kill_rx.clone(),
+                // None,
+            )?;
+            Some(octo_client)
+        } else {
+            None
+        };
+
         Ok(Self {
             printer_cfg,
             client,
@@ -58,6 +72,7 @@ impl PrusaClientLocal {
             kill_rx,
             update_timer,
             // thumbnail: None,
+            octo_client,
         })
     }
 
@@ -65,22 +80,7 @@ impl PrusaClientLocal {
         loop {
             tokio::select! {
                 _ = self.update_timer.tick() => {
-                    let (update, status, job) = self.get_update().await?;
-                    let id = self.printer_cfg.read().await.id.clone();
-                    // debug!("sending update: {:#?}", &update);
-                    self.tx.send((
-                        id.clone(),
-                        WorkerMsg::StatusUpdate(update),
-                    ))?;
-
-                    self.tx.send((
-                        id.clone(),
-                        WorkerMsg::StatusUpdatePrusa(PrusaStatus {
-                            status,
-                            job,
-                        })
-                    ))?;
-
+                    self.update().await?;
                 }
                 _ = &mut self.kill_rx => {
                     info!("kill_rx fired, exiting");
@@ -91,6 +91,28 @@ impl PrusaClientLocal {
                 }
             }
         }
+    }
+
+    async fn update(&mut self) -> Result<()> {
+        let id = self.printer_cfg.read().await.id.clone();
+
+        let (update, status, job) = self.get_update().await?;
+        // debug!("sending update: {:#?}", &update);
+        self.tx
+            .send((id.clone(), WorkerMsg::StatusUpdate(update)))?;
+
+        self.tx.send((
+            id.clone(),
+            WorkerMsg::StatusUpdatePrusa(PrusaStatus { status, job }),
+        ))?;
+
+        if let Some(octo) = &self.octo_client {
+            let update = octo.get_update().await?;
+            self.tx
+                .send((id.clone(), WorkerMsg::StatusUpdate(update)))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -162,7 +184,7 @@ impl PrusaClientLocal {
         out.push(PrinterStateUpdate::Progress(status.job.progress as f32));
 
         out.push(PrinterStateUpdate::NozzleTemp(
-            0,
+            None,
             status.printer.temp_nozzle as f32,
             Some(status.printer.target_nozzle as f32),
         ));

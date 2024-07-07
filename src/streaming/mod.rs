@@ -12,6 +12,13 @@ use crate::config::printer_id::PrinterId;
 #[derive(Clone)]
 pub enum StreamCmd {
     StartRtsp(PrinterId, TextureHandle, RtspCreds, egui::Context),
+    StartBambuStills {
+        id: PrinterId,
+        host: String,
+        access_code: String,
+        serial: String,
+        texture: TextureHandle,
+    },
 }
 
 #[derive(Clone)]
@@ -48,13 +55,39 @@ impl StreamManager {
                 cmd = self.cmd_rx.recv() => match cmd {
                     None => return Ok(()),
                     Some(StreamCmd::StartRtsp(id, texture_handle, creds, ctx)) => {
-                        let (kill_tx, kill_rx) = tokio::sync::mpsc::channel(1);
                         debug!("starting RTSP stream for printer: {:?}", id);
-                        self.start_stream_rtsp(id, texture_handle, creds, kill_rx, ctx).await?;
+                        self.start_stream_rtsp(id, texture_handle, creds, ctx).await?;
+                    }
+                    Some(StreamCmd::StartBambuStills { id, host, access_code, serial, texture }) => {
+                        self.start_stream_bambu_stills(id, host, access_code, serial, texture).await?;
                     }
                 }
             }
         }
+    }
+
+    async fn start_stream_bambu_stills(
+        &mut self,
+        id: PrinterId,
+        host: String,
+        access_code: String,
+        serial: String,
+        texture: egui::TextureHandle,
+    ) -> Result<()> {
+        let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
+
+        #[cfg(feature = "nope")]
+        let conn = bambu::bambu_img::JpegStreamViewer::new(
+            id,
+            host,
+            access_code,
+            serial,
+            texture,
+            kill_rx,
+        )
+        .await?;
+
+        unimplemented!()
     }
 
     async fn start_stream_rtsp(
@@ -62,9 +95,9 @@ impl StreamManager {
         id: PrinterId,
         texture_handle: TextureHandle,
         creds: RtspCreds,
-        kill_rx: tokio::sync::mpsc::Receiver<()>,
         ctx: egui::Context,
     ) -> Result<()> {
+        let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
         let worker_tx = self.worker_tx.clone();
         // tokio::spawn(async move {
         //     crate::streaming::rtsp::rtsp_task(creds, texture_handle, kill_rx)

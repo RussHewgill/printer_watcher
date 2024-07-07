@@ -187,7 +187,8 @@ impl PrinterConnManager {
                     worker_cmd_rx,
                     kill_rx,
                     None,
-                )?;
+                )
+                .await?;
                 self.worker_cmd_txs.insert(id.clone(), worker_cmd_tx);
                 tokio::task::spawn(async move {
                     loop {

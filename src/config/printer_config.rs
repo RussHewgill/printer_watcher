@@ -93,12 +93,13 @@ pub struct PrinterConfigPrusa {
     pub serial: String,
     // pub fingerprint: String,
     pub token: String,
+    pub octo: Option<PrinterConfigOcto>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigOcto {
-    pub id: PrinterId,
-    pub name: String,
+    // pub id: PrinterId,
+    // pub name: String,
     pub host: String,
     pub token: String,
 }

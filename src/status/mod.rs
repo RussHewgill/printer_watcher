@@ -1,5 +1,7 @@
 // pub mod bambu_status;
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone)]
@@ -42,6 +44,8 @@ pub struct GenericPrinterState {
     pub bed_temp: f32,
     pub nozzle_temp_target: f32,
     pub bed_temp_target: f32,
+    pub nozzle_temps: HashMap<usize, f32>,
+    pub nozzle_temps_target: HashMap<usize, f32>,
     pub layer: Option<u32>,
     pub progress: f32,
     pub time_printing: Option<chrono::Duration>,
@@ -68,10 +72,18 @@ impl GenericPrinterState {
     fn _update(&mut self, update: PrinterStateUpdate) {
         match update {
             PrinterStateUpdate::State(state) => self.state = state,
-            PrinterStateUpdate::NozzleTemp(nozzle, temp, target) => {
+            PrinterStateUpdate::NozzleTemp(None, temp, target) => {
                 self.nozzle_temp = temp;
                 if let Some(target) = target {
                     self.nozzle_temp_target = target;
+                }
+            }
+            PrinterStateUpdate::NozzleTemp(Some(idx), temp, target) => {
+                self.nozzle_temps.insert(idx, temp);
+                if let Some(target) = target {
+                    self.nozzle_temps_target.insert(idx, target);
+                } else {
+                    self.nozzle_temps_target.remove(&idx);
                 }
             }
             PrinterStateUpdate::BedTemp(temp, target) => {
@@ -129,7 +141,7 @@ impl GenericPrinterState {
 #[derive(Debug, Clone)]
 pub enum PrinterStateUpdate {
     State(PrinterState),
-    NozzleTemp(usize, f32, Option<f32>),
+    NozzleTemp(Option<usize>, f32, Option<f32>),
     BedTemp(f32, Option<f32>),
     Progress(f32),
     CurrentFile(String),

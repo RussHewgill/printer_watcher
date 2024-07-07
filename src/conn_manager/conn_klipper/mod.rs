@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use futures::StreamExt;
 use tracing::{debug, error, info, trace, warn};
 
+use futures::StreamExt;
 use rumqttc::Incoming;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -80,6 +80,7 @@ impl KlipperClient {
 }
 
 /// handle message, command
+#[cfg(feature = "nope")]
 impl KlipperClient {
     async fn handle_msg(&self, msg: tokio_tungstenite::tungstenite::Message) -> Result<()> {
         match msg {
