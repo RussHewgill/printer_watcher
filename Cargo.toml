@@ -76,7 +76,7 @@ egui_extras = { version = "0.28.1", features = [
     "svg",
     "http",
 ] }
-# egui-phosphor = { version = "0.5.0", features = ["fill"] }
+egui-phosphor = { version = "0.5.0", features = ["fill"] }
 ffmpeg-next = "7.0.2"
 image = { version = "0.25.1", features = ["jpeg", "png", "pnm"] }
 pretty-hex = "0.4.1"
@@ -91,3 +91,7 @@ atomic = "0.5.3"
 #     "tabs",
 # "grid",
 # ] }
+
+[patch.crates-io]
+
+egui-phosphor = { git = "https://github.com/crumblingstatue/egui-phosphor", branch = "egui-0.28" }

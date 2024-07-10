@@ -26,6 +26,21 @@ pub enum Thumbnail {
     // Image(),
 }
 
+#[derive(Clone)]
+pub struct WebcamTexture {
+    pub texture: egui::TextureHandle,
+    pub enabled: bool,
+}
+
+impl WebcamTexture {
+    pub fn new(texture: egui::TextureHandle) -> Self {
+        Self {
+            texture,
+            enabled: false,
+        }
+    }
+}
+
 // #[derive(Default, Clone, Deserialize, Serialize)]
 #[derive(Default, Clone)]
 pub struct ThumbnailMap {
@@ -73,6 +88,7 @@ pub struct AppOptions {
     pub dashboard_size: (usize, usize),
     // pub selected_printer: Option<PrinterId>,
     // pub selected_printer_cfg: Option<NewPrinterEntry>,
+    pub auto_start_streams: bool,
 }
 
 impl Default for AppOptions {
@@ -82,6 +98,7 @@ impl Default for AppOptions {
             dashboard_size: (4, 2),
             // selected_printer: None,
             // selected_printer_cfg: None,
+            auto_start_streams: true,
         }
     }
 }

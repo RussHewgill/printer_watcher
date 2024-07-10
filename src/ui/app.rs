@@ -13,9 +13,10 @@ use crate::{
     config::{printer_id::PrinterId, AppConfig},
     conn_manager::{PrinterConnCmd, PrinterConnMsg},
     status::GenericPrinterState,
+    streaming::StreamCmd,
 };
 
-use super::ui_types::{AppOptions, GridLocation, Tab, ThumbnailMap};
+use super::ui_types::{AppOptions, GridLocation, Tab, ThumbnailMap, WebcamTexture};
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -28,8 +29,9 @@ pub struct App {
     #[serde(skip)]
     pub cmd_tx: Option<tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>>,
 
-    // #[serde(skip)]
-    // pub stream_cmd_tx: Option<tokio::sync::mpsc::UnboundedSender<StreamCmd>>,
+    #[serde(skip)]
+    pub stream_cmd_tx: Option<tokio::sync::mpsc::UnboundedSender<StreamCmd>>,
+
     #[serde(skip)]
     pub msg_rx: Option<tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>>,
 
@@ -42,6 +44,9 @@ pub struct App {
 
     #[serde(skip)]
     pub thumbnails: ThumbnailMap,
+
+    #[serde(skip)]
+    pub webcam_textures: Arc<DashMap<PrinterId, WebcamTexture>>,
 
     #[serde(skip)]
     pub selected_stream: Option<PrinterId>,
@@ -66,6 +71,7 @@ impl App {
         printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
         cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
         msg_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
+        stream_cmd_tx: tokio::sync::mpsc::UnboundedSender<StreamCmd>,
     ) -> Self {
         let mut out = if let Some(storage) = cc.storage {
             eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
@@ -80,7 +86,7 @@ impl App {
 
         out.cmd_tx = Some(cmd_tx);
         out.msg_rx = Some(msg_rx);
-        // out.stream_cmd_tx = Some(stream_cmd_tx);
+        out.stream_cmd_tx = Some(stream_cmd_tx);
 
         out.unplaced_printers = out.config.printer_ids();
 
@@ -107,9 +113,9 @@ impl App {
                 .retain(|_, v| current_printers.contains(v));
         }
 
-        // let mut fonts = egui::FontDefinitions::default();
-        // egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-        // cc.egui_ctx.set_fonts(fonts);
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+        cc.egui_ctx.set_fonts(fonts);
 
         out
     }
@@ -178,8 +184,7 @@ impl eframe::App for App {
                     // self.show_stream(ctx, id.clone());
                     let id = id.clone();
                     egui::CentralPanel::default().show(ctx, |ui| {
-                        // self.show_fullscreen_printer(ui, id);
-                        unimplemented!()
+                        self.show_fullscreen_printer(ui, id);
                     });
                 } else {
                     egui::CentralPanel::default().show(ctx, |ui| {
@@ -211,5 +216,33 @@ impl eframe::App for App {
                 });
             }
         }
+    }
+}
+
+impl App {
+    pub fn show_fullscreen_printer(&mut self, ui: &mut egui::Ui, id: PrinterId) {
+        let Some(entry) = self.webcam_textures.get(&id) else {
+            self.selected_stream = None;
+            return;
+        };
+        if !entry.enabled {
+            self.selected_stream = None;
+        }
+        let entry = entry.texture.clone();
+
+        let size = ui.available_size();
+
+        // let size = Vec2::new(thumbnail_width, thumbnail_height);
+        let img = egui::Image::from_texture((entry.id(), entry.size_vec2()))
+            // .fit_to_exact_size(size)
+            .max_size(size)
+            .maintain_aspect_ratio(true)
+            .rounding(egui::Rounding::same(4.))
+            .sense(egui::Sense::click());
+        if ui.add(img).clicked() {
+            self.selected_stream = None;
+        }
+
+        //
     }
 }

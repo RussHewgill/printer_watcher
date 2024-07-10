@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
 use egui::ViewportBuilder;
-// use egui_phosphor::fill;
+use egui_phosphor::fill;
 
 use super::{app::App, ui_types::GridLocation};
 
@@ -64,7 +64,10 @@ impl App {
             ui.label("Rows");
 
             if ui
-                .add_sized(ui.available_size(), egui::Button::new("↑"))
+                .add_sized(
+                    ui.available_size(),
+                    egui::Button::new(&format!("{}", fill::ARROW_FAT_UP)),
+                )
                 .clicked()
             {
                 self.change_rows(false);
@@ -75,7 +78,10 @@ impl App {
             );
 
             if ui
-                .add_sized(ui.available_size(), egui::Button::new("↓"))
+                .add_sized(
+                    ui.available_size(),
+                    egui::Button::new(&format!("{}", fill::ARROW_FAT_DOWN)),
+                )
                 .clicked()
             {
                 self.change_rows(true);
@@ -85,7 +91,10 @@ impl App {
 
             ui.label("Columns");
             if ui
-                .add_sized(ui.available_size(), egui::Button::new("←"))
+                .add_sized(
+                    ui.available_size(),
+                    egui::Button::new(&format!("{}", fill::ARROW_FAT_LEFT)),
+                )
                 .clicked()
             {
                 self.change_columns(false);
@@ -96,7 +105,10 @@ impl App {
             );
 
             if ui
-                .add_sized(ui.available_size(), egui::Button::new("→"))
+                .add_sized(
+                    ui.available_size(),
+                    egui::Button::new(&format!("{}", fill::ARROW_FAT_RIGHT)),
+                )
                 .clicked()
             {
                 self.change_columns(true);

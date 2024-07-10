@@ -18,6 +18,7 @@ pub mod ui;
 // pub mod ui;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use streaming::StreamCmd;
 use tracing::{debug, error, info, trace, warn};
 
 use dashmap::DashMap;
@@ -130,8 +131,8 @@ async fn main() -> Result<()> {
 }
 
 /// bambu still camera test
-// #[cfg(feature = "nope")]
-#[tokio::main]
+#[cfg(feature = "nope")]
+// #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -168,7 +169,7 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -217,7 +218,7 @@ fn main() -> eframe::Result<()> {
     }
 
     /// add prusa
-    // #[cfg(feature = "nope")]
+    #[cfg(feature = "nope")]
     {
         let host = env::var("PRUSA_CONNECT_HOST").unwrap();
         let token = env::var("PRUSA_CONNECT_TOKEN").unwrap();
@@ -250,16 +251,15 @@ fn main() -> eframe::Result<()> {
 
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnCmd>();
     let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnMsg>();
-    // let printer_states = Arc::new(dashmap::DashMap::new());
+    let (stream_tx, stream_rx) = tokio::sync::mpsc::unbounded_channel::<streaming::StreamCmd>();
 
     let printer_states: Arc<DashMap<PrinterId, GenericPrinterState>> = Arc::new(DashMap::new());
     let printer_states2 = printer_states.clone();
 
-    let (stream_tx, stream_rx) = tokio::sync::mpsc::unbounded_channel::<streaming::StreamCmd>();
-
     debug!("spawning tokio runtime");
     let configs2 = config.clone();
     let cmd_tx2 = cmd_tx.clone();
+    let stream_tx2 = stream_tx.clone();
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
@@ -269,7 +269,7 @@ fn main() -> eframe::Result<()> {
                 cmd_tx2,
                 cmd_rx,
                 msg_tx,
-                stream_tx,
+                stream_tx2,
             )
             .await;
             debug!("starting conn manager");
@@ -285,33 +285,7 @@ fn main() -> eframe::Result<()> {
         });
     });
 
-    /// still stream test
-    std::thread::spawn(|| {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            let host = env::var("BAMBU_IP").unwrap();
-            let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
-            let serial = env::var("BAMBU_SERIAL").unwrap();
-            let id = env::var("BAMBU_ID").unwrap();
-            let id: PrinterId = id.into();
-
-            let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
-
-            let mut conn = streaming::bambu::bambu_img::JpegStreamViewer::new(
-                id,
-                host,
-                access_code,
-                serial,
-                kill_rx,
-            )
-            .await
-            .unwrap();
-
-            conn.run().await.unwrap();
-        });
-    });
-
-    #[cfg(feature = "nope")]
+    // #[cfg(feature = "nope")]
     debug!("spawning streaming runtime");
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -349,7 +323,7 @@ fn main() -> eframe::Result<()> {
                 printer_states,
                 cmd_tx,
                 msg_rx,
-                // stream_cmd_tx,
+                stream_tx,
                 // handles,
                 // graphs,
             )))

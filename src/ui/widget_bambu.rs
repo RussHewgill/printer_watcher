@@ -76,7 +76,68 @@ impl App {
                 };
 
                 strip.cell(|ui| {
-                    ui.label("Webcam: TODO");
+                    // ui.label("Webcam: TODO");
+
+                    let mut entry = self
+                        .webcam_textures
+                        .entry(printer.id.clone())
+                        .or_insert_with(|| {
+                            let image =
+                                egui::ColorImage::new([80, 80], egui::Color32::from_gray(220));
+                            let texture = ui.ctx().load_texture(
+                                format!("{:?}_texture", printer.id),
+                                image,
+                                Default::default(),
+                            );
+                            super::ui_types::WebcamTexture::new(texture)
+                        });
+
+                    let size = Vec2::new(thumbnail_width, thumbnail_height);
+
+                    if entry.enabled {
+                        let img = egui::Image::from_texture((entry.texture.id(), size))
+                            .fit_to_exact_size(size)
+                            .max_size(size)
+                            .rounding(Rounding::same(4.))
+                            .sense(Sense::click());
+
+                        let resp = ui.add(img);
+
+                        if resp.clicked_by(egui::PointerButton::Primary) {
+                            // debug!("webcam clicked");
+                            self.selected_stream = Some(printer.id.clone());
+                        }
+                    } else if self.options.auto_start_streams {
+                        self.stream_cmd_tx
+                            .as_ref()
+                            .unwrap()
+                            .send(crate::streaming::StreamCmd::StartBambuStills {
+                                id: printer.id.clone(),
+                                host: printer.host.clone(),
+                                access_code: printer.access_code.clone(),
+                                serial: printer.serial.clone(),
+                                texture: entry.texture.clone(),
+                            })
+                            .unwrap();
+                        entry.enabled = true;
+                    } else {
+                        if ui.button("Enable webcam").clicked() {
+                            self.stream_cmd_tx
+                                .as_ref()
+                                .unwrap()
+                                .send(crate::streaming::StreamCmd::StartBambuStills {
+                                    id: printer.id.clone(),
+                                    host: printer.host.clone(),
+                                    access_code: printer.access_code.clone(),
+                                    serial: printer.serial.clone(),
+                                    texture: entry.texture.clone(),
+                                })
+                                .unwrap();
+                            entry.enabled = true;
+                        }
+                    }
+
+                    //
                 });
 
                 /// thumbnail/webcam

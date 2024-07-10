@@ -1394,6 +1394,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-phosphor"
+version = "0.5.0"
+source = "git+https://github.com/crumblingstatue/egui-phosphor?branch=egui-0.28#4217c2ef45a10843a626403e4e23f49d440d7c94"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "egui-wgpu"
 version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3549,6 +3557,7 @@ dependencies = [
  "dotenvy",
  "eframe",
  "egui",
+ "egui-phosphor",
  "egui_extras",
  "ffmpeg-next",
  "futures",

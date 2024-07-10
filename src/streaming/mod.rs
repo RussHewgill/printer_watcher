@@ -59,6 +59,7 @@ impl StreamManager {
                         self.start_stream_rtsp(id, texture_handle, creds, ctx).await?;
                     }
                     Some(StreamCmd::StartBambuStills { id, host, access_code, serial, texture }) => {
+                        debug!("starting Bambu still stream");
                         self.start_stream_bambu_stills(id, host, access_code, serial, texture).await?;
                     }
                 }
@@ -76,18 +77,22 @@ impl StreamManager {
     ) -> Result<()> {
         let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
 
-        #[cfg(feature = "nope")]
-        let conn = bambu::bambu_img::JpegStreamViewer::new(
-            id,
-            host,
-            access_code,
-            serial,
-            texture,
-            kill_rx,
-        )
-        .await?;
+        tokio::spawn(async move {
+            let mut conn = bambu::bambu_img::JpegStreamViewer::new(
+                id,
+                serial,
+                host,
+                access_code,
+                texture,
+                kill_rx,
+            )
+            .await
+            .unwrap();
 
-        unimplemented!()
+            conn.run().await.unwrap();
+        });
+
+        Ok(())
     }
 
     async fn start_stream_rtsp(

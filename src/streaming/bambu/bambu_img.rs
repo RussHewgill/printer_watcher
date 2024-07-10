@@ -14,7 +14,7 @@ pub struct JpegStreamViewer {
     buf: [u8; Self::READ_CHUNK_SIZE],
     handle: egui::TextureHandle,
     kill_rx: tokio::sync::mpsc::Receiver<()>,
-    msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    // msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
 /// consts
@@ -38,7 +38,7 @@ impl JpegStreamViewer {
         access_code: String,
         handle: egui::TextureHandle,
         kill_rx: tokio::sync::mpsc::Receiver<()>,
-        msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
+        // msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
     ) -> Result<Self> {
         let addr = format!("{}:6000", host);
 
@@ -92,7 +92,7 @@ impl JpegStreamViewer {
             buf: [0u8; Self::READ_CHUNK_SIZE],
             handle,
             kill_rx,
-            msg_tx,
+            // msg_tx,
         })
     }
 
@@ -132,7 +132,7 @@ impl JpegStreamViewer {
             // debug!("got {} bytes", n);
 
             if got_header {
-                debug!("extending image by {}", n);
+                // debug!("extending image by {}", n);
                 img_buf.extend_from_slice(&self.buf[..n]);
 
                 if img_buf.len() > payload_size {
@@ -180,7 +180,7 @@ impl JpegStreamViewer {
                     img_buf.clear();
                 }
             } else if n == 16 {
-                debug!("got header");
+                // debug!("got header");
                 // img.extend_from_slice(&buf);
 
                 // payload_size = int.from_bytes(dr[0:3], byteorder='little')
