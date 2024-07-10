@@ -42,7 +42,7 @@ pub struct App {
     #[serde(skip)]
     pub unplaced_printers: Vec<PrinterId>,
 
-    #[serde(skip)]
+    // #[serde(skip)]
     pub thumbnails: ThumbnailMap,
 
     #[serde(skip)]

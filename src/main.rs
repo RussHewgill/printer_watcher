@@ -178,7 +178,7 @@ fn main() -> eframe::Result<()> {
     // let mut printer_order = std::collections::HashMap::new();
 
     /// add bambu
-    // #[cfg(feature = "nope")]
+    #[cfg(feature = "nope")]
     {
         let host = env::var("BAMBU_IP").unwrap();
         let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
@@ -218,7 +218,7 @@ fn main() -> eframe::Result<()> {
     }
 
     /// add prusa
-    #[cfg(feature = "nope")]
+    // #[cfg(feature = "nope")]
     {
         let host = env::var("PRUSA_CONNECT_HOST").unwrap();
         let token = env::var("PRUSA_CONNECT_TOKEN").unwrap();

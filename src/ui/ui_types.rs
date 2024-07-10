@@ -41,8 +41,8 @@ impl WebcamTexture {
     }
 }
 
-// #[derive(Default, Clone, Deserialize, Serialize)]
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Deserialize, Serialize)]
+// #[derive(Default, Clone)]
 pub struct ThumbnailMap {
     in_progress: HashSet<PrinterId>,
     thumbnails: HashMap<PrinterId, (String, Vec<u8>)>,
