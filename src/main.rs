@@ -200,7 +200,7 @@ fn main() -> eframe::Result<()> {
     }
 
     /// add klipper
-    #[cfg(feature = "nope")]
+    // #[cfg(feature = "nope")]
     {
         let host = env::var("KLIPPER_HOST").unwrap();
         let id = env::var("KLIPPER_ID").unwrap();
@@ -213,12 +213,12 @@ fn main() -> eframe::Result<()> {
         );
         let printer = PrinterConfig::Klipper(id.clone(), Arc::new(RwLock::new(printer)));
 
-        config.add_printer_blocking(printer.clone())?;
-        printer_order.insert(ui::model::GridLocation::new(1, 0), id.to_string());
+        config.add_printer_blocking(printer.clone()).unwrap();
+        // printer_order.insert(ui::model::GridLocation::new(1, 0), id.to_string());
     }
 
     /// add prusa
-    // #[cfg(feature = "nope")]
+    #[cfg(feature = "nope")]
     {
         let host = env::var("PRUSA_CONNECT_HOST").unwrap();
         let token = env::var("PRUSA_CONNECT_TOKEN").unwrap();

@@ -134,7 +134,14 @@ impl App {
 
                 self.show_printer_bambu(ui, pos, &printer);
             }
-            PrinterConfig::Klipper(id, printer) => todo!(),
+            PrinterConfig::Klipper(id, printer) => {
+                let Ok(printer) = printer.try_read() else {
+                    warn!("printer locked");
+                    return;
+                };
+
+                self.show_printer_klipper(ui, pos, &printer);
+            }
             PrinterConfig::Prusa(id, printer) => {
                 let Ok(printer) = printer.try_read() else {
                     warn!("printer locked");

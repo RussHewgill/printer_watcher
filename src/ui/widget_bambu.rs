@@ -28,19 +28,7 @@ impl App {
 
         /// Name, state, and controls button
         /// Can't be in strip or response can't get passed up
-        let resp = ui
-            .horizontal(|ui| {
-                // let selected = self
-                //     .selected_printer_controls
-                //     .as_ref()
-                //     .map(|s| s == &printer.id)
-                //     .unwrap_or(false);
-
-                let resp = self.bambu_printer_header(ui, &status, &printer, pos);
-
-                resp
-            })
-            .response;
+        let resp = self.printer_widget_header(ui, &status, printer.id.clone(), &printer.name, pos);
 
         let layout = Layout::left_to_right(egui::Align::Center)
             .with_cross_justify(true)
@@ -444,6 +432,7 @@ impl App {
     }
 }
 
+#[cfg(feature = "nope")]
 impl App {
     /// MARK: Header
     fn bambu_printer_header(
