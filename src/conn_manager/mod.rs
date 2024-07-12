@@ -169,7 +169,8 @@ impl PrinterConnManager {
                     self.worker_msg_tx.clone(),
                     worker_cmd_rx,
                     kill_rx,
-                );
+                )
+                .await?;
                 self.worker_cmd_txs.insert(id.clone(), worker_cmd_tx);
 
                 tokio::task::spawn(async move {
@@ -197,10 +198,9 @@ impl PrinterConnManager {
                         }
                     }
                 });
-            }
-            PrinterConfig::Octoprint(_, printer) => {
-                todo!();
-            }
+            } // PrinterConfig::Octoprint(_, printer) => {
+              //     todo!();
+              // }
         }
 
         Ok(())

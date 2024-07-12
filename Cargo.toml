@@ -36,13 +36,13 @@ chrono = { version = "0.4.38", features = ["serde"] }
 cocoon = "0.4.1"
 dashmap = "6.0.1"
 
-# tokio-tungstenite = { version = "0.23.1", features = [
-#     "rustls",
-#     "tokio-rustls",
-#     "rustls-native-certs",
-#     "rustls-tls-native-roots",
-# ] }
-# async-stream = "0.3.5"
+tokio-tungstenite = { version = "0.23.1", features = [
+    "rustls",
+    "tokio-rustls",
+    "rustls-native-certs",
+    "rustls-tls-native-roots",
+] }
+async-stream = "0.3.5"
 
 rumqttc = { version = "0.24.0", default-features = false, features = [
     # "use-native-tls",
@@ -83,6 +83,11 @@ pretty-hex = "0.4.1"
 bytes = "1.6.0"
 h264-reader = "0.7.0"
 atomic = "0.5.3"
+# jsonrpc = "0.18.0"
+jsonrpsee = { version = "0.24.0", features = [
+    "ws-client",
+    "client-ws-transport-no-tls",
+] }
 
 # iced = { version = "0.12.1", features = ["advanced", "lazy", "image"] }
 # iced_winit = "0.12.2"

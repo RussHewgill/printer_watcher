@@ -19,7 +19,7 @@ pub async fn spawn_fetch_thumbnail(
     match printer {
         PrinterConfig::Bambu(_, _) => todo!(),
         PrinterConfig::Klipper(_, _) => todo!(),
-        PrinterConfig::Octoprint(_, _) => todo!(),
+        // PrinterConfig::Octoprint(_, _) => todo!(),
         PrinterConfig::Prusa(_, printer) => {
             let printer = printer.read().await;
 

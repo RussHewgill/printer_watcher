@@ -11,7 +11,7 @@ pub enum PrinterConfig {
     Bambu(PrinterId, Arc<RwLock<PrinterConfigBambu>>),
     Klipper(PrinterId, Arc<RwLock<PrinterConfigKlipper>>),
     Prusa(PrinterId, Arc<RwLock<PrinterConfigPrusa>>),
-    Octoprint(PrinterId, Arc<RwLock<PrinterConfigOcto>>),
+    // Octoprint(PrinterId, Arc<RwLock<PrinterConfigOcto>>),
 }
 
 /// getters
@@ -21,7 +21,7 @@ impl PrinterConfig {
             PrinterConfig::Bambu(id, _) => id.clone(),
             PrinterConfig::Klipper(id, _) => id.clone(),
             PrinterConfig::Prusa(id, _) => id.clone(),
-            PrinterConfig::Octoprint(id, _) => id.clone(),
+            // PrinterConfig::Octoprint(id, _) => id.clone(),
         }
     }
 }

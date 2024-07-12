@@ -35,6 +35,7 @@ use crate::{
 use config::printer_id::PrinterId;
 // use ui::model::SavedAppState;
 
+/// Prusa Test
 #[cfg(feature = "nope")]
 // #[tokio::main]
 async fn main() -> Result<()> {
@@ -168,8 +169,98 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// MARK: Main
 // #[cfg(feature = "nope")]
+#[tokio::main]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    let host = env::var("KLIPPER_HOST").unwrap();
+    let id = env::var("KLIPPER_ID").unwrap();
+    let id: PrinterId = id.into();
+
+    let url = format!("ws://{}:{}/websocket", host, 80);
+
+    let rpc_client = jsonrpsee::ws_client::WsClientBuilder::default()
+        .build(&url)
+        .await?;
+
+    use jsonrpsee::core::client::ClientT;
+    use jsonrpsee::core::client::SubscriptionClientT;
+
+    let mut params = jsonrpsee::core::params::ObjectParams::new();
+    params.insert("client_name", "printer_watcher")?;
+    params.insert("version", "0.1.0")?;
+    params.insert("type", "other")?;
+    params.insert("url", "http://github.com/arksine/moontest")?;
+
+    let res: serde_json::Value = rpc_client
+        .request("server.connection.identify", params)
+        .await?;
+    let id = res["connection_id"].as_u64().unwrap();
+    debug!("id = {:?}", id);
+
+    // let res: serde_json::Value = rpc_client
+    //     .request("printer.objects.list", jsonrpsee::rpc_params![])
+    //     .await?;
+    // debug!("res = {:?}", res);
+
+    let mut params = jsonrpsee::core::params::ObjectParams::new();
+    params.insert(
+        "objects",
+        serde_json::json!({
+            "gcode_move": serde_json::Value::Null,
+            "toolhead": ["position", "status"],
+        }),
+    )?;
+
+    let res: serde_json::Value = rpc_client
+        .request("printer.objects.subscribe", params)
+        .await?;
+    debug!("res = {:?}", res);
+
+    let mut sub: jsonrpsee::core::client::Subscription<serde_json::Value> = rpc_client
+        .subscribe_to_method("notify_status_update")
+        .await?;
+
+    loop {
+        let msg = sub.next().await.unwrap();
+        debug!("msg = {:#?}", msg);
+    }
+
+    #[cfg(feature = "nope")]
+    {
+        let printer = config::printer_config::PrinterConfigKlipper::from_id(
+            "test_printer".to_string(),
+            host,
+            id.clone(),
+        );
+        let printer = Arc::new(RwLock::new(printer));
+        // let printer = PrinterConfig::Klipper(id.clone(), );
+
+        let (tx, _) = tokio::sync::mpsc::unbounded_channel::<(
+            PrinterId,
+            conn_manager::worker_message::WorkerMsg,
+        )>();
+        let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<conn_manager::WorkerCmd>();
+        let (_, kill_rx) = tokio::sync::oneshot::channel::<()>();
+
+        let mut client =
+            conn_manager::conn_klipper::KlipperClient::new(id, printer, tx, cmd_rx, kill_rx)
+                .await?;
+
+        debug!("running client");
+
+        client.run().await?;
+
+        debug!("done");
+    }
+
+    // Ok(())
+}
+
+/// MARK: Main
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();

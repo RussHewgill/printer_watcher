@@ -149,10 +149,9 @@ impl App {
                 };
 
                 self.show_printer_prusa(ui, pos, &printer);
-            }
-            PrinterConfig::Octoprint(id, print) => {
-                todo!();
-            }
+            } // PrinterConfig::Octoprint(id, print) => {
+              //     todo!();
+              // }
         }
     }
 
