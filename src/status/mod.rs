@@ -46,7 +46,7 @@ pub struct GenericPrinterState {
     pub bed_temp_target: f32,
     pub nozzle_temps: HashMap<usize, f32>,
     pub nozzle_temps_target: HashMap<usize, f32>,
-    pub layer: Option<u32>,
+    pub layer: Option<(u32, u32)>,
     pub progress: f32,
     pub time_printing: Option<chrono::Duration>,
     pub time_remaining: Option<chrono::Duration>,
@@ -93,7 +93,12 @@ impl GenericPrinterState {
                 }
             }
             PrinterStateUpdate::Progress(progress) => self.progress = progress,
+            PrinterStateUpdate::ProgressLayers(current, total) => {
+                self.layer = Some((current, total))
+            }
             PrinterStateUpdate::CurrentFile(file) => self.current_file = Some(file),
+            PrinterStateUpdate::TimeRemaining(time) => self.time_remaining = Some(time),
+            _ => tracing::warn!("GenericPrinterState::_update TODO: {:?}", update),
         }
     }
 
@@ -144,6 +149,9 @@ pub enum PrinterStateUpdate {
     NozzleTemp(Option<usize>, f32, Option<f32>),
     BedTemp(f32, Option<f32>),
     Progress(f32),
+    ProgressLayers(u32, u32),
+    Duration(chrono::Duration),
+    TimeRemaining(chrono::Duration),
     CurrentFile(String),
 }
 

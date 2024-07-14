@@ -36,7 +36,7 @@ impl App {
             .with_cross_align(egui::Align::Center);
 
         let text_size_title = 12.;
-        let text_size_eta = 11.;
+        let text_size_eta = 12.;
 
         let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;
         let thumbnail_height = thumbnail_width * 0.5625;
@@ -387,6 +387,14 @@ impl App {
 
                                         return;
                                     }
+                                }
+
+                                if let Some((layer, total)) = status.layer {
+                                    ui.add(Label::new(
+                                        RichText::new(&format!("{}/{}", layer, total))
+                                            .strong()
+                                            .size(text_size_eta),
+                                    ));
                                 }
 
                                 #[cfg(feature = "nope")]

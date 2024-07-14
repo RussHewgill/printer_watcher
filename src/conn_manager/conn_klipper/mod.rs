@@ -1,6 +1,8 @@
 pub mod klipper_types;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use klipper_types::metadata::KlipperMetadata;
+use serde_json::Value;
 use tracing::{debug, error, info, trace, warn};
 
 use ffmpeg_next::codec::debug;
@@ -10,7 +12,12 @@ use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::config::{printer_config::PrinterConfigKlipper, printer_id::PrinterId};
+use jsonrpsee::core::client::{ClientT, SubscriptionClientT};
+
+use crate::{
+    config::{printer_config::PrinterConfigKlipper, printer_id::PrinterId},
+    status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate},
+};
 
 use super::{worker_message::WorkerMsg, WorkerCmd};
 
@@ -20,16 +27,18 @@ pub struct KlipperClient {
     printer_cfg: Arc<RwLock<PrinterConfigKlipper>>,
     client: reqwest::Client,
     // rpc_client: jsonrpc::Client,
-    // rpc_client: jsonrpsee::ws_client::WsClient,
+    rpc_client: jsonrpsee::ws_client::WsClient,
     tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
     cmd_rx: tokio::sync::mpsc::UnboundedReceiver<WorkerCmd>,
     kill_rx: tokio::sync::oneshot::Receiver<()>,
     update_timer: tokio::time::Interval,
+
+    current_print: Option<(String, KlipperMetadata)>,
 }
 
+/// new, run
 impl KlipperClient {
-    // pub(super) async fn new(
-    pub async fn new(
+    pub(super) async fn new(
         id: PrinterId,
         printer_cfg: Arc<RwLock<PrinterConfigKlipper>>,
         tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
@@ -40,16 +49,9 @@ impl KlipperClient {
 
         let url = format!("ws://{}:{}/websocket", printer_cfg.try_read()?.host, 80);
 
-        // let rpc_client = jsonrpsee::ws_client::WsClientBuilder::default()
-        //     .build(&url)
-        //     .await?;
-
-        // let t = jsonrpc::simple_http::SimpleHttpTransport::builder()
-        //     .url(&url)?
-        //     // .auth(user, Some(pass))
-        //     .build();
-
-        // let rpc_client = jsonrpc::Client::with_transport(t);
+        let rpc_client = jsonrpsee::ws_client::WsClientBuilder::default()
+            .build(&url)
+            .await?;
 
         let update_timer = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
@@ -57,43 +59,49 @@ impl KlipperClient {
             id,
             printer_cfg,
             client,
-            // rpc_client,
+            rpc_client,
             tx,
             cmd_rx,
             kill_rx,
             update_timer,
+
+            current_print: None,
         })
     }
 
-    #[cfg(feature = "nope")]
+    /// jsonrpse
     pub async fn run(&mut self) -> Result<()> {
+        // let id = self.get_conn_id().await?;
+
+        let mut params = jsonrpsee::core::params::ObjectParams::new();
+        params.insert(
+            "objects",
+            serde_json::json!({
+                // "gcode_move": serde_json::Value::Null,
+                // "toolhead": ["position", "status"],
+                "extruder": ["temperature", "target"],
+                "heater_bed": ["temperature", "target"],
+                // "print_stats": ["filename", "total_duration", "print_duration", "state", "message", ],
+                "print_stats": Value::Null,
+                "webhooks": Value::Null,
+                "virtual_sdcard": Value::Null,
+            }),
+        )?;
+
+        // let mut sub = self.init_subscriptions().await?;
+
+        // loop {
+        //     let msg = sub.next().await.unwrap()?;
+        //     // debug!("msg = {:#?}", msg);
+        //     debug!("msg = {}", serde_json::to_string_pretty(&msg)?);
+        // }
+
         loop {
-            //
-        }
-    }
-
-    /// jsonrpsee
-    #[cfg(feature = "nope")]
-    pub async fn run(&mut self) -> Result<()> {
-        use jsonrpsee::core::client::ClientT;
-
-        let mut subs = self.init_subscriptions().await?;
-
-        // #[cfg(feature = "nope")]
-        loop {
-            let mut futures = subs.iter_mut().map(|sub| Box::pin(sub.next()));
-
             tokio::select! {
                 _ = self.update_timer.tick() => {
-                    debug!("updating");
-                    self.update().await?;
-                }
-                (Some(msg), _, _) = futures::future::select_all(futures) => {
-
-                    // let msg = serde_json::to_string_pretty(&msg)?;
-
-                    debug!("got message: {:#?}", msg);
-                    unimplemented!()
+                    // self.get_update(params.clone(), &mut current_thumbnail, &mut current_metadata).await?;
+                    let update = self.get_update(params.clone()).await?;
+                    self.tx.send((self.id.clone(), WorkerMsg::StatusUpdate(update))).unwrap();
                 }
                 cmd = self.cmd_rx.recv() => {
                     debug!("got worker command");
@@ -103,166 +111,225 @@ impl KlipperClient {
                     debug!("got kill command");
                     break Ok(());
                 }
-                // _ = self.handle_ws_write(write) => {}
             }
         }
 
-        //
-    }
-
-    /// tungtenite
-    // #[cfg(feature = "nope")]
-    pub async fn run(&mut self) -> Result<()> {
-        let host = self.printer_cfg.read().await.host.clone();
-        // let url = url::Url::parse(&format!("ws://{}:{}/websocket", host, 80))?;
-        let url = format!("ws://{}:{}/websocket", host, 80);
-
-        let (mut ws_stream, s) = tokio_tungstenite::connect_async(url)
-            .await
-            .expect("Failed to connect");
-
-        let conn_id = self.get_conn_id(&mut ws_stream).await?;
-
-        let (mut write, mut read) = futures::StreamExt::split(ws_stream);
-
-        self.init_subscriptions(&mut write).await?;
-
-        loop {
-            tokio::select! {
-                _ = self.update_timer.tick() => {
-                    debug!("updating");
-                    self.update().await?;
-                }
-                msg = read.next() => {
-                    let Some(Ok(data)) = msg else {
-                        continue;
-                    };
-
-
-                    self.handle_msg(data).await?;
-
-                    //
-                }
-                cmd = self.cmd_rx.recv() => {
-                    debug!("got worker command");
-                    //
-                }
-                _ = &mut self.kill_rx => {
-                    debug!("got kill command");
-                    break Ok(());
-                }
-                // _ = self.handle_ws_write(write) => {}
-            }
-        }
-
-        // Ok(())
+        // unimplemented!()
     }
 }
 
 /// get update
 impl KlipperClient {
-    async fn get_conn_id(
-        &self,
-        ws_stream: &mut tokio_tungstenite::WebSocketStream<
-            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-        >,
-    ) -> Result<String> {
-        let params = serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": "server.connection.identify",
-            "params": {
-                "client_name": "printer_watcher",
-                "version": "0.0.1",
-                "type": "web",
-                // "access_token": "<base64 encoded token>",
-                // "api_key": "<system API key>"
-            },
-            "id": 10,
-        });
-        let msg = tokio_tungstenite::tungstenite::Message::Text(serde_json::to_string(&params)?);
-
-        unimplemented!()
-    }
-
-    #[cfg(feature = "nope")]
-    async fn init_subscriptions(&self) -> Result<Vec<Subscription<serde_json::Value>>> {
-        // let url = format!(
-        //     "http://{}:{}/printer/objects/subscribe?connection_id=123456789&gcode_move&extruder",
-        //     self.printer_cfg.try_read()?.host,
-        //     80
-        // );
+    async fn get_update(
+        &mut self,
+        params: jsonrpsee::core::params::ObjectParams,
+    ) -> Result<GenericPrinterStateUpdate> {
+        let res: klipper_types::StatusUpdateResponse = self
+            .rpc_client
+            .request("printer.objects.query", params.clone())
+            .await?;
 
         let mut out = vec![];
 
-        let params = serde_json::json!({
-            "objects": {
-                "toolhead": ["position", "status"],
+        let res = res.status;
+        // debug!("res = {:#?}", res);
+
+        out.push(PrinterStateUpdate::NozzleTemp(
+            None,
+            res.extruder.temperature as f32,
+            if res.extruder.target > 0.0 {
+                Some(res.extruder.target as f32)
+            } else {
+                None
+            },
+        ));
+
+        out.push(PrinterStateUpdate::BedTemp(
+            res.heater_bed.temperature as f32,
+            if res.heater_bed.target > 0.0 {
+                Some(res.heater_bed.target as f32)
+            } else {
+                None
+            },
+        ));
+
+        let state: PrinterState = match res.print_stats.state.as_str() {
+            "standby" => PrinterState::Idle,
+            "printing" => PrinterState::Printing,
+            "paused" => PrinterState::Paused,
+            "error" => PrinterState::Error,
+            "complete" => PrinterState::Idle,
+            _ => PrinterState::Unknown(res.print_stats.state.clone()),
+        };
+        out.push(PrinterStateUpdate::State(state.clone()));
+
+        if !matches!(state, PrinterState::Idle) {
+            if self.current_print.as_ref().map(|(f, _)| f) != Some(&res.print_stats.filename) {
+                self.get_print_info(&res.print_stats.filename).await?;
+                out.push(PrinterStateUpdate::CurrentFile(
+                    res.print_stats.filename.clone(),
+                ));
             }
-        });
 
-        debug!("params = {}", serde_json::to_string_pretty(&params)?);
+            out.push(PrinterStateUpdate::Progress(
+                res.virtual_sdcard.progress as f32,
+            ));
+            match (
+                res.print_stats.info.current_layer,
+                res.print_stats.info.total_layer,
+            ) {
+                (Some(current), Some(total)) => {
+                    out.push(PrinterStateUpdate::ProgressLayers(
+                        current as u32,
+                        total as u32,
+                    ));
+                }
+                _ => {}
+            }
+        } else {
+            self.current_print = None;
+        }
 
-        let params = jsonrpsee::rpc_params![params];
-
-        let sub1: jsonrpsee::core::client::Subscription<serde_json::Value> =
-            jsonrpsee::core::client::SubscriptionClientT::subscribe(
-                &self.rpc_client,
-                "printer.objects.subscribe",
-                params,
-                "unsubscribe_all",
-            )
-            .await?;
-        out.push(sub1);
-
-        // self.subscribe().await?;
-        // Ok(())
-        // Ok(out)
-        unimplemented!()
-    }
-
-    async fn init_subscriptions(
-        &self,
-        write: &mut futures::stream::SplitSink<
-            tokio_tungstenite::WebSocketStream<
-                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-            >,
-            tokio_tungstenite::tungstenite::Message,
-        >,
-    ) -> Result<()> {
-        unimplemented!()
+        Ok(GenericPrinterStateUpdate(out))
     }
 
     #[cfg(feature = "nope")]
-    async fn subscribe(&self) -> Result<()> {
-        let params = jsonrpc::arg(serde_json::json!({
-            "objects": {
-                "toolhead": ["position", "status"],
-            }
-        }));
-        let req = self
+    async fn get_update(
+        &self,
+        params: jsonrpsee::core::params::ObjectParams,
+        // thumbnail: &mut Option<String>,
+        // metadata: &mut Option<Value>,
+    ) -> Result<GenericPrinterStateUpdate> {
+        let res: serde_json::Value = self
             .rpc_client
-            .build_request("printer.objects.subscribe", Some(&params));
+            .request("printer.objects.query", params.clone())
+            .await?;
 
-        let response: serde_json::Value = self
-            .rpc_client
-            .send_request(req)
-            .expect("send_request failed")
-            .result()?;
+        debug!("res = {}", serde_json::to_string_pretty(&res)?);
 
-        debug!("response = {}", serde_json::to_string_pretty(&response)?);
+        let res = res["status"].as_object().unwrap();
+
+        let mut out = vec![];
+
+        let extruder = res["extruder"].as_object().unwrap();
+        out.push(PrinterStateUpdate::NozzleTemp(
+            None,
+            extruder["temperature"].as_f64().map(|x| x as f32).unwrap(),
+            extruder["target"].as_f64().map(|x| x as f32),
+        ));
+
+        let bed = res["heater_bed"].as_object().unwrap();
+        out.push(PrinterStateUpdate::BedTemp(
+            bed["temperature"].as_f64().map(|x| x as f32).unwrap(),
+            bed["target"].as_f64().map(|x| x as f32),
+        ));
+
+        out.push(PrinterStateUpdate::Progress(
+            res["virtual_sdcard"].as_object().unwrap()["progress"]
+                .as_f64()
+                .unwrap() as f32,
+        ));
+
+        // let state = res["webhooks"]
+
+        let current_file = res["print_stats"].as_object().unwrap()["filename"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        #[cfg(feature = "nope")]
+        if Some(&current_file) != thumbnail.as_ref() {
+            let md = self.get_metadata(&current_file).await?;
+
+            let mut thumbs = md["thumbnails"].as_array().unwrap().clone();
+
+            thumbs.sort_by_key(|x| x["size"].as_i64().unwrap());
+
+            // debug!("thumbs = {:#?}", thumbs);
+
+            let path = thumbs[thumbs.len() - 1]["relative_path"].as_str().unwrap();
+            // debug!("path = {}", path);
+            let _ = self.get_thumbnail(path).await?;
+
+            *metadata = Some(md);
+            out.push(PrinterStateUpdate::CurrentFile(current_file.clone()));
+            *thumbnail = Some(current_file);
+        }
+
+        for s in out.iter() {
+            debug!("update = {:?}", s);
+        }
+
+        Ok(GenericPrinterStateUpdate(out))
+    }
+
+    async fn get_print_info(&mut self, filename: &str) -> Result<()> {
+        let md = self.get_metadata(filename).await?;
+
+        debug!("md = {}", serde_json::to_string_pretty(&md)?);
+
+        let mut thumbs = md.thumbnails.clone();
+        thumbs.sort_by_key(|x| x.size);
+        // debug!("thumbs = {:#?}", thumbs);
+
+        let path = &thumbs[thumbs.len() - 1].relative_path;
+        // debug!("path = {}", path);
+        self.get_thumbnail(path).await?;
+
+        self.current_print = Some((filename.to_string(), md));
 
         Ok(())
     }
 
-    async fn update(&self) -> Result<()> {
-        // let url = "printer/objects/list";
-        let url = "printer/objects/query?webhooks&virtual_sdcard&print_stats";
+    async fn get_metadata(&self, filename: &str) -> Result<KlipperMetadata> {
+        let mut params = jsonrpsee::core::params::ObjectParams::new();
+        params.insert("filename", filename)?;
 
-        let resp: serde_json::Value = self.get_response(url).await?;
+        let res = self
+            .rpc_client
+            .request("server.files.metadata", params.clone())
+            .await?;
 
-        debug!("resp = {}", serde_json::to_string_pretty(&resp)?);
+        // debug!("metadata = {}", serde_json::to_string_pretty(&res)?);
+
+        Ok(res)
+    }
+
+    async fn get_thumbnail(&self, path: &str) -> Result<()> {
+        let url = format!(
+            "http://{}/server/files/gcodes/.thumbs/{}",
+            self.printer_cfg.try_read()?.host,
+            path
+        );
+
+        let resp = self.client.get(&url).send().await?;
+
+        let bytes = resp.bytes().await?;
+
+        self.tx
+            .send((
+                self.id.clone(),
+                WorkerMsg::FetchedThumbnail(self.id.clone(), path.to_string(), bytes.to_vec()),
+            ))
+            .unwrap();
 
         Ok(())
+    }
+
+    async fn get_conn_id(&self) -> Result<u64> {
+        let mut params = jsonrpsee::core::params::ObjectParams::new();
+        params.insert("client_name", "printer_watcher")?;
+        params.insert("version", "0.1.0")?;
+        params.insert("type", "other")?;
+        params.insert("url", "http://github.com/arksine/moontest")?;
+
+        let res: serde_json::Value = self
+            .rpc_client
+            .request("server.connection.identify", params)
+            .await?;
+        let id = res["connection_id"].as_u64().unwrap();
+        // debug!("id = {:?}", id);
+        Ok(id)
     }
 
     pub async fn get_response<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
@@ -287,6 +354,7 @@ impl KlipperClient {
 }
 
 /// handle message, command
+#[cfg(feature = "nope")]
 impl KlipperClient {
     async fn handle_msg(&self, msg: tokio_tungstenite::tungstenite::Message) -> Result<()> {
         match msg {

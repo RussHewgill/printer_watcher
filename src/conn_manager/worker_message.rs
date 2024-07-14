@@ -28,6 +28,20 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
                     .mc_remaining_time
                     .map(|v| Some(chrono::Duration::seconds(v)));
 
+                if let Some(Some(time_remaining)) = time_remaining {
+                    out.push(PrinterStateUpdate::TimeRemaining(time_remaining));
+                }
+
+                match (print.print.layer_num, print.print.total_layer_num) {
+                    (Some(layer), Some(total)) => {
+                        out.push(PrinterStateUpdate::ProgressLayers(
+                            layer as u32,
+                            total as u32,
+                        ));
+                    }
+                    _ => {}
+                }
+
                 let state = if let Some(s) = print.print.gcode_state.as_ref() {
                     match s.as_str() {
                         "IDLE" => Some(PrinterState::Idle),
@@ -69,6 +83,10 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
                         t as f32,
                         print.print.bed_target_temper.map(|v| v as f32),
                     ));
+                }
+
+                if let Some(p) = print.print.mc_percent {
+                    out.push(PrinterStateUpdate::Progress(p as f32));
                 }
 
                 Self::StatusUpdate(GenericPrinterStateUpdate(out))
