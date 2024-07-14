@@ -4,7 +4,7 @@ use tracing::{debug, error, info, trace, warn};
 use egui::{epaint, Color32, Pos2, Rect, Sense, Vec2};
 use std::{num, sync::Arc};
 
-use crate::status::PrinterState;
+use crate::{config::printer_config::PrinterType, status::PrinterState};
 
 macro_rules! generate_icon_function {
     ($name:ident, $path:expr, $size:expr) => {
@@ -134,6 +134,25 @@ pub fn thumbnail_fan(on: bool) -> egui::Image<'static> {
         .fit_to_exact_size(Vec2::new(size, size))
         .max_width(size)
         .max_height(size)
+}
+
+pub fn printer_type_icon(ui: &mut egui::Ui, size: f32, printer_type: PrinterType) {
+    let src = match printer_type {
+        PrinterType::Bambu => {
+            egui::include_image!("../../assets/icons/Bambu Lab Logo Only_SVG.svg")
+        }
+        PrinterType::Klipper => {
+            egui::include_image!("../../assets/icons/Klipper-logo_svg.svg")
+        }
+        PrinterType::Prusa => {
+            egui::include_image!("../../assets/icons/prusa_icon.png")
+        }
+    };
+    let icon = egui::Image::new(src)
+        .fit_to_exact_size(Vec2::new(size, size))
+        .max_width(size)
+        .max_height(size);
+    ui.add(icon);
 }
 
 pub fn printer_state_icon(ui: &mut egui::Ui, size: f32, state: &PrinterState) {

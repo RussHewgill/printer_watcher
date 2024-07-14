@@ -159,7 +159,7 @@ async fn main() -> Result<()> {
         access_code,
         handle,
         kill_rx,
-        msg_tx,
+        // msg_tx,
     )
     .await
     .unwrap();
@@ -294,7 +294,7 @@ fn main() -> eframe::Result<()> {
     }
 
     /// add klipper
-    // #[cfg(feature = "nope")]
+    #[cfg(feature = "nope")]
     {
         let host = env::var("KLIPPER_HOST").unwrap();
         let id = env::var("KLIPPER_ID").unwrap();
@@ -380,11 +380,12 @@ fn main() -> eframe::Result<()> {
     });
 
     // #[cfg(feature = "nope")]
+    let stream_tx3 = stream_tx.clone();
     debug!("spawning streaming runtime");
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
-            let mut stream_manager = streaming::StreamManager::new(stream_rx);
+            let mut stream_manager = streaming::StreamManager::new(stream_tx3, stream_rx);
 
             debug!("starting stream manager");
             loop {

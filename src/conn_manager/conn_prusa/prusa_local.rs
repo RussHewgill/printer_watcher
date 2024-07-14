@@ -174,12 +174,14 @@ impl PrusaClientLocal {
             }
             _ => None,
         };
-        let time_remaining = match state {
+        match state {
             PrinterState::Printing | PrinterState::Error | PrinterState::Paused => {
-                Some(Some(chrono::Duration::seconds(job.time_remaining)))
+                out.push(PrinterStateUpdate::TimeRemaining(
+                    chrono::Duration::seconds(job.time_remaining),
+                ));
             }
-            _ => None,
-        };
+            _ => {}
+        }
 
         out.push(PrinterStateUpdate::Progress(status.job.progress as f32));
 

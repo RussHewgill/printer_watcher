@@ -158,7 +158,7 @@ impl JpegStreamViewer {
                         break;
                     }
 
-                    // debug!("got image");
+                    debug!("got image");
                     /// use image crate to write jpeg to file
                     // let mut f = std::fs::File::create("test.jpg")?;
                     // std::io::Write::write_all(&mut f, &img)?;

@@ -10,7 +10,10 @@ use super::{
     },
     ui_types::GridLocation,
 };
-use crate::{config::printer_config::PrinterConfigBambu, status::GenericPrinterState};
+use crate::{
+    config::printer_config::{PrinterConfigBambu, PrinterType},
+    status::GenericPrinterState,
+};
 
 impl App {
     pub fn show_printer_bambu(
@@ -28,7 +31,14 @@ impl App {
 
         /// Name, state, and controls button
         /// Can't be in strip or response can't get passed up
-        let resp = self.printer_widget_header(ui, &status, printer.id.clone(), &printer.name, pos);
+        let resp = self.printer_widget_header(
+            ui,
+            &status,
+            printer.id.clone(),
+            &printer.name,
+            pos,
+            PrinterType::Bambu,
+        );
 
         let layout = Layout::left_to_right(egui::Align::Center)
             .with_cross_justify(true)
@@ -43,6 +53,7 @@ impl App {
 
         ui.spacing_mut().item_spacing.x = 1.;
         egui_extras::StripBuilder::new(ui)
+            .clip(true)
             .cell_layout(layout)
             // thumbnail
             .size(egui_extras::Size::exact(thumbnail_height + 6.))

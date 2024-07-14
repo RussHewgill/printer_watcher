@@ -1,3 +1,6 @@
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use tracing::{debug, error, info, trace, warn};
+
 use crate::{
     config::printer_id::PrinterId,
     status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate},
@@ -15,10 +18,10 @@ pub enum WorkerMsg {
     Disconnected,
 }
 
-impl From<super::conn_bambu::message::Message> for WorkerMsg {
-    fn from(msg: super::conn_bambu::message::Message) -> Self {
+impl WorkerMsg {
+    pub fn from_bambu(msg: super::conn_bambu::message::Message) -> Result<Self> {
         use super::conn_bambu::message::Message;
-        match msg {
+        let out = match msg {
             // Message::Print(print) => todo!(),
             Message::Print(print) => {
                 let mut out = vec![];
@@ -40,6 +43,10 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
                         ));
                     }
                     _ => {}
+                }
+
+                if let Some(f) = print.print.gcode_file {
+                    out.push(PrinterStateUpdate::CurrentFile(f.clone()));
                 }
 
                 let state = if let Some(s) = print.print.gcode_state.as_ref() {
@@ -91,13 +98,20 @@ impl From<super::conn_bambu::message::Message> for WorkerMsg {
 
                 Self::StatusUpdate(GenericPrinterStateUpdate(out))
             }
-            Message::Info(_) => todo!(),
-            Message::System(_) => todo!(),
-            Message::Unknown(_) => todo!(),
+            Message::Info(info) => bail!("Unhandled Info message: {:?}", info),
+            Message::System(msg) => bail!("Unhandled System message: {:?}", msg),
+            Message::Unknown(msg) => bail!("Unhandled Unknown message: {:?}", msg),
             Message::Connecting => Self::Connecting,
             Message::Connected => Self::Connected,
             Message::Reconnecting => Self::Reconnecting,
             Message::Disconnected => Self::Disconnected,
-        }
+        };
+        Ok(out)
+    }
+}
+
+#[cfg(feature = "nope")]
+impl From<super::conn_bambu::message::Message> for WorkerMsg {
+    fn from(msg: super::conn_bambu::message::Message) -> Self {
     }
 }

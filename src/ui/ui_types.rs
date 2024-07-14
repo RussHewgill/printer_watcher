@@ -53,6 +53,10 @@ impl ThumbnailMap {
         self.thumbnails.get(printer_id)
     }
 
+    pub fn remove(&mut self, printer_id: &PrinterId) {
+        self.thumbnails.remove(printer_id);
+    }
+
     pub fn insert(&mut self, printer_id: PrinterId, thumbnail: (String, Vec<u8>)) {
         self.thumbnails.insert(printer_id, thumbnail);
     }

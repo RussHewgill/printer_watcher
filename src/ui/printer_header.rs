@@ -2,9 +2,16 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use egui::{Label, Response, RichText, Vec2};
 use tracing::{debug, error, info, trace, warn};
 
-use crate::{config::printer_id::PrinterId, status::GenericPrinterState};
+use crate::{
+    config::{printer_config::PrinterType, printer_id::PrinterId},
+    status::GenericPrinterState,
+};
 
-use super::{app::App, icons::printer_state_icon, ui_types::GridLocation};
+use super::{
+    app::App,
+    icons::{printer_state_icon, printer_type_icon},
+    ui_types::GridLocation,
+};
 
 impl App {
     /// MARK: Header
@@ -16,6 +23,7 @@ impl App {
         id: PrinterId,
         name: &str,
         pos: GridLocation,
+        printer_type: PrinterType,
     ) -> Response {
         let icon_size = 24.;
 
@@ -40,7 +48,8 @@ impl App {
                             row: pos.row,
                         },
                         |ui| {
-                            printer_state_icon(ui, icon_size, &status.state);
+                            // printer_state_icon(ui, icon_size, &status.state);
+                            printer_type_icon(ui, icon_size, printer_type);
                             ui.add(
                                 Label::new(
                                     RichText::new(&format!(

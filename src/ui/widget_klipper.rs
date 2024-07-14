@@ -3,7 +3,10 @@ use tracing::{debug, error, info, trace, warn};
 
 use egui::{Label, Layout, Response, RichText, Vec2};
 
-use crate::{config::printer_config::PrinterConfigKlipper, status::GenericPrinterState};
+use crate::{
+    config::printer_config::{PrinterConfigKlipper, PrinterType},
+    status::GenericPrinterState,
+};
 
 use super::{
     app::App,
@@ -27,7 +30,14 @@ impl App {
 
         /// Name, state, and controls button
         /// Can't be in strip or response can't get passed up
-        let resp = self.printer_widget_header(ui, &status, printer.id.clone(), &printer.name, pos);
+        let resp = self.printer_widget_header(
+            ui,
+            &status,
+            printer.id.clone(),
+            &printer.name,
+            pos,
+            PrinterType::Klipper,
+        );
 
         let layout = Layout::left_to_right(egui::Align::Center)
             .with_cross_justify(true)
@@ -35,7 +45,7 @@ impl App {
             .with_cross_align(egui::Align::Center);
 
         let text_size_title = 12.;
-        let text_size_eta = 11.;
+        let text_size_eta = 12.;
         let text_size_temps = 12.;
 
         let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;

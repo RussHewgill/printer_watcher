@@ -52,9 +52,3 @@ impl<'de> Deserialize<'de> for PrinterId {
         Ok(PrinterId(Arc::new(s)))
     }
 }
-
-pub enum PrinterType {
-    Bambu,
-    Klipper,
-    Prusa,
-}

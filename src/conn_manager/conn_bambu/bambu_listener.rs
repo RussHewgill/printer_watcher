@@ -91,7 +91,7 @@ impl BambuListener {
                     let msg = crate::conn_manager::conn_bambu::parse::parse_message(&p);
                     // debug!("incoming publish: {:?}", msg);
                     let id = self.printer_cfg.read().await.id.clone();
-                    self.tx.send((id, msg.into()))?;
+                    self.tx.send((id, WorkerMsg::from_bambu(msg)?))?;
                 }
                 Event::Incoming(event) => {
                     debug!("incoming other event: {:?}", event);

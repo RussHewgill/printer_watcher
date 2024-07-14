@@ -4,6 +4,13 @@ use tokio::sync::RwLock;
 
 use super::printer_id::PrinterId;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PrinterType {
+    Bambu,
+    Klipper,
+    Prusa,
+}
+
 #[derive(Debug, Clone)]
 pub enum PrinterConfig {
     // Bambu(PrinterConfigBambu),

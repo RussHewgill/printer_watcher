@@ -4,7 +4,10 @@ use tracing::{debug, error, info, trace, warn};
 use egui::{Label, Layout, Response, RichText, Vec2};
 
 use super::{app::App, icons::*, ui_types::GridLocation};
-use crate::{config::printer_config::PrinterConfigPrusa, status::GenericPrinterState};
+use crate::{
+    config::printer_config::{PrinterConfigPrusa, PrinterType},
+    status::GenericPrinterState,
+};
 
 impl App {
     pub fn show_printer_prusa(
@@ -24,7 +27,14 @@ impl App {
 
         /// Name, state, and controls button
         /// Can't be in strip or response can't get passed up
-        let resp = self.printer_widget_header(ui, &status, printer.id.clone(), &printer.name, pos);
+        let resp = self.printer_widget_header(
+            ui,
+            &status,
+            printer.id.clone(),
+            &printer.name,
+            pos,
+            PrinterType::Prusa,
+        );
 
         let layout = Layout::left_to_right(egui::Align::Center)
             .with_cross_justify(true)
@@ -32,7 +42,7 @@ impl App {
             .with_cross_align(egui::Align::Center);
 
         let text_size_title = 12.;
-        let text_size_eta = 11.;
+        let text_size_eta = 12.;
         let text_size_temps = 12.;
 
         let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;
@@ -78,7 +88,8 @@ impl App {
                     match self.thumbnails.get(&printer.id) {
                         Some((file, img)) => {
                             if file != thumbnail_path {
-                                unimplemented!()
+                                self.thumbnails.remove(&printer.id);
+                                // unimplemented!()
                             } else {
                                 // ui.label("Thumbnail");
                                 let img = egui::Image::from_bytes(
