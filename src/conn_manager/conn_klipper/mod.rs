@@ -166,13 +166,14 @@ impl KlipperClient {
         if !matches!(state, PrinterState::Idle) {
             if self.current_print.as_ref().map(|(f, _)| f) != Some(&res.print_stats.filename) {
                 self.get_print_info(&res.print_stats.filename).await?;
+                debug!("pushing current file");
                 out.push(PrinterStateUpdate::CurrentFile(
                     res.print_stats.filename.clone(),
                 ));
             }
 
             out.push(PrinterStateUpdate::Progress(
-                res.virtual_sdcard.progress as f32,
+                (res.virtual_sdcard.progress as f32 * 1000.0).round() / 10.0,
             ));
             match (
                 res.print_stats.info.current_layer,
@@ -193,80 +194,10 @@ impl KlipperClient {
         Ok(GenericPrinterStateUpdate(out))
     }
 
-    #[cfg(feature = "nope")]
-    async fn get_update(
-        &self,
-        params: jsonrpsee::core::params::ObjectParams,
-        // thumbnail: &mut Option<String>,
-        // metadata: &mut Option<Value>,
-    ) -> Result<GenericPrinterStateUpdate> {
-        let res: serde_json::Value = self
-            .rpc_client
-            .request("printer.objects.query", params.clone())
-            .await?;
-
-        debug!("res = {}", serde_json::to_string_pretty(&res)?);
-
-        let res = res["status"].as_object().unwrap();
-
-        let mut out = vec![];
-
-        let extruder = res["extruder"].as_object().unwrap();
-        out.push(PrinterStateUpdate::NozzleTemp(
-            None,
-            extruder["temperature"].as_f64().map(|x| x as f32).unwrap(),
-            extruder["target"].as_f64().map(|x| x as f32),
-        ));
-
-        let bed = res["heater_bed"].as_object().unwrap();
-        out.push(PrinterStateUpdate::BedTemp(
-            bed["temperature"].as_f64().map(|x| x as f32).unwrap(),
-            bed["target"].as_f64().map(|x| x as f32),
-        ));
-
-        out.push(PrinterStateUpdate::Progress(
-            res["virtual_sdcard"].as_object().unwrap()["progress"]
-                .as_f64()
-                .unwrap() as f32,
-        ));
-
-        // let state = res["webhooks"]
-
-        let current_file = res["print_stats"].as_object().unwrap()["filename"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        #[cfg(feature = "nope")]
-        if Some(&current_file) != thumbnail.as_ref() {
-            let md = self.get_metadata(&current_file).await?;
-
-            let mut thumbs = md["thumbnails"].as_array().unwrap().clone();
-
-            thumbs.sort_by_key(|x| x["size"].as_i64().unwrap());
-
-            // debug!("thumbs = {:#?}", thumbs);
-
-            let path = thumbs[thumbs.len() - 1]["relative_path"].as_str().unwrap();
-            // debug!("path = {}", path);
-            let _ = self.get_thumbnail(path).await?;
-
-            *metadata = Some(md);
-            out.push(PrinterStateUpdate::CurrentFile(current_file.clone()));
-            *thumbnail = Some(current_file);
-        }
-
-        for s in out.iter() {
-            debug!("update = {:?}", s);
-        }
-
-        Ok(GenericPrinterStateUpdate(out))
-    }
-
     async fn get_print_info(&mut self, filename: &str) -> Result<()> {
         let md = self.get_metadata(filename).await?;
 
-        debug!("md = {}", serde_json::to_string_pretty(&md)?);
+        // debug!("md = {}", serde_json::to_string_pretty(&md)?);
 
         let mut thumbs = md.thumbnails.clone();
         thumbs.sort_by_key(|x| x.size);

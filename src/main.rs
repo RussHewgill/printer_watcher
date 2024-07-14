@@ -263,16 +263,16 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
+#[allow(unreachable_code)]
 // #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
 
-    let mut config = AppConfig::empty();
-    // let mut printer_order = std::collections::HashMap::new();
+    let mut config = AppConfig::load_from_file("config.toml").unwrap_or_default();
 
     /// add bambu
-    // #[cfg(feature = "nope")]
+    #[cfg(feature = "nope")]
     {
         let host = env::var("BAMBU_IP").unwrap();
         let access_code = env::var("BAMBU_ACCESS_CODE").unwrap();
@@ -342,6 +342,9 @@ fn main() -> eframe::Result<()> {
         // printer_order.insert(ui::model::GridLocation::new(1, 0), id.to_string());
         config.add_printer_blocking(printer).unwrap();
     }
+
+    // config.save_to_file("config_test.toml").unwrap();
+    // return Ok(());
 
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnCmd>();
     let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnMsg>();

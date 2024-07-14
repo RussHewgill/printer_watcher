@@ -33,8 +33,9 @@ impl PrinterConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigBambu {
+    #[serde(default = "PrinterId::generate")]
     pub id: PrinterId,
     pub serial: String,
     pub name: String,
@@ -70,7 +71,7 @@ impl PrinterConfigBambu {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigKlipper {
     pub id: PrinterId,
     pub name: String,
@@ -91,7 +92,7 @@ impl PrinterConfigKlipper {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigPrusa {
     pub id: PrinterId,
     pub name: String,

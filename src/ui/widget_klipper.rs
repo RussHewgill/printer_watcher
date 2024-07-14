@@ -154,12 +154,44 @@ impl App {
 
                 /// Title
                 strip.cell(|ui| {
-                    ui.label("Current Print");
+                    // ui.ctx()
+                    //     .debug_painter()
+                    //     .debug_rect(ui.max_rect(), Color32::GREEN, "");
+                    let layout = Layout::left_to_right(egui::Align::Min)
+                        .with_cross_justify(true)
+                        .with_main_justify(true)
+                        .with_cross_align(egui::Align::Min);
+
+                    ui.with_layout(layout, |ui| {
+                        ui.add(
+                            Label::new(
+                                RichText::new(&format!(
+                                    "{}",
+                                    status
+                                        .current_file
+                                        .as_ref()
+                                        .map(|s| s.as_str())
+                                        .unwrap_or("--"),
+                                ))
+                                .strong()
+                                .size(text_size_title),
+                            )
+                            .truncate(),
+                        );
+                    });
                 });
 
                 /// progress bar
                 strip.cell(|ui| {
-                    ui.label("Progress Bar");
+                    // ui.ctx()
+                    //     .debug_painter()
+                    //     .debug_rect(ui.max_rect(), Color32::RED, "");
+                    let p = status.progress;
+                    ui.add(
+                        egui::ProgressBar::new(p as f32 / 100.0)
+                            .desired_width(ui.available_width() - 0.)
+                            .text(format!("{}%", p)),
+                    );
                 });
 
                 /// ETA

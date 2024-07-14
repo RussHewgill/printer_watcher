@@ -29,9 +29,10 @@ impl WorkerMsg {
                 let time_remaining = print
                     .print
                     .mc_remaining_time
-                    .map(|v| Some(chrono::Duration::seconds(v)));
+                    // .map(|v| Some(chrono::Duration::seconds(v)));
+                    .and_then(|v| chrono::TimeDelta::new(v * 60, 0));
 
-                if let Some(Some(time_remaining)) = time_remaining {
+                if let Some(time_remaining) = time_remaining {
                     out.push(PrinterStateUpdate::TimeRemaining(time_remaining));
                 }
 

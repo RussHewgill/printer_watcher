@@ -82,13 +82,17 @@ impl App {
                         .as_ref()
                         .and_then(|s| Some(s.job.file.refs.thumbnail.as_str()))
                     else {
+                        // warn!("No thumbnail path found for printer: {:?}", printer.id);
                         return;
                     };
 
                     match self.thumbnails.get(&printer.id) {
                         Some((file, img)) => {
+                            // warn!("thumbnail found: {:?}", file);
                             if file != thumbnail_path {
+                                // debug!("bad thumbnail");
                                 self.thumbnails.remove(&printer.id);
+                                self.thumbnails.set_in_progress(printer.id.clone(), false);
                                 // unimplemented!()
                             } else {
                                 // ui.label("Thumbnail");

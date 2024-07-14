@@ -4,6 +4,7 @@ tasks.json
 certs*
 *.png
 config*.yaml
+config*.toml
 example.ron
 example*.json
 project*.json

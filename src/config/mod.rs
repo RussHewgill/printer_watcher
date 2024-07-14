@@ -2,11 +2,13 @@ pub mod printer_config;
 pub mod printer_id;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use printer_config::{PrinterConfigBambu, PrinterConfigKlipper, PrinterConfigPrusa};
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
 
 use dashmap::DashMap;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::Path,
     sync::{atomic::AtomicBool, Arc},
 };
@@ -59,6 +61,14 @@ impl AppConfig {
     }
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(default)]
+struct AppConfigLoader {
+    bambu: Vec<PrinterConfigBambu>,
+    klipper: Vec<PrinterConfigKlipper>,
+    prusa: Vec<PrinterConfigPrusa>,
+}
+
 /// save, load
 impl AppConfig {
     pub fn empty() -> Self {
@@ -71,12 +81,85 @@ impl AppConfig {
         }
     }
 
+    /// load each printer
+    /// if an ID doesn't exist, generate and add it, then save
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        unimplemented!()
+        let cfg: AppConfigLoader = toml::from_str(&std::fs::read_to_string(&path)?)?;
+
+        let mut out = Self::empty();
+
+        debug!("loading config");
+        debug!("loaded {} bambu printers", cfg.bambu.len());
+        debug!("loaded {} klipper printers", cfg.klipper.len());
+        debug!("loaded {} prusa printers", cfg.prusa.len());
+
+        for cfg in cfg.bambu {
+            let id = cfg.id.clone();
+            out.ids.blocking_write().insert(id.clone());
+            out.printers.insert(
+                id.clone(),
+                PrinterConfig::Bambu(id, Arc::new(RwLock::new(cfg))),
+            );
+        }
+
+        for cfg in cfg.klipper {
+            let id = cfg.id.clone();
+            out.ids.blocking_write().insert(id.clone());
+            out.printers.insert(
+                id.clone(),
+                PrinterConfig::Klipper(id, Arc::new(RwLock::new(cfg))),
+            );
+        }
+
+        for cfg in cfg.prusa {
+            let id = cfg.id.clone();
+            out.ids.blocking_write().insert(id.clone());
+            out.printers.insert(
+                id.clone(),
+                PrinterConfig::Prusa(id, Arc::new(RwLock::new(cfg))),
+            );
+        }
+
+        out.save_to_file(path)?;
+
+        Ok(out)
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        unimplemented!()
+        let mut loader = AppConfigLoader {
+            bambu: Vec::new(),
+            klipper: Vec::new(),
+            prusa: Vec::new(),
+        };
+
+        for printer in self.printers() {
+            match printer {
+                PrinterConfig::Bambu(id, cfg) => {
+                    loader
+                        .bambu
+                        // .insert(id.to_string(), cfg.blocking_read().clone());
+                        .push(cfg.blocking_read().clone());
+                }
+                PrinterConfig::Klipper(id, cfg) => {
+                    loader
+                        .klipper
+                        // .insert(id.to_string(), cfg.blocking_read().clone());
+                        .push(cfg.blocking_read().clone());
+                }
+                PrinterConfig::Prusa(id, cfg) => {
+                    loader
+                        .prusa
+                        // .insert(id.to_string(), cfg.blocking_read().clone());
+                        .push(cfg.blocking_read().clone());
+                }
+            }
+        }
+
+        let s = toml::to_string_pretty(&loader)?;
+
+        std::fs::write(path, s.as_bytes())?;
+
+        Ok(())
     }
 }
 

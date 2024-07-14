@@ -15,22 +15,22 @@ jobs:
           # - os_name: Linux-x86_64
           #   os: ubuntu-20.04
           #   target: x86_64-unknown-linux-gnu
-          #   bin: bambu_watcher_linux
-          #   name: Bambu-Watcher-Linux-x86_64-gnu.tar.gz
+          #   bin: printer_watcher_linux
+          #   name: Printer-Watcher-Linux-x86_64-gnu.tar.gz
           #   command: build
 
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
-            bin: bambu_watcher
-            name: Bambu-Watcher-Darwin-x86_64.tar.gz
+            bin: printer_watcher
+            name: Printer-Watcher-Darwin-x86_64.tar.gz
             command: build
 
           - os_name: Windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            bin: bambu_watcher.exe
-            name: Bambu-Watcher-Windows-x86_64.zip
+            bin: printer_watcher.exe
+            name: Printer-Watcher-Windows-x86_64.zip
             command: build
 
     # env:
@@ -63,7 +63,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: Bambu-Watcher-${{ matrix.platform.os_name }}-${{ matrix.platform.bin }}
+        name: Printer-Watcher-${{ matrix.platform.os_name }}-${{ matrix.platform.bin }}
         path: ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
 
     - name: Release

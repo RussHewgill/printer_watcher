@@ -76,7 +76,7 @@ pub mod metadata {
         pub chamber_temp: f64,
         pub estimated_time: i64,
         pub filament_name: String,
-        pub filament_total: f64,
+        pub filament_total: Option<f64>,
         pub filament_type: String,
         pub filament_weight_total: f64,
         pub filename: String,
