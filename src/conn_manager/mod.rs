@@ -16,7 +16,7 @@ use worker_message::WorkerMsg;
 
 use crate::{
     config::{printer_config::PrinterConfig, printer_id::PrinterId, AppConfig},
-    status::GenericPrinterState,
+    status::{GenericPrinterState, PrinterState},
     streaming::StreamCmd,
 };
 use conn_bambu::message::Message;
@@ -219,7 +219,34 @@ impl PrinterConnManager {
                 // debug!("conn manager got status update: {:?}", id);
 
                 let mut state = self.printer_states.entry(id.clone()).or_default();
+
+                let prev_error = state.is_error();
+                let prev_state = state.state.clone();
+
+                /// check for new errors and notify
                 state.update(update.clone());
+
+                if !prev_error && state.is_error() {
+                    info!("printer state changed: {:?}", state.state);
+
+                    /// print just finished, send notification
+                    if prev_state != PrinterState::Disconnected && state.state == PrinterState::Idle
+                    {
+                        warn!("sent finish notification");
+                        crate::notifications::alert_print_complete(
+                            &printer.name_blocking(),
+                            state
+                                .current_file
+                                .as_ref()
+                                .unwrap_or(&"Unknown File".to_string()),
+                        )
+                    }
+
+                    // /// either print just started, or app was just started
+                    // if state.state == PrinterState::Printing && entry.subtask_id.is_some() {
+                    //     state.current_task_thumbnail_url = None;
+                    // }
+                }
 
                 // self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;
             }

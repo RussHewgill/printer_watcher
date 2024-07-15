@@ -16,7 +16,7 @@ use crate::{
     streaming::StreamCmd,
 };
 
-use super::ui_types::{AppOptions, GridLocation, Tab, ThumbnailMap, WebcamTexture};
+use super::ui_types::{AppOptions, GridLocation, PreviewType, Tab, ThumbnailMap, WebcamTexture};
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -44,6 +44,7 @@ pub struct App {
 
     // #[serde(skip)]
     pub thumbnails: ThumbnailMap,
+    pub preview_setting: HashMap<PrinterId, PreviewType>,
 
     #[serde(skip)]
     pub webcam_textures: Arc<DashMap<PrinterId, WebcamTexture>>,

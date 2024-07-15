@@ -201,6 +201,91 @@ impl App {
                         return;
                     };
 
+                    // let time = eta.time();
+                    // // let dt = time - chrono::Local::now().naive_local().time();
+                    // let dt = if eta < chrono::Local::now() {
+                    //     chrono::TimeDelta::zero()
+                    // } else {
+                    //     eta - chrono::Local::now()
+                    // };
+
+                    let time_finish = chrono::Local::now() + remaining;
+
+                    builder
+                        .size(egui_extras::Size::relative(0.3))
+                        .size(egui_extras::Size::remainder())
+                        .size(egui_extras::Size::relative(0.3))
+                        .horizontal(|mut strip| {
+                            strip.cell(|ui| {
+                                // ui.ctx().debug_painter().debug_rect(
+                                //     ui.max_rect(),
+                                //     Color32::GREEN,
+                                //     "",
+                                // );
+                                ui.add(Label::new(
+                                    RichText::new(&time_finish.format("%-I:%M %p").to_string())
+                                        .strong()
+                                        // .text_style(Text)
+                                        .size(text_size_eta),
+                                ));
+                            });
+
+                            /// Prusa doesn't tell what layer it's on?
+                            strip.cell(|ui| {
+                                /// TODO: status instead of layers during prepare
+                                #[cfg(feature = "nope")]
+                                if let Some(stage) = status.stage {
+                                    let state =
+                                        crate::status::PrintStage::new(status.layer_num, stage);
+
+                                    let idle = matches!(status.state, PrinterState::Idle)
+                                        || matches!(status.state, PrinterState::Finished);
+                                    if !idle
+                                        && !matches!(state, crate::status::PrintStage::Printing)
+                                    {
+                                        ui.add(Label::new(
+                                            RichText::new(state.to_string())
+                                                .size(text_size_eta - 2.),
+                                        ));
+
+                                        return;
+                                    }
+                                }
+
+                                #[cfg(feature = "nope")]
+                                if let (Some(layer), Some(max)) =
+                                    (status.layer_num, status.total_layer_num)
+                                {
+                                    ui.add(Label::new(
+                                        RichText::new(&format!("{}/{}", layer, max))
+                                            .strong()
+                                            .size(text_size_eta),
+                                    ));
+                                }
+                            });
+
+                            strip.cell(|ui| {
+                                ui.add(Label::new(
+                                    RichText::new(&format!(
+                                        "-{:02}:{:02}",
+                                        remaining.num_hours(),
+                                        remaining.num_minutes() % 60
+                                    ))
+                                    .strong()
+                                    .size(text_size_eta),
+                                ));
+                            });
+                        });
+                });
+
+                /// ETA
+                /// TODO: layers?
+                #[cfg(feature = "nope")]
+                strip.strip(|mut builder| {
+                    let Some(remaining) = status.time_remaining else {
+                        return;
+                    };
+
                     let time_finish = chrono::Local::now() + remaining;
 
                     builder

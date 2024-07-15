@@ -4,9 +4,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PrinterState {
     Idle,
+    Finished,
     Busy,
     Printing,
     Paused,
@@ -25,7 +26,7 @@ impl PrinterState {
     pub fn to_text(&self) -> &'static str {
         match self {
             PrinterState::Idle => "Idle",
-            // PrinterState::Finished => "Finished",
+            PrinterState::Finished => "Finished",
             PrinterState::Busy => "Busy",
             PrinterState::Printing => "Printing",
             PrinterState::Error => "Error",
@@ -53,6 +54,12 @@ pub struct GenericPrinterState {
     pub current_file: Option<String>,
     // pub thumbnail_path: Option<String>,
     pub state_prusa: Option<crate::conn_manager::conn_prusa::prusa_local_types::PrusaStatus>,
+}
+
+impl GenericPrinterState {
+    pub fn is_error(&self) -> bool {
+        matches!(self.state, PrinterState::Error)
+    }
 }
 
 impl GenericPrinterState {

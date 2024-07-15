@@ -3,9 +3,16 @@ use tracing::{debug, error, info, trace, warn};
 
 use egui::{Label, Layout, Response, RichText, Vec2};
 
-use super::{app::App, icons::*, ui_types::GridLocation};
+use super::{
+    app::App,
+    icons::*,
+    ui_types::{GridLocation, ThumbnailMap},
+};
 use crate::{
-    config::printer_config::{PrinterConfigPrusa, PrinterType},
+    config::{
+        printer_config::{PrinterConfigPrusa, PrinterType},
+        printer_id::PrinterId,
+    },
     status::GenericPrinterState,
 };
 
@@ -48,6 +55,8 @@ impl App {
         let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;
         let thumbnail_height = thumbnail_width * 0.5625;
 
+        drop(status);
+
         ui.spacing_mut().item_spacing.x = 1.;
         // #[cfg(feature = "nope")]
         egui_extras::StripBuilder::new(ui)
@@ -68,61 +77,15 @@ impl App {
             .size(egui_extras::Size::exact(text_size_temps + 2.))
             // .size(egui_extras::Size::initial(10.))
             .vertical(|mut strip| {
+                /// thumbnail/webcam
+                strip.cell(|ui| {
+                    self.prusa_preview(ui, &printer, (thumbnail_width, thumbnail_height));
+                });
+
                 let Some(status) = self.printer_states.get(&printer.id) else {
                     warn!("Printer not found: {:?}", printer.id);
                     panic!();
                 };
-
-                /// thumbnail/webcam
-                strip.cell(|ui| {
-                    // ui.label("Thumbnail");
-
-                    let Some(thumbnail_path) = status
-                        .state_prusa
-                        .as_ref()
-                        .and_then(|s| Some(s.job.file.refs.thumbnail.as_str()))
-                    else {
-                        // warn!("No thumbnail path found for printer: {:?}", printer.id);
-                        return;
-                    };
-
-                    match self.thumbnails.get(&printer.id) {
-                        Some((file, img)) => {
-                            // warn!("thumbnail found: {:?}", file);
-                            if file != thumbnail_path {
-                                // debug!("bad thumbnail");
-                                self.thumbnails.remove(&printer.id);
-                                self.thumbnails.set_in_progress(printer.id.clone(), false);
-                                // unimplemented!()
-                            } else {
-                                // ui.label("Thumbnail");
-                                let img = egui::Image::from_bytes(
-                                    format!("bytes://{}", file),
-                                    img.clone(),
-                                )
-                                .fit_to_exact_size(Vec2::new(thumbnail_width, thumbnail_height));
-
-                                ui.add(img);
-                            }
-                        }
-                        None => {
-                            if !self.thumbnails.is_in_progress(&printer.id) {
-                                debug!("sending thumbnail fetch request");
-                                self.thumbnails.set_in_progress(printer.id.clone(), true);
-                                self.cmd_tx
-                                    .as_ref()
-                                    .unwrap()
-                                    .send(crate::conn_manager::PrinterConnCmd::FetchThumbnail(
-                                        printer.id.clone(),
-                                        thumbnail_path.to_string(),
-                                    ))
-                                    .unwrap();
-                            }
-                        }
-                    }
-
-                    //
-                });
 
                 /// temperatures
                 strip.strip(|mut builder| {
@@ -377,5 +340,89 @@ impl App {
         ui.spacing_mut().item_spacing.x = 8.;
 
         resp
+    }
+}
+
+impl App {
+    fn prusa_preview(
+        &mut self,
+        ui: &mut egui::Ui,
+        printer: &PrinterConfigPrusa,
+        (thumbnail_width, thumbnail_height): (f32, f32),
+    ) {
+        let Some(status) = self.printer_states.get(&printer.id) else {
+            warn!("Printer not found: {:?}", printer.id);
+            panic!();
+        };
+
+        let preview_type = self
+            .preview_setting
+            .entry(printer.id.clone())
+            .or_insert_with(|| crate::ui::ui_types::PreviewType::Thumbnail);
+
+        match preview_type {
+            crate::ui::ui_types::PreviewType::None => {}
+            crate::ui::ui_types::PreviewType::Thumbnail => {
+                let Some(thumbnail_path) = status
+                    .state_prusa
+                    .as_ref()
+                    .and_then(|s| Some(s.job.file.refs.thumbnail.as_str()))
+                else {
+                    // warn!("No thumbnail path found for printer: {:?}", printer.id);
+                    return;
+                };
+
+                match self.thumbnails.get(&printer.id) {
+                    Some((file, img)) => {
+                        // warn!("thumbnail found: {:?}", file);
+                        if file != thumbnail_path {
+                            // debug!("bad thumbnail");
+                            self.thumbnails.remove(&printer.id);
+                            self.thumbnails.set_in_progress(printer.id.clone(), false);
+                            // unimplemented!()
+                        } else {
+                            // ui.label("Thumbnail");
+                            let img =
+                                egui::Image::from_bytes(format!("bytes://{}", file), img.clone())
+                                    .fit_to_exact_size(Vec2::new(
+                                        thumbnail_width,
+                                        thumbnail_height,
+                                    ));
+
+                            ui.add(img);
+                        }
+                    }
+                    None => {
+                        if !self.thumbnails.is_in_progress(&printer.id) {
+                            debug!("sending thumbnail fetch request");
+                            self.thumbnails.set_in_progress(printer.id.clone(), true);
+                            self.cmd_tx
+                                .as_ref()
+                                .unwrap()
+                                .send(crate::conn_manager::PrinterConnCmd::FetchThumbnail(
+                                    printer.id.clone(),
+                                    thumbnail_path.to_string(),
+                                ))
+                                .unwrap();
+                        }
+                    }
+                }
+            }
+            crate::ui::ui_types::PreviewType::Webcam => {
+                todo!()
+            }
+        }
+    }
+
+    #[cfg(feature = "nope")]
+    fn prusa_preview(
+        ui: &mut egui::Ui,
+        printer: &PrinterConfigPrusa,
+        status: &GenericPrinterState,
+        (thumbnail_width, thumbnail_height): (f32, f32),
+        thumbnails: &mut ThumbnailMap,
+        cmd_tx: &Option<tokio::sync::mpsc::UnboundedSender<crate::conn_manager::PrinterConnCmd>>,
+    ) {
+        unimplemented!()
     }
 }

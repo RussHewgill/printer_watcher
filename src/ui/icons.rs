@@ -158,7 +158,9 @@ pub fn printer_type_icon(ui: &mut egui::Ui, size: f32, printer_type: PrinterType
 pub fn printer_state_icon(ui: &mut egui::Ui, size: f32, state: &PrinterState) {
     let src = match state {
         // PrinterState::Idle => egui::include_image!("../../assets/icons/icons/check-circle_poly.svg"),
-        PrinterState::Idle => egui::include_image!("../../assets/icons/frown_poly.svg"),
+        PrinterState::Idle | PrinterState::Finished => {
+            egui::include_image!("../../assets/icons/frown_poly.svg")
+        }
         PrinterState::Busy => egui::include_image!("../../assets/icons/icons8-warning-96.png"),
         // PrinterState::Finished => egui::include_image!("../../assets/icons/frown_poly.svg"),
         PrinterState::Paused => {

@@ -31,6 +31,24 @@ impl PrinterConfig {
             // PrinterConfig::Octoprint(id, _) => id.clone(),
         }
     }
+
+    pub async fn name(&self) -> String {
+        match self {
+            PrinterConfig::Bambu(_, config) => config.read().await.name.clone(),
+            PrinterConfig::Klipper(_, config) => config.read().await.name.clone(),
+            PrinterConfig::Prusa(_, config) => config.read().await.name.clone(),
+            // PrinterConfig::Octoprint(_, config) => &config.read().await.name,
+        }
+    }
+
+    pub fn name_blocking(&self) -> String {
+        match self {
+            PrinterConfig::Bambu(_, config) => config.blocking_read().name.clone(),
+            PrinterConfig::Klipper(_, config) => config.blocking_read().name.clone(),
+            PrinterConfig::Prusa(_, config) => config.blocking_read().name.clone(),
+            // PrinterConfig::Octoprint(_, config) => &config.read().await.name,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

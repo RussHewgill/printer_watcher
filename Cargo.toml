@@ -3,10 +3,14 @@ name = "printer_watcher"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+debug = true
+
 [build-dependencies]
 dotenvy = "0.15.0"
 anyhow = "1"
-# winresource = "0.1.17"
+vergen = { version = "8.3", features = ["git", "gitcl"] }
+winresource = "0.1.17"
 
 [dependencies]
 anyhow = "1.0.83"
@@ -90,6 +94,7 @@ jsonrpsee = { version = "0.24.0", features = [
 ] }
 toml = "0.8.14"
 # toml_edit = { version = "0.22.15", features = ["serde"] }
+notify-rust = { version = "4.11.0", features = ["async"] }
 
 # iced = { version = "0.12.1", features = ["advanced", "lazy", "image"] }
 # iced_winit = "0.12.2"

@@ -20,6 +20,13 @@ impl Default for Tab {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum PreviewType {
+    None,
+    Thumbnail,
+    Webcam,
+}
+
 #[derive(Clone)]
 pub enum Thumbnail {
     None,

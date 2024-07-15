@@ -172,6 +172,27 @@ impl KlipperClient {
                 ));
             }
 
+            // let t = self.current_print.as_ref().unwrap().1.estimated_time;
+            // debug!("estimated_time = {}", t / 60);
+            // debug!("print_duration = {}", res.print_stats.print_duration / 60.);
+            // debug!("total_duration = {}", res.print_stats.total_duration / 60.);
+
+            // let time_remaining = res.print_stats.total_duration - res.print_stats.print_duration;
+
+            match self.current_print {
+                Some((_, ref md)) => {
+                    let rem = md.estimated_time - res.print_stats.print_duration as i64;
+                    out.push(PrinterStateUpdate::TimeRemaining(
+                        chrono::Duration::new(rem, 0).unwrap(),
+                    ));
+                }
+                None => {}
+            }
+
+            // out.push(PrinterStateUpdate::TimeRemaining(
+            //     chrono::Duration::new(time_remaining as i64, 0).unwrap(),
+            // ));
+
             out.push(PrinterStateUpdate::Progress(
                 (res.virtual_sdcard.progress as f32 * 1000.0).round() / 10.0,
             ));

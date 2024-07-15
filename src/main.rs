@@ -5,13 +5,14 @@
 #![allow(unused_doc_comments)]
 #![allow(unused_labels)]
 #![allow(unexpected_cfgs)]
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod auth;
 // pub mod camera;
 pub mod config;
 pub mod conn_manager;
 pub mod logging;
+pub mod notifications;
 pub mod status;
 pub mod streaming;
 pub mod ui;
