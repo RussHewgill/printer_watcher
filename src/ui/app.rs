@@ -91,6 +91,7 @@ impl App {
 
         out.unplaced_printers = out.config.printer_ids();
 
+        debug!("printer_order: {:?}", out.printer_order);
         debug!("unplaced_printers: {:?}", out.unplaced_printers);
 
         /// for each printer that isn't in printer_order, queue to add
@@ -100,6 +101,7 @@ impl App {
 
         // out.printer_textures = printer_textures;
 
+        #[cfg(feature = "nope")]
         /// remove printers that were previously placed but are no longer in the config
         {
             let current_printers = out

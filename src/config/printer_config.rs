@@ -53,7 +53,7 @@ impl PrinterConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigBambu {
-    #[serde(default = "PrinterId::generate")]
+    #[serde(default = "PrinterId::empty")]
     pub id: PrinterId,
     pub serial: String,
     pub name: String,
@@ -91,6 +91,7 @@ impl PrinterConfigBambu {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigKlipper {
+    #[serde(default = "PrinterId::empty")]
     pub id: PrinterId,
     pub name: String,
     pub host: String,
@@ -112,6 +113,7 @@ impl PrinterConfigKlipper {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterConfigPrusa {
+    #[serde(default = "PrinterId::empty")]
     pub id: PrinterId,
     pub name: String,
     pub host: String,
@@ -120,6 +122,7 @@ pub struct PrinterConfigPrusa {
     // pub fingerprint: String,
     pub token: String,
     pub octo: Option<PrinterConfigOcto>,
+    pub rtsp: Option<crate::streaming::rtsp::RtspCreds>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -163,17 +163,26 @@ impl PrinterConnManager {
                 self.worker_cmd_txs.insert(id.clone(), worker_cmd_tx);
             }
             PrinterConfig::Klipper(_, printer) => {
-                let mut klipper = conn_klipper::KlipperClient::new(
-                    id.clone(),
-                    printer.clone(),
-                    self.worker_msg_tx.clone(),
-                    worker_cmd_rx,
-                    kill_rx,
-                )
-                .await?;
                 self.worker_cmd_txs.insert(id.clone(), worker_cmd_tx);
 
+                let worker_msg_tx = self.worker_msg_tx.clone();
                 tokio::task::spawn(async move {
+                    let mut klipper = match conn_klipper::KlipperClient::new(
+                        id.clone(),
+                        printer.clone(),
+                        worker_msg_tx,
+                        worker_cmd_rx,
+                        kill_rx,
+                    )
+                    .await
+                    {
+                        Ok(k) => k,
+                        Err(e) => {
+                            error!("error creating klipper client: {:?}", e);
+                            return;
+                        }
+                    };
+
                     loop {
                         if let Err(e) = klipper.run().await {
                             error!("error running klipper client: {:?}", e);

@@ -190,7 +190,7 @@ impl App {
         };
 
         let Some(printer) = self.config.get_printer(&id) else {
-            warn!("Printer not found: {:?}", id);
+            // warn!("Printer not found: {:?}", id);
             return (None, None);
         };
 

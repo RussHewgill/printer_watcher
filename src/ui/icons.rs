@@ -41,7 +41,10 @@ generate_icon_function!(
 );
 generate_icon_function!(icon_controls, "../../assets/icons/sliders_poly.svg", 20.);
 generate_icon_function!(icon_cloud, "../../assets/icons/cloud-1_poly.svg", 20.);
-generate_icon_function!(icon_lan, "../../assets/icons/wifi-100_poly.svg", 20.);
+generate_icon_function!(icon_wifi_100, "../../assets/icons/wifi-100_poly.svg", 20.);
+generate_icon_function!(icon_wifi_75, "../../assets/icons/wifi-75_poly.svg", 20.);
+generate_icon_function!(icon_wifi_50, "../../assets/icons/wifi-50_poly.svg", 20.);
+generate_icon_function!(icon_wifi_25, "../../assets/icons/wifi-25_poly.svg", 20.);
 generate_icon_function!(icon_sort_up, "../../assets/icons/sort-up_poly.svg", 20.);
 generate_icon_function!(icon_sort_down, "../../assets/icons/sort-down_poly.svg", 20.);
 generate_icon_function!(icon_expand, "../../assets/icons/view-expand_poly.svg", 20.);

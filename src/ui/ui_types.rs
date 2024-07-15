@@ -27,6 +27,16 @@ pub enum PreviewType {
     Webcam,
 }
 
+impl PreviewType {
+    pub fn toggle_type(&mut self) {
+        *self = match self {
+            PreviewType::None => PreviewType::Thumbnail,
+            PreviewType::Thumbnail => PreviewType::Webcam,
+            PreviewType::Webcam => PreviewType::Thumbnail,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum Thumbnail {
     None,

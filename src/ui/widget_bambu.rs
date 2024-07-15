@@ -74,6 +74,7 @@ impl App {
                     panic!();
                 };
 
+                /// thumbnail/webcam
                 strip.cell(|ui| {
                     // ui.label("Webcam: TODO");
 
@@ -82,7 +83,7 @@ impl App {
                         .entry(printer.id.clone())
                         .or_insert_with(|| {
                             let image =
-                                egui::ColorImage::new([80, 80], egui::Color32::from_gray(220));
+                                egui::ColorImage::new([1920, 1080], egui::Color32::from_gray(220));
                             let texture = ui.ctx().load_texture(
                                 format!("{:?}_texture", printer.id),
                                 image,

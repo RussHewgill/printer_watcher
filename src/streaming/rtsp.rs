@@ -4,6 +4,7 @@ use tracing::{debug, error, info, trace, warn};
 use std::sync::Arc;
 
 use ffmpeg_next as ffmpeg;
+use serde::{Deserialize, Serialize};
 
 use processor::H264Processor;
 
@@ -19,6 +20,8 @@ pub mod processor {
         convert_to_annex_b: bool,
         handle: egui::TextureHandle,
         ctx: egui::Context,
+
+        skip_non_raps: bool,
     }
 
     impl H264Processor {
@@ -26,6 +29,7 @@ pub mod processor {
             // convert_to_annex_b: bool
             handle: egui::TextureHandle,
             ctx: egui::Context,
+            skip_non_raps: bool,
         ) -> Self {
             let convert_to_annex_b = false;
 
@@ -46,6 +50,7 @@ pub mod processor {
                 convert_to_annex_b,
                 handle,
                 ctx,
+                skip_non_raps,
             }
         }
 
@@ -88,7 +93,7 @@ pub mod processor {
             // stream: &retina::client::Stream,
             f: retina::codec::VideoFrame,
         ) -> Result<()> {
-            if !f.is_random_access_point() {
+            if self.skip_non_raps && !f.is_random_access_point() {
                 return Ok(());
             }
             // let data = convert_h264(f)?;
@@ -209,7 +214,7 @@ pub mod processor {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RtspCreds {
     pub host: String,
     pub username: String,
@@ -224,7 +229,11 @@ pub async fn rtsp_task(
 ) -> Result<()> {
     /// Init ffmpeg
     ffmpeg_next::init().unwrap();
+
     if cfg!(debug_assertions) {
+        // ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Trace);
+        ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Warning);
+    } else {
         ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Trace);
     }
 
@@ -235,6 +244,7 @@ pub async fn rtsp_task(
         password: creds.password.to_string(),
     };
 
+    warn!("starting session");
     let session_group = Arc::new(retina::client::SessionGroup::default());
     let mut session = retina::client::Session::describe(
         url,
@@ -246,6 +256,7 @@ pub async fn rtsp_task(
     )
     .await?;
 
+    warn!("getting index");
     let video_stream_i = {
         let s = session.streams().iter().position(|s| {
             if s.media() == "video" {
@@ -268,6 +279,7 @@ pub async fn rtsp_task(
             Some(s) => s,
         }
     };
+    warn!("video stream index: {}", video_stream_i);
 
     session
         .setup(
@@ -277,6 +289,7 @@ pub async fn rtsp_task(
             )),
         )
         .await?;
+    warn!("setup done");
 
     let result = rtsp_loop(session, video_stream_i, texture, kill_rx, ctx).await;
 
@@ -301,7 +314,8 @@ async fn rtsp_loop(
         .await?
         .demuxed()?;
 
-    let mut processor = H264Processor::new(handle, ctx.clone());
+    let skip_non_raps = true;
+    let mut processor = H264Processor::new(handle, ctx.clone(), skip_non_raps);
 
     if let Some(retina::codec::ParametersRef::Video(v)) =
         session.streams()[video_stream_i].parameters()
@@ -343,125 +357,16 @@ async fn rtsp_loop(
             retina::codec::CodecItem::MessageFrame(msg) => {
                 info!("message: {:?}", msg);
             }
-            _ => warn!("unexpected item"),
+            retina::codec::CodecItem::AudioFrame(_) => {
+                // ignore
+            }
+            retina::codec::CodecItem::Rtcp(x) => {
+                // ignore
+            }
+            f => warn!("unexpected item: {:?}", f),
         }
     }
 
     processor.flush()?;
     Ok(())
-}
-
-#[cfg(feature = "nope")]
-pub async fn write_frames(
-    session: retina::client::Session<retina::client::Described>,
-    stop_signal: std::pin::Pin<Box<dyn futures::Future<Output = Result<(), std::io::Error>>>>,
-) -> Result<()> {
-    ffmpeg::init()?;
-    ffmpeg::util::log::set_level(ffmpeg::util::log::Level::Trace);
-
-    tokio::pin!(stop_signal);
-
-    let mut session = session
-        .play(retina::client::PlayOptions::default())
-        .await?
-        .demuxed()?;
-
-    let video_stream_i = 0;
-
-    // let mut processor = H264Processor::new(true);
-    let mut processor = H264Processor::new(false);
-
-    if let Some(retina::codec::ParametersRef::Video(v)) =
-        session.streams()[video_stream_i].parameters()
-    {
-        debug!("initial parameters: {:#?}", v);
-        processor.handle_parameters(v)?;
-    }
-
-    debug!("starting loop");
-    loop {
-        debug!("waiting for frame");
-        let f = futures::StreamExt::next(&mut session)
-            .await
-            .unwrap()
-            .unwrap();
-        debug!("got frame");
-        match f {
-            retina::codec::CodecItem::VideoFrame(f) => {
-                let stream = &session.streams()[f.stream_id()];
-                let start_ctx = *f.start_ctx();
-                if f.has_new_parameters() {
-                    let v = match stream.parameters() {
-                        Some(retina::codec::ParametersRef::Video(v)) => {
-                            debug!("new parameters: {:#?}", v);
-                            v
-                        }
-                        _ => unreachable!(),
-                    };
-                    processor.handle_parameters(v)?;
-                }
-                processor.send_frame(f)?;
-                break;
-            }
-            retina::codec::CodecItem::MessageFrame(msg) => {
-                info!("message: {:?}", msg);
-            }
-            _ => warn!("unexpected item"),
-        }
-    }
-
-    processor.flush()?;
-    Ok(())
-}
-
-#[cfg(feature = "nope")]
-fn decode_avc_decoder_config(
-    data: &[u8],
-) -> Result<(h264_reader::nal::sps::SeqParameterSet, Vec<u8>, Vec<u8>)> {
-    use bytes::Buf;
-    use h264_reader::nal::Nal;
-
-    // debug!("\n{}", pretty_hex::pretty_hex(&data));
-    // debug!("data.len: {:?}", data.len());
-
-    // let mut r = bitreader::BitReader::new(&data);
-    let mut r = std::io::Cursor::new(data);
-
-    // let version = r.read_u8(8)?;
-    let version = r.get_u8();
-    assert_eq!(version, 0x01);
-
-    let profile_idc = r.get_u8();
-    let profile_compatibility = r.get_u8();
-    let level_idc = r.get_u8();
-
-    let length_size_minus_one = r.get_u8();
-    assert_eq!(length_size_minus_one, 0xff);
-
-    assert_eq!(r.get_u8(), 0xe1);
-
-    let sps_nal_len = r.get_u16();
-    // debug!("sps_nal_len: {:?}", sps_nal_len);
-    let sps_nal_bytes = r.copy_to_bytes(sps_nal_len as usize);
-
-    assert_eq!(r.get_u8(), 0x01); // number of PPSs
-    let pps_nal_len = r.get_u16();
-    // debug!("pps_nal_len: {:?}", pps_nal_len);
-    let pps_nal_bytes = r.copy_to_bytes(pps_nal_len as usize);
-
-    let sps = h264_reader::rbsp::decode_nal(&sps_nal_bytes)?;
-    let sps_nal = h264_reader::nal::RefNal::new(&sps_nal_bytes, &[], true);
-    assert!(sps_nal.is_complete());
-
-    let sps = h264_reader::nal::sps::SeqParameterSet::from_bits(sps_nal.rbsp_bits()).unwrap();
-
-    // debug!("sps: {:#?}", sps);
-
-    // let pps = h264_reader::rbsp::decode_nal(&pps_nal)?;
-    // let pps_nal = h264_reader::nal::RefNal::new(&pps_nal, &[], true);
-    // assert!(pps_nal.is_complete());
-    // let pps = h264_reader::nal::pps::PicParameterSet::from_bits(pps_nal.rbsp_bits());
-    // debug!("pps: {:#?}", pps);
-
-    Ok((sps, sps_nal_bytes.to_vec(), pps_nal_bytes.to_vec()))
 }

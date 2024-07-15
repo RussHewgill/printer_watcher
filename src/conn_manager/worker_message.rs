@@ -18,6 +18,7 @@ pub enum WorkerMsg {
     Disconnected,
 }
 
+#[cfg(feature = "nope")]
 impl WorkerMsg {
     pub fn from_bambu(msg: super::conn_bambu::message::Message) -> Result<Self> {
         use super::conn_bambu::message::Message;

@@ -88,13 +88,21 @@ impl AppConfig {
 
         let mut out = Self::empty();
 
+        let mut new_ids = false;
+
         debug!("loading config");
         debug!("loaded {} bambu printers", cfg.bambu.len());
         debug!("loaded {} klipper printers", cfg.klipper.len());
         debug!("loaded {} prusa printers", cfg.prusa.len());
 
         for cfg in cfg.bambu {
-            let id = cfg.id.clone();
+            let id = if cfg.id.is_empty() {
+                let id = PrinterId::generate();
+                new_ids = true;
+                id
+            } else {
+                cfg.id.clone()
+            };
             out.ids.blocking_write().insert(id.clone());
             out.printers.insert(
                 id.clone(),
@@ -103,7 +111,13 @@ impl AppConfig {
         }
 
         for cfg in cfg.klipper {
-            let id = cfg.id.clone();
+            let id = if cfg.id.is_empty() {
+                let id = PrinterId::generate();
+                new_ids = true;
+                id
+            } else {
+                cfg.id.clone()
+            };
             out.ids.blocking_write().insert(id.clone());
             out.printers.insert(
                 id.clone(),
@@ -112,7 +126,13 @@ impl AppConfig {
         }
 
         for cfg in cfg.prusa {
-            let id = cfg.id.clone();
+            let id = if cfg.id.is_empty() {
+                let id = PrinterId::generate();
+                new_ids = true;
+                id
+            } else {
+                cfg.id.clone()
+            };
             out.ids.blocking_write().insert(id.clone());
             out.printers.insert(
                 id.clone(),
@@ -120,7 +140,9 @@ impl AppConfig {
             );
         }
 
-        out.save_to_file(path)?;
+        if new_ids {
+            out.save_to_file(path)?;
+        }
 
         Ok(out)
     }

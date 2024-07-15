@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Label, Layout, Response, RichText, Vec2};
+use egui::{Label, Layout, Response, RichText, Rounding, Sense, Vec2};
 
 use super::{
     app::App,
@@ -379,17 +379,19 @@ impl App {
                             // debug!("bad thumbnail");
                             self.thumbnails.remove(&printer.id);
                             self.thumbnails.set_in_progress(printer.id.clone(), false);
-                            // unimplemented!()
                         } else {
                             // ui.label("Thumbnail");
                             let img =
                                 egui::Image::from_bytes(format!("bytes://{}", file), img.clone())
-                                    .fit_to_exact_size(Vec2::new(
-                                        thumbnail_width,
-                                        thumbnail_height,
-                                    ));
+                                    .fit_to_exact_size(Vec2::new(thumbnail_width, thumbnail_height))
+                                    .sense(Sense::click());
 
-                            ui.add(img);
+                            let resp = ui.add(img);
+                            if resp.clicked_by(egui::PointerButton::Primary) {
+                                self.selected_stream = Some(printer.id.clone());
+                            } else if resp.clicked_by(egui::PointerButton::Secondary) {
+                                preview_type.toggle_type();
+                            }
                         }
                     }
                     None => {
@@ -409,20 +411,61 @@ impl App {
                 }
             }
             crate::ui::ui_types::PreviewType::Webcam => {
-                todo!()
+                let mut entry = self
+                    .webcam_textures
+                    .entry(printer.id.clone())
+                    .or_insert_with(|| {
+                        let image =
+                            egui::ColorImage::new([1920, 1080], egui::Color32::from_gray(220));
+                        let texture = ui.ctx().load_texture(
+                            format!("{:?}_rtsp_texture", printer.id),
+                            image,
+                            Default::default(),
+                        );
+                        super::ui_types::WebcamTexture::new(texture)
+                    });
+
+                let size = Vec2::new(thumbnail_width, thumbnail_height);
+
+                let mut start = false;
+                if entry.enabled {
+                    // debug!("rtsp webcam enabled");
+                    let img = egui::Image::from_texture((entry.texture.id(), size))
+                        .fit_to_exact_size(size)
+                        .max_size(size)
+                        .rounding(Rounding::same(4.))
+                        .sense(Sense::click());
+
+                    let resp = ui.add(img);
+
+                    if resp.clicked_by(egui::PointerButton::Primary) {
+                        // debug!("webcam clicked");
+                        self.selected_stream = Some(printer.id.clone());
+                    }
+                } else if self.options.auto_start_streams {
+                    start = true;
+                } else {
+                    if ui.button("Enable webcam").clicked() {
+                        start = true;
+                    }
+                }
+
+                if start {
+                    if let Some(creds) = printer.rtsp.as_ref() {
+                        self.stream_cmd_tx
+                            .as_ref()
+                            .unwrap()
+                            .send(crate::streaming::StreamCmd::StartRtsp(
+                                printer.id.clone(),
+                                entry.texture.clone(),
+                                creds.clone(),
+                                ui.ctx().clone(),
+                            ))
+                            .unwrap();
+                        entry.enabled = true;
+                    }
+                }
             }
         }
-    }
-
-    #[cfg(feature = "nope")]
-    fn prusa_preview(
-        ui: &mut egui::Ui,
-        printer: &PrinterConfigPrusa,
-        status: &GenericPrinterState,
-        (thumbnail_width, thumbnail_height): (f32, f32),
-        thumbnails: &mut ThumbnailMap,
-        cmd_tx: &Option<tokio::sync::mpsc::UnboundedSender<crate::conn_manager::PrinterConnCmd>>,
-    ) {
-        unimplemented!()
     }
 }

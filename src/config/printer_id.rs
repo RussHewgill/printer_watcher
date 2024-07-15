@@ -5,6 +5,14 @@ use std::sync::Arc;
 pub struct PrinterId(Arc<String>);
 
 impl PrinterId {
+    pub fn empty() -> Self {
+        Self(Arc::new("".to_string()))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn from_id(id: &str) -> Self {
         Self(Arc::new(id.to_string()))
     }

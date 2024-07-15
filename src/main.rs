@@ -271,6 +271,7 @@ fn main() -> eframe::Result<()> {
     logging::init_logs();
 
     let mut config = AppConfig::load_from_file("config.toml").unwrap_or_default();
+    // let mut config = AppConfig::default();
 
     /// add bambu
     #[cfg(feature = "nope")]

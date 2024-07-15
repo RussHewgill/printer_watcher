@@ -41,6 +41,7 @@ impl PrinterState {
 #[derive(Default, Debug, Clone)]
 pub struct GenericPrinterState {
     pub state: PrinterState,
+    pub connection_strength: Option<f32>,
     pub nozzle_temp: f32,
     pub bed_temp: f32,
     pub nozzle_temp_target: f32,
@@ -105,6 +106,9 @@ impl GenericPrinterState {
             }
             PrinterStateUpdate::CurrentFile(file) => self.current_file = Some(file),
             PrinterStateUpdate::TimeRemaining(time) => self.time_remaining = Some(time),
+            PrinterStateUpdate::ConnectionStrength(strength) => {
+                self.connection_strength = Some(strength)
+            }
             _ => tracing::warn!("GenericPrinterState::_update TODO: {:?}", update),
         }
     }
@@ -160,6 +164,7 @@ pub enum PrinterStateUpdate {
     Duration(chrono::Duration),
     TimeRemaining(chrono::Duration),
     CurrentFile(String),
+    ConnectionStrength(f32),
 }
 
 #[derive(Debug, Default, Clone)]
