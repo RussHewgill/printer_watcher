@@ -441,6 +441,8 @@ impl App {
                     if resp.clicked_by(egui::PointerButton::Primary) {
                         // debug!("webcam clicked");
                         self.selected_stream = Some(printer.id.clone());
+                    } else if resp.clicked_by(egui::PointerButton::Secondary) {
+                        preview_type.toggle_type();
                     }
                 } else if self.options.auto_start_streams {
                     start = true;

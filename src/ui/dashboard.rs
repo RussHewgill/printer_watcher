@@ -198,7 +198,7 @@ impl App {
             match &status.state {
                 PrinterState::Paused => Color32::from_rgb(173, 125, 90),
                 PrinterState::Printing => Color32::from_rgb(121, 173, 116),
-                PrinterState::Error => Color32::from_rgb(173, 125, 90),
+                PrinterState::Error(_) => Color32::from_rgb(173, 125, 90),
                 PrinterState::Idle | PrinterState::Finished => Color32::from_rgb(158, 44, 150),
                 PrinterState::Busy => Color32::from_rgb(73, 84, 218),
                 // PrinterState::Disconnected => Color32::from_rgb(191, 0, 5),

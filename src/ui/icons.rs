@@ -45,6 +45,7 @@ generate_icon_function!(icon_wifi_100, "../../assets/icons/wifi-100_poly.svg", 2
 generate_icon_function!(icon_wifi_75, "../../assets/icons/wifi-75_poly.svg", 20.);
 generate_icon_function!(icon_wifi_50, "../../assets/icons/wifi-50_poly.svg", 20.);
 generate_icon_function!(icon_wifi_25, "../../assets/icons/wifi-25_poly.svg", 20.);
+generate_icon_function!(icon_wifi_0, "../../assets/icons/wifi-0_poly.svg", 20.);
 generate_icon_function!(icon_sort_up, "../../assets/icons/sort-up_poly.svg", 20.);
 generate_icon_function!(icon_sort_down, "../../assets/icons/sort-down_poly.svg", 20.);
 generate_icon_function!(icon_expand, "../../assets/icons/view-expand_poly.svg", 20.);
@@ -172,7 +173,7 @@ pub fn printer_state_icon(ui: &mut egui::Ui, size: f32, state: &PrinterState) {
         PrinterState::Printing => {
             egui::include_image!("../../assets/icons/play-circle_poly.svg")
         }
-        PrinterState::Error => {
+        PrinterState::Error(_) => {
             egui::include_image!("../../assets/icons/exclamation-triangle_poly.svg")
         }
         PrinterState::Disconnected => {

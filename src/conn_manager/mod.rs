@@ -8,6 +8,7 @@ pub mod worker_message;
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
+use core::error;
 use std::{collections::HashMap, sync::Arc};
 
 use dashmap::DashMap;
@@ -236,6 +237,15 @@ impl PrinterConnManager {
                 state.update(update.clone());
 
                 if !prev_error && state.is_error() {
+                    warn!("printer error: {:?}", &printer.name().await);
+
+                    if let PrinterState::Error(Some(error)) = &state.state {
+                        crate::notifications::alert_printer_error(&printer.name().await, error);
+                    }
+                }
+
+                // #[cfg(feature = "nope")]
+                if !prev_error && state.is_error() {
                     info!("printer state changed: {:?}", state.state);
 
                     /// print just finished, send notification
@@ -243,7 +253,7 @@ impl PrinterConnManager {
                     {
                         warn!("sent finish notification");
                         crate::notifications::alert_print_complete(
-                            &printer.name_blocking(),
+                            &printer.name().await,
                             state
                                 .current_file
                                 .as_ref()

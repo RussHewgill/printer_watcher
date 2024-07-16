@@ -153,8 +153,11 @@ impl PrusaClientLocal {
             "PRINTING" => PrinterState::Printing,
             "BUSY" => PrinterState::Busy,
             "PAUSED" => PrinterState::Paused,
-            "ERROR" => PrinterState::Error,
-            "ATTENTION" => PrinterState::Error,
+            "ERROR" => {
+                /// MARK: TODO: error message
+                PrinterState::Error(None)
+            }
+            "ATTENTION" => PrinterState::Error(Some("ATTENTION".to_string())),
             "IDLE" => PrinterState::Idle,
             "FINISHED" => PrinterState::Idle,
             "STOPPED" => PrinterState::Idle,
@@ -169,13 +172,13 @@ impl PrusaClientLocal {
         // debug!("thumbnail = {:#?}", thumbnail);
 
         let time_printing = match state {
-            PrinterState::Printing | PrinterState::Error | PrinterState::Paused => {
+            PrinterState::Printing | PrinterState::Error(_) | PrinterState::Paused => {
                 Some(Some(chrono::Duration::seconds(job.time_printing)))
             }
             _ => None,
         };
         match state {
-            PrinterState::Printing | PrinterState::Error | PrinterState::Paused => {
+            PrinterState::Printing | PrinterState::Error(_) | PrinterState::Paused => {
                 out.push(PrinterStateUpdate::TimeRemaining(
                     chrono::Duration::seconds(job.time_remaining),
                 ));

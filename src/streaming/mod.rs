@@ -152,9 +152,11 @@ impl StreamManager {
         std::thread::spawn(|| {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async move {
-                crate::streaming::rtsp::rtsp_task(creds, texture_handle, kill_rx, &ctx)
-                    .await
-                    .unwrap();
+                if let Err(e) =
+                    crate::streaming::rtsp::rtsp_task(creds, texture_handle, kill_rx, &ctx).await
+                {
+                    error!("error in rtsp: {:?}", e);
+                }
             })
         });
         Ok(())

@@ -11,7 +11,7 @@ pub enum PrinterState {
     Busy,
     Printing,
     Paused,
-    Error,
+    Error(Option<String>),
     Disconnected,
     Unknown(String),
 }
@@ -29,7 +29,7 @@ impl PrinterState {
             PrinterState::Finished => "Finished",
             PrinterState::Busy => "Busy",
             PrinterState::Printing => "Printing",
-            PrinterState::Error => "Error",
+            PrinterState::Error(_) => "Error",
             PrinterState::Paused => "Paused",
             PrinterState::Disconnected => "Disconnected",
             // PrinterState::Unknown(s) => "Unknown",
@@ -41,7 +41,7 @@ impl PrinterState {
 #[derive(Default, Debug, Clone)]
 pub struct GenericPrinterState {
     pub state: PrinterState,
-    pub connection_strength: Option<f32>,
+    pub wifi_signal: Option<i32>,
     pub nozzle_temp: f32,
     pub bed_temp: f32,
     pub nozzle_temp_target: f32,
@@ -59,7 +59,7 @@ pub struct GenericPrinterState {
 
 impl GenericPrinterState {
     pub fn is_error(&self) -> bool {
-        matches!(self.state, PrinterState::Error)
+        matches!(self.state, PrinterState::Error(_))
     }
 }
 
@@ -106,9 +106,7 @@ impl GenericPrinterState {
             }
             PrinterStateUpdate::CurrentFile(file) => self.current_file = Some(file),
             PrinterStateUpdate::TimeRemaining(time) => self.time_remaining = Some(time),
-            PrinterStateUpdate::ConnectionStrength(strength) => {
-                self.connection_strength = Some(strength)
-            }
+            PrinterStateUpdate::WifiSignal(strength) => self.wifi_signal = Some(strength),
             _ => tracing::warn!("GenericPrinterState::_update TODO: {:?}", update),
         }
     }
@@ -164,7 +162,7 @@ pub enum PrinterStateUpdate {
     Duration(chrono::Duration),
     TimeRemaining(chrono::Duration),
     CurrentFile(String),
-    ConnectionStrength(f32),
+    WifiSignal(i32),
 }
 
 #[derive(Debug, Default, Clone)]

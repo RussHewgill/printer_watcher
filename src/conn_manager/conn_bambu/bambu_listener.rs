@@ -178,13 +178,13 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
                     "PREPARE" => Some(PrinterState::Printing),
                     "PAUSE" => {
                         if let Some(e) = print.print.print_error {
-                            // Some(PrinterState::Error(format!("Error: {}", e)))
-                            Some(PrinterState::Error)
+                            Some(PrinterState::Error(Some(format!("Error: {}", e))))
+                            // Some(PrinterState::Error)
                         } else {
                             Some(PrinterState::Paused)
                         }
                     }
-                    "FAILED" => Some(PrinterState::Error),
+                    "FAILED" => Some(PrinterState::Error(Some("Failed".to_string()))),
                     // s => panic!("Unknown gcode state: {}", s),
                     s => Some(PrinterState::Unknown(s.to_string())),
                 }
@@ -213,6 +213,23 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
 
             if let Some(p) = print.print.mc_percent {
                 out.push(PrinterStateUpdate::Progress(p as f32));
+            }
+
+            if let Some(p) = print.print.wifi_signal {
+                let p = p.replace("dBm", "");
+                let p = p.parse::<i64>().unwrap_or(0);
+
+                if p <= 50 {
+                    out.push(PrinterStateUpdate::WifiSignal(100));
+                } else if p <= 60 {
+                    out.push(PrinterStateUpdate::WifiSignal(75));
+                } else if p <= 70 {
+                    out.push(PrinterStateUpdate::WifiSignal(50));
+                } else if p <= 80 {
+                    out.push(PrinterStateUpdate::WifiSignal(25));
+                } else {
+                    out.push(PrinterStateUpdate::WifiSignal(0));
+                }
             }
 
             Some(WorkerMsg::StatusUpdate(GenericPrinterStateUpdate(out)))

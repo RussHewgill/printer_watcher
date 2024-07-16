@@ -157,7 +157,7 @@ impl KlipperClient {
             "standby" => PrinterState::Idle,
             "printing" => PrinterState::Printing,
             "paused" => PrinterState::Paused,
-            "error" => PrinterState::Error,
+            "error" => PrinterState::Error(Some(res.print_stats.message.clone())),
             "complete" => PrinterState::Idle,
             _ => PrinterState::Unknown(res.print_stats.state.clone()),
         };
