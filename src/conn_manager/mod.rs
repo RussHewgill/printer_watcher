@@ -20,7 +20,7 @@ use crate::{
     status::{GenericPrinterState, PrinterState},
     streaming::StreamCmd,
 };
-use conn_bambu::message::Message;
+use conn_bambu::{errors::ErrorMap, message::Message};
 
 /// messages from PrinterConnManager to UI
 #[derive(Debug, Clone)]
@@ -64,7 +64,8 @@ pub struct PrinterConnManager {
     kill_chans: HashMap<PrinterId, tokio::sync::oneshot::Sender<()>>,
 
     stream_tx: tokio::sync::mpsc::UnboundedSender<StreamCmd>,
-    // error_map: ErrorMap,
+
+    error_map: ErrorMap,
 }
 
 /// new, start listeners
@@ -83,8 +84,8 @@ impl PrinterConnManager {
         // let (worker_cmd_tx, worker_cmd_rx) =
         //     tokio::sync::mpsc::unbounded_channel::<(PrinterId, PrinterConnCmd)>();
 
-        // /// fetch error codes
-        // let error_map = ErrorMap::read_or_fetch().await.unwrap_or_default();
+        /// fetch error codes
+        let error_map = ErrorMap::read_or_fetch().await.unwrap_or_default();
 
         Self {
             config,
@@ -103,8 +104,9 @@ impl PrinterConnManager {
             kill_chans: HashMap::new(),
 
             stream_tx,
+
             // graphs,
-            // error_map,
+            error_map,
         }
     }
 
@@ -240,7 +242,16 @@ impl PrinterConnManager {
                     warn!("printer error: {:?}", &printer.name().await);
 
                     if let PrinterState::Error(Some(error)) = &state.state {
-                        crate::notifications::alert_printer_error(&printer.name().await, error);
+                        if let Ok(e) = error.parse::<i64>() {
+                            let error = self
+                                .error_map
+                                .get_error(e as u64)
+                                .unwrap_or("Unknown Error");
+
+                            crate::notifications::alert_printer_error(&printer.name().await, error);
+                        } else {
+                            crate::notifications::alert_printer_error(&printer.name().await, error);
+                        }
                     }
                 }
 
@@ -273,9 +284,13 @@ impl PrinterConnManager {
                 // debug!("conn manager got status update: {:?}", id);
 
                 let mut state = self.printer_states.entry(id.clone()).or_default();
-                state.update_prusa(update.clone());
+                state.update_prusa(update);
 
                 // self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;
+            }
+            WorkerMsg::StatusUpdateBambu(update) => {
+                let mut state = self.printer_states.entry(id.clone()).or_default();
+                state.update_bambu(update);
             }
 
             WorkerMsg::FetchedThumbnail(id, file, img) => {

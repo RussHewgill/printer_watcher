@@ -10,6 +10,7 @@ use crate::{
 pub enum WorkerMsg {
     StatusUpdate(GenericPrinterStateUpdate),
     StatusUpdatePrusa(super::conn_prusa::prusa_local_types::PrusaStatus),
+    StatusUpdateBambu(crate::status::bambu_status::PrinterStateBambu),
     FetchedThumbnail(PrinterId, String, Vec<u8>),
 
     Connecting,

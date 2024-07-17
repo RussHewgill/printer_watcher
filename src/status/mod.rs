@@ -1,4 +1,4 @@
-// pub mod bambu_status;
+pub mod bambu_status;
 
 use std::collections::HashMap;
 
@@ -55,6 +55,7 @@ pub struct GenericPrinterState {
     pub current_file: Option<String>,
     // pub thumbnail_path: Option<String>,
     pub state_prusa: Option<crate::conn_manager::conn_prusa::prusa_local_types::PrusaStatus>,
+    pub state_bambu: Option<bambu_status::PrinterStateBambu>,
 }
 
 impl GenericPrinterState {
@@ -69,6 +70,10 @@ impl GenericPrinterState {
         update: crate::conn_manager::conn_prusa::prusa_local_types::PrusaStatus,
     ) {
         self.state_prusa = Some(update);
+    }
+
+    pub fn update_bambu(&mut self, update: bambu_status::PrinterStateBambu) {
+        self.state_bambu = Some(update);
     }
 
     pub fn update(&mut self, update: GenericPrinterStateUpdate) {

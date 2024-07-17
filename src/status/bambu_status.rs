@@ -56,7 +56,7 @@ pub struct PrinterStateBambu {
 
 impl PrinterStateBambu {
     pub fn is_error(&self) -> bool {
-        matches!(self.state, PrinterState::Error)
+        matches!(self.state, PrinterState::Error(_))
     }
 
     pub fn reset(&mut self) {
@@ -77,12 +77,12 @@ impl PrinterStateBambu {
                 "PAUSE" => {
                     if let Some(e) = report.print_error {
                         // Some(PrinterState::Error(format!("Error: {}", e)))
-                        Some(PrinterState::Error)
+                        Some(PrinterState::Error(Some(format!("{}", e))))
                     } else {
                         Some(PrinterState::Paused)
                     }
                 }
-                "FAILED" => Some(PrinterState::Error),
+                "FAILED" => Some(PrinterState::Error(Some("Failed".to_string()))),
                 // s => panic!("Unknown gcode state: {}", s),
                 s => Some(PrinterState::Unknown(s.to_string())),
             }

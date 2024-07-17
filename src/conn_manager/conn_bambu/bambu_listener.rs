@@ -178,7 +178,8 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
                     "PREPARE" => Some(PrinterState::Printing),
                     "PAUSE" => {
                         if let Some(e) = print.print.print_error {
-                            Some(PrinterState::Error(Some(format!("Error: {}", e))))
+                            // Some(PrinterState::Error(Some(format!("Error: {}", e))))
+                            Some(PrinterState::Error(Some(format!("{}", e))))
                             // Some(PrinterState::Error)
                         } else {
                             Some(PrinterState::Paused)

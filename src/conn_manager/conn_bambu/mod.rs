@@ -1,6 +1,7 @@
 pub mod bambu_listener;
 pub mod bambu_proto;
 mod command;
+pub mod errors;
 pub mod message;
 mod parse;
 // pub mod streaming;
