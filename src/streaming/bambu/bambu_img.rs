@@ -13,7 +13,7 @@ pub struct JpegStreamViewer {
     tls_stream: tokio_rustls::client::TlsStream<tokio::net::TcpStream>,
     buf: [u8; Self::READ_CHUNK_SIZE],
     handle: egui::TextureHandle,
-    kill_rx: tokio::sync::mpsc::Receiver<()>,
+    kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
     // msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
@@ -37,7 +37,7 @@ impl JpegStreamViewer {
         host: String,
         access_code: String,
         handle: egui::TextureHandle,
-        kill_rx: tokio::sync::mpsc::Receiver<()>,
+        kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
         // msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
     ) -> Result<Self> {
         let addr = format!("{}:6000", host);

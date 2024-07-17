@@ -1,12 +1,19 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use std::sync::Arc;
+use std::{result, sync::Arc};
 
 use ffmpeg_next as ffmpeg;
 use serde::{Deserialize, Serialize};
 
 use processor::H264Processor;
+
+#[derive(Debug, Clone, Copy)]
+pub enum RtspCommand {
+    SetSkipFrames(bool),
+    ToggleSkipFrames,
+    // Stop,
+}
 
 pub mod processor {
     use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -21,7 +28,7 @@ pub mod processor {
         handle: egui::TextureHandle,
         ctx: egui::Context,
 
-        skip_non_raps: bool,
+        pub skip_non_raps: bool,
     }
 
     impl H264Processor {
@@ -131,12 +138,12 @@ pub mod processor {
 
                 // This frame writing logic lifted from ffmpeg-next's examples/dump-frames.rs.
                 let scaler = self.scaler.get_or_insert_with(|| {
-                    info!(
-                        "image parameters: {:?}, {}x{}",
-                        self.decoder.format(),
-                        self.decoder.width(),
-                        self.decoder.height()
-                    );
+                    // info!(
+                    //     "image parameters: {:?}, {}x{}",
+                    //     self.decoder.format(),
+                    //     self.decoder.width(),
+                    //     self.decoder.height()
+                    // );
                     ffmpeg::software::scaling::Context::get(
                         self.decoder.format(),
                         self.decoder.width(),
@@ -224,7 +231,8 @@ pub struct RtspCreds {
 pub async fn rtsp_task(
     creds: RtspCreds,
     texture: egui::TextureHandle,
-    kill_rx: tokio::sync::mpsc::Receiver<()>,
+    kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+    worker_cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
     ctx: &egui::Context,
 ) -> Result<()> {
     /// Init ffmpeg
@@ -291,7 +299,25 @@ pub async fn rtsp_task(
         .await?;
     warn!("setup done");
 
-    let result = rtsp_loop(session, video_stream_i, texture, kill_rx, ctx).await;
+    // let result = rtsp_loop(
+    //     session,
+    //     video_stream_i,
+    //     texture,
+    //     kill_rx,
+    //     worker_cmd_rx,
+    //     ctx,
+    // )
+    // .await;
+
+    let mut worker = RtspWorker {
+        video_stream_i,
+        handle: texture,
+        kill_rx,
+        worker_cmd_rx,
+        ctx: ctx.clone(),
+    };
+
+    let result = worker.rtsp_loop(session).await;
 
     if let Err(e) = session_group.await_teardown().await {
         error!("TEARDOWN failed: {}", e);
@@ -300,11 +326,123 @@ pub async fn rtsp_task(
     result
 }
 
+struct RtspWorker {
+    video_stream_i: usize,
+    handle: egui::TextureHandle,
+    kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+    worker_cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
+    ctx: egui::Context,
+}
+
+impl RtspWorker {
+    async fn rtsp_loop(
+        &mut self,
+        session: retina::client::Session<retina::client::Described>,
+    ) -> Result<()> {
+        debug!("starting rtsp loop");
+
+        let mut session = session
+            .play(retina::client::PlayOptions::default())
+            .await?
+            .demuxed()?;
+
+        let skip_non_raps = true;
+        // let skip_non_raps = false;
+        let mut processor =
+            H264Processor::new(self.handle.clone(), self.ctx.clone(), skip_non_raps);
+
+        if let Some(retina::codec::ParametersRef::Video(v)) =
+            session.streams()[self.video_stream_i].parameters()
+        {
+            // debug!("initial parameters: {:#?}", v);
+            processor.handle_parameters(v)?;
+        }
+
+        loop {
+            let f = tokio::select! {
+                _ = self.kill_rx.recv() => {
+                    debug!("kill signal received");
+                    break;
+                }
+                msg = self.worker_cmd_rx.recv() => {
+                    if let Some(msg) = msg {
+                        self.handle_msg(&mut processor, msg).await?;
+                    }
+                    continue;
+                }
+                f = futures::StreamExt::next(&mut session) => match f {
+                    Some(Ok(f)) => f,
+                    Some(Err(e)) => {
+                        error!("error reading frame: {}", e);
+                        continue;
+                    }
+                    None => {
+                        info!("end of stream");
+                        break;
+                    }
+                }
+
+            };
+
+            match f {
+                retina::codec::CodecItem::VideoFrame(f) => {
+                    let stream = &session.streams()[f.stream_id()];
+                    let start_ctx = *f.start_ctx();
+                    if f.has_new_parameters() {
+                        let v = match stream.parameters() {
+                            Some(retina::codec::ParametersRef::Video(v)) => {
+                                debug!("new parameters: {:#?}", v);
+                                v
+                            }
+                            _ => unreachable!(),
+                        };
+                        processor.handle_parameters(v)?;
+                    }
+                    processor.send_frame(f)?;
+                    // break;
+                }
+                retina::codec::CodecItem::MessageFrame(msg) => {
+                    info!("message: {:?}", msg);
+                }
+                retina::codec::CodecItem::AudioFrame(_) => {
+                    // ignore
+                }
+                retina::codec::CodecItem::Rtcp(x) => {
+                    // ignore
+                }
+                f => warn!("unexpected item: {:?}", f),
+            }
+        }
+
+        processor.flush()?;
+        Ok(())
+    }
+
+    async fn handle_msg(
+        &mut self,
+        processor: &mut H264Processor,
+        msg: super::SubStreamCmd,
+    ) -> Result<()> {
+        match msg {
+            super::SubStreamCmd::Rtsp(cmd) => match cmd {
+                RtspCommand::SetSkipFrames(bool) => processor.skip_non_raps = bool,
+                RtspCommand::ToggleSkipFrames => {
+                    debug!("setting skip_non_raps to: {}", !processor.skip_non_raps);
+                    processor.skip_non_raps = !processor.skip_non_raps;
+                }
+            },
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "nope")]
 async fn rtsp_loop(
     session: retina::client::Session<retina::client::Described>,
     video_stream_i: usize,
     handle: egui::TextureHandle,
     kill_rx: tokio::sync::mpsc::Receiver<()>,
+    mut worker_cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
     ctx: &egui::Context,
 ) -> Result<()> {
     debug!("starting rtsp loop");
@@ -324,6 +462,56 @@ async fn rtsp_loop(
         processor.handle_parameters(v)?;
     }
 
+    loop {
+        let f = tokio::select! {
+            msg = worker_cmd_rx.recv() => {
+                continue;
+            }
+            f = futures::StreamExt::next(&mut session) => match f {
+                Some(Ok(f)) => f,
+                Some(Err(e)) => {
+                    error!("error reading frame: {}", e);
+                    continue;
+                }
+                None => {
+                    info!("end of stream");
+                    break;
+                }
+            }
+
+        };
+
+        match f {
+            retina::codec::CodecItem::VideoFrame(f) => {
+                let stream = &session.streams()[f.stream_id()];
+                let start_ctx = *f.start_ctx();
+                if f.has_new_parameters() {
+                    let v = match stream.parameters() {
+                        Some(retina::codec::ParametersRef::Video(v)) => {
+                            debug!("new parameters: {:#?}", v);
+                            v
+                        }
+                        _ => unreachable!(),
+                    };
+                    processor.handle_parameters(v)?;
+                }
+                processor.send_frame(f)?;
+                // break;
+            }
+            retina::codec::CodecItem::MessageFrame(msg) => {
+                info!("message: {:?}", msg);
+            }
+            retina::codec::CodecItem::AudioFrame(_) => {
+                // ignore
+            }
+            retina::codec::CodecItem::Rtcp(x) => {
+                // ignore
+            }
+            f => warn!("unexpected item: {:?}", f),
+        }
+    }
+
+    #[cfg(feature = "nope")]
     loop {
         let f = match futures::StreamExt::next(&mut session).await {
             Some(Ok(f)) => f,

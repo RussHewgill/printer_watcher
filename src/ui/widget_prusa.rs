@@ -443,6 +443,19 @@ impl App {
                         self.selected_stream = Some(printer.id.clone());
                     } else if resp.clicked_by(egui::PointerButton::Secondary) {
                         preview_type.toggle_type();
+                        self.send_stream_cmd(crate::streaming::StreamCmd::StopStream(
+                            printer.id.clone(),
+                        ))
+                        .unwrap();
+                    } else if resp.clicked_by(egui::PointerButton::Middle) {
+                        debug!("toggle skip frames");
+                        self.send_stream_cmd(crate::streaming::StreamCmd::SendRtspCommand(
+                            printer.id.clone(),
+                            crate::streaming::SubStreamCmd::Rtsp(
+                                crate::streaming::rtsp::RtspCommand::ToggleSkipFrames,
+                            ),
+                        ))
+                        .unwrap();
                     }
                 } else if self.options.auto_start_streams {
                     start = true;

@@ -152,6 +152,18 @@ impl App {
             }
         }
     }
+
+    pub fn send_cmd(&self, cmd: PrinterConnCmd) -> Result<()> {
+        let tx = self.cmd_tx.as_ref().unwrap();
+        tx.send(cmd)?;
+        Ok(())
+    }
+
+    pub fn send_stream_cmd(&self, cmd: StreamCmd) -> Result<()> {
+        let tx = self.stream_cmd_tx.as_ref().unwrap();
+        tx.send(cmd)?;
+        Ok(())
+    }
 }
 
 /// MARK: App
