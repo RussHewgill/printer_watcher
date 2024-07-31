@@ -255,7 +255,25 @@ impl PrinterConnManager {
                     }
                 }
 
-                // #[cfg(feature = "nope")]
+                if prev_state != state.state {
+                    info!("printer state changed: {:?}", state.state);
+
+                    if prev_state != PrinterState::Disconnected
+                        && (state.state == PrinterState::Finished
+                            || state.state == PrinterState::Idle)
+                    {
+                        warn!("sent finish notification");
+                        crate::notifications::alert_print_complete(
+                            &printer.name().await,
+                            state
+                                .current_file
+                                .as_ref()
+                                .unwrap_or(&"Unknown File".to_string()),
+                        )
+                    }
+                }
+
+                #[cfg(feature = "nope")]
                 if !prev_error && state.is_error() {
                     info!("printer state changed: {:?}", state.state);
 

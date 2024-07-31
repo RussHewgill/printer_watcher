@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
 use rumqttc::Incoming;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -11,7 +11,10 @@ use crate::{
         conn_bambu::{command::Command, message::Message},
         worker_message::WorkerMsg,
     },
-    status::{GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate},
+    status::{
+        bambu_status::PrinterStateBambu, GenericPrinterStateUpdate, PrinterState,
+        PrinterStateUpdate,
+    },
 };
 
 pub(super) struct BambuListener {
@@ -21,6 +24,7 @@ pub(super) struct BambuListener {
     pub(super) tx: tokio::sync::mpsc::UnboundedSender<(PrinterId, WorkerMsg)>,
     pub(super) topic_device_report: String,
     pub(super) topic_device_request: String,
+    printer_states: HashMap<PrinterId, PrinterStateBambu>,
 }
 
 impl BambuListener {
@@ -39,6 +43,7 @@ impl BambuListener {
             tx,
             topic_device_report,
             topic_device_request,
+            printer_states: HashMap::new(),
         }
     }
 
@@ -93,9 +98,20 @@ impl BambuListener {
                     // debug!("incoming publish: {:?}", msg);
                     let id = self.printer_cfg.read().await.id.clone();
                     // self.tx.send((id, WorkerMsg::from_bambu(msg)?))?;
+                    match &msg {
+                        Message::Print(print) => {
+                            let entry = self.printer_states.entry(id.clone()).or_default();
+                            if let Err(e) = entry.update(&print.print) {
+                                error!("Error updating printer state: {:?}", e);
+                            }
+                            self.tx
+                                .send((id.clone(), WorkerMsg::StatusUpdateBambu(entry.clone())))?;
+                        }
+                        _ => {}
+                    }
                     match bambu_to_workermsg(msg) {
                         Ok(Some(workermsg)) => {
-                            self.tx.send((id, workermsg))?;
+                            self.tx.send((id.clone(), workermsg))?;
                         }
                         Ok(None) => {}
                         Err(e) => {

@@ -37,7 +37,8 @@ pub struct Info {
 /// MARK: Status
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Status {
-    pub job: JobStatus,
+    #[serde(default)]
+    pub job: Option<JobStatus>,
     pub storage: Storage,
     pub printer: Printer,
 }

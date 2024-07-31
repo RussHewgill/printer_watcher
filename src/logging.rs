@@ -1,23 +1,6 @@
 use tracing_log::LogTracer;
 use tracing_subscriber::{prelude::*, registry::Registry, EnvFilter};
 
-#[cfg(feature = "nope")]
-pub fn init_logs() {
-    tracing_subscriber::fmt()
-        .with_env_filter("printer_watcher=debug")
-        // .with_env_filter("derp_learning=trace, derp_learning_test=trace")
-        // .with_max_level(tracing::Level::DEBUG)
-        .without_time()
-        .with_file(true)
-        .with_line_number(true)
-        .with_target(false)
-        .with_level(true)
-        .compact()
-        .finish()
-        .try_init()
-        .unwrap();
-}
-
 pub fn init_logs() {
     let _ = std::fs::rename("output.log", "output_prev.log");
     let _ = std::fs::remove_file("output.log");

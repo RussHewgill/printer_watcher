@@ -166,7 +166,9 @@ impl PrusaClientLocal {
         };
         out.push(crate::status::PrinterStateUpdate::State(state.clone()));
 
-        let job = self.get_job().await?;
+        let Ok(job) = self.get_job().await else {
+            return Ok((GenericPrinterStateUpdate(out), status, Default::default()));
+        };
 
         // let thumbnail = job.file.refs.thumbnail.clone();
         // debug!("thumbnail = {:#?}", thumbnail);
@@ -186,7 +188,9 @@ impl PrusaClientLocal {
             _ => {}
         }
 
-        out.push(PrinterStateUpdate::Progress(status.job.progress as f32));
+        if let Some(job) = &status.job {
+            out.push(PrinterStateUpdate::Progress(job.progress as f32));
+        }
 
         out.push(PrinterStateUpdate::NozzleTemp(
             None,
@@ -252,9 +256,21 @@ impl PrusaClientLocal {
             bail!("Failed to get response, url = {}", url);
         }
 
+        // debug!("getting json for response: {:#?}", resp);
         // let j: serde_json::Value = resp.json().await?;
-        // debug!("json = {:#?}", j);
+        // debug!("got json");
+        // let s = serde_json::to_string_pretty(&j)?;
+        // debug!("json = {}", s);
 
+        // match serde_json::from_str(&s) {
+        //     Ok(x) => Ok(x),
+        //     Err(e) => {
+        //         error!("failed to parse json: {:#?}", e);
+        //         bail!("failed to parse json: {:#?}", e);
+        //     }
+        // }
+
+        // Ok(serde_json::from_str(&s)?)
         Ok(resp.json().await?)
     }
 

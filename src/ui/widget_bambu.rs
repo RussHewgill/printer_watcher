@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Label, Layout, Response, RichText, Rounding, Sense, Vec2};
+use egui::{Color32, Label, Layout, Pos2, Response, RichText, Rounding, Sense, Vec2};
 
 use super::{
     app::App,
@@ -12,7 +12,10 @@ use super::{
 };
 use crate::{
     config::printer_config::{PrinterConfigBambu, PrinterType},
-    status::GenericPrinterState,
+    status::{
+        bambu_status::{AmsCurrentSlot, AmsSlot, AmsStatus},
+        GenericPrinterState,
+    },
 };
 
 impl App {
@@ -51,6 +54,7 @@ impl App {
         let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;
         let thumbnail_height = thumbnail_width * 0.5625;
 
+        drop(status);
         ui.spacing_mut().item_spacing.x = 1.;
         egui_extras::StripBuilder::new(ui)
             .clip(true)
@@ -437,8 +441,8 @@ impl App {
 
                 /// AMS
                 strip.cell(|ui| {
-                    ui.label("TODO: AMS");
-                    // self.show_ams(frame_size, ui, printer);
+                    // ui.label("TODO: AMS");
+                    self.show_ams(ui, printer);
                     // ui.ctx()
                     //     .debug_painter()
                     //     .debug_rect(ui.max_rect(), Color32::RED, "");
@@ -450,6 +454,224 @@ impl App {
 
         resp
     }
+
+    fn show_ams(
+        &self,
+        ui: &mut egui::Ui,
+        printer: &PrinterConfigBambu,
+        // printer: &PrinterConfigBambu,
+    ) {
+        let Some(status) = self.printer_states.get(&printer.id) else {
+            warn!("Printer not found: {}", printer.serial);
+            panic!();
+        };
+
+        let Some(bambu) = &status.state_bambu else {
+            error!("Bambu state not found: {:?}", printer.id);
+            return;
+        };
+
+        let Some(ams) = &bambu.ams else {
+            error!("AMS not found: {:?}", printer.id);
+            return;
+        };
+
+        let size = 62.;
+
+        // crate::ui::icons::paint_ams(ui, size, ams);
+        paint_ams(ui, size, ams);
+
+        //
+    }
+}
+
+/// Circle for each slot
+/// Line going down for active slot
+fn paint_ams(
+    ui: &mut egui::Ui,
+    size: f32,
+    // size: f32,
+    ams: &AmsStatus,
+) {
+    #[cfg(feature = "nope")]
+    ui.vertical(|ui| {
+        ui.label(&format!("current tray: {:?}", ams.current_tray));
+        ui.label(&format!("tray_now: {:?}", ams.tray_now));
+        ui.label(&format!("tray_pre: {:?}", ams.tray_pre));
+        ui.label(&format!("tray_tar: {:?}", ams.tray_tar));
+
+        ui.label(&format!("state: {:?}", ams.state));
+    });
+
+    let num_units = ams.units.len();
+
+    // debug!("size = {:#?}", size);
+
+    let size = Vec2::new(ui.available_width(), size);
+    let (response, painter) = ui.allocate_painter(size, Sense::hover());
+
+    let rect = response.rect;
+    let c = rect.center();
+    // let r = rect.width() / 2.0 - 1.0;
+    // let r = size.x / 2.0 - 1.0;
+
+    // /// 234 x 62
+    // // debug!("rect: {:#?}", rect);
+    // debug!("rect.width(): {:#?}", rect.width());
+    // debug!("rect.height(): {:#?}", rect.height());
+
+    // let mut rect2 = rect;
+    // rect2.set_width(rect.width() - 0.);
+    // rect2.set_height(rect.height() - 0.0);
+    // rect2.set_center(c);
+    // painter.rect_stroke(
+    //     rect2,
+    //     2.,
+    //     egui::Stroke::new(3.0, Color32::from_rgba_premultiplied(255, 0, 0, 64)),
+    // );
+
+    let p0 = rect.left_top();
+
+    let y = 18.;
+
+    let c = rect.center_top() + Vec2::new(0., y);
+
+    let small_circle_r = 12.;
+    let small_spacing = 5.;
+    let small_center_spacing = 4.;
+
+    let circle_stroke = 2.;
+    let circle_stroke_color = Color32::from_gray(120);
+    let y2_height = small_circle_r * 2. + circle_stroke * 2. + 2.;
+
+    if num_units == 0 {
+        error!("No units found in ams status");
+        return;
+    } else if num_units == 1 {
+        let unit = &ams.units[&0];
+
+        let edge_padding = rect.width() / 8.0;
+
+        let circle_r = 14.;
+        let spacing = (rect.width() - edge_padding * 2.) / 3.0;
+
+        for slot_idx in 0..4 {
+            let x = slot_idx as f32 * spacing + edge_padding;
+            let c = p0 + Vec2::new(x, y);
+            // debug!("c: {:#?}", c);
+
+            match &unit.slots[slot_idx] {
+                Some(slot) => {
+                    painter.circle(
+                        c,
+                        circle_r,
+                        slot.color,
+                        egui::Stroke::new(2., circle_stroke_color),
+                    );
+
+                    if let Some(AmsCurrentSlot::Tray { ams_id, tray_id }) = ams.current_tray {
+                        if ams_id == 0 && slot_idx as u64 == tray_id {
+                            draw_ams_current(&painter, circle_r, circle_stroke, c, slot);
+                        }
+                    }
+                }
+                None => {
+                    painter.circle_stroke(
+                        c,
+                        circle_r,
+                        egui::Stroke::new(circle_stroke, circle_stroke_color),
+                    );
+                }
+            }
+            // let color = unit.slots[slot].as_ref
+            // painter.circle_filled(c, r, Color32::RED);
+        }
+    } else if num_units >= 2 {
+        let y1 = c.y;
+        let y2 = c.y + y2_height;
+        for unit in 0..4 {
+            if ams.units.get(&unit).is_none() {
+                continue;
+            }
+            let y = if unit < 2 { y1 } else { y2 };
+
+            let d = if unit % 2 == 0 { -1. } else { 1. };
+            for slot_idx in 0..4 {
+                let x = c.x
+                    + (small_center_spacing + small_circle_r) * d
+                    + (small_spacing + small_circle_r * 2.) * slot_idx as f32 * d;
+
+                let c = Pos2::new(x, y);
+
+                match &ams.units[&unit].slots[slot_idx] {
+                    Some(slot) => {
+                        // painter.circle_filled(c, circle_r, slot.color);
+                        painter.circle(
+                            c,
+                            small_circle_r,
+                            slot.color,
+                            egui::Stroke::new(circle_stroke, circle_stroke_color),
+                        );
+
+                        if let Some(AmsCurrentSlot::Tray { ams_id, tray_id }) = ams.current_tray {
+                            if ams_id == unit as u64 && slot_idx as u64 == tray_id {
+                                draw_ams_current(&painter, small_circle_r, circle_stroke, c, slot);
+                            }
+                        }
+                    }
+                    None => {
+                        painter.circle_stroke(
+                            c,
+                            small_circle_r,
+                            egui::Stroke::new(circle_stroke, circle_stroke_color),
+                        );
+                    }
+                }
+
+                //
+            }
+        }
+
+        let c0 = rect.center_top();
+        let c1 = rect.center_top() + Vec2::new(0., small_circle_r * 2. + 2.);
+        painter.line_segment([c0, c1], egui::Stroke::new(1.0, Color32::from_gray(180)));
+
+        if num_units > 2 {
+            // let top = y2 - small_circle_r;
+            // let c0 = rect.center_top() + Vec2::new(0., top);
+            // let c1 = rect.center_top() + Vec2::new(0., top + small_circle_r * 1. + 2.);
+
+            // let top = Pos2::new(c.x, c.y + y2_height);
+
+            // painter.circle_filled(top, 10., Color32::RED);
+
+            let c0 = Pos2::new(c.x, c.y + y2_height - small_circle_r - 2.);
+            let c1 = Pos2::new(c.x, c.y + y2_height + small_circle_r + 2.);
+
+            // let c0 = rect.center_top() + Vec2::new(0., top);
+            // let c1 = rect.center_top() + Vec2::new(0., top + small_circle_r * 1. + 2.);
+
+            painter.line_segment([c0, c1], egui::Stroke::new(1.0, Color32::from_gray(180)));
+            // painter.line_segment([c0, c1], egui::Stroke::new(1.0, Color32::RED));
+        }
+    } else {
+        debug!("ams.units.len() = {:#?}", ams.units.len());
+    }
+
+    //
+}
+
+fn draw_ams_current(
+    painter: &egui::Painter,
+    circle_r: f32,
+    circle_stroke: f32,
+    c: Pos2,
+    slot: &AmsSlot,
+) {
+    // let s = (circle_r + circle_stroke) * 2. + 2.;
+    let s = (circle_r + circle_stroke) * 2.;
+    let rect2 = egui::Rect::from_center_size(c, Vec2::splat(s));
+    painter.rect_stroke(rect2, 3., egui::Stroke::new(circle_stroke, slot.color));
 }
 
 #[cfg(feature = "nope")]

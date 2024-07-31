@@ -16,6 +16,7 @@ pub mod notifications;
 pub mod status;
 pub mod streaming;
 pub mod ui;
+pub mod utils;
 // pub mod ui;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -60,6 +61,8 @@ async fn main() -> Result<()> {
         key: link_key,
         serial,
         token,
+        octo: None,
+        rtsp: None,
     };
 
     const URL_VERSION: &'static str = "api/version";
@@ -84,50 +87,60 @@ async fn main() -> Result<()> {
         cmd_rx,
         kill_rx,
         None,
-    )?;
+    )
+    .await?;
 
-    let resp = client.get_job().await?;
-    // debug!("resp = {:#?}", resp);
+    let url = "api/printer";
 
-    // let thumbnail = resp.file.refs.download.clone();
-    let thumbnail = resp.file.refs.icon.clone();
-    // let thumbnail = resp.file.refs.thumbnail.clone();
+    let resp: serde_json::Value = client.get_response(url).await?;
 
-    debug!("thumbnail = {:?}", thumbnail);
+    debug!("resp = {}", serde_json::to_string_pretty(&resp)?);
 
-    let host = env::var("PRUSA_CONNECT_HOST")?;
+    #[cfg(feature = "nope")]
+    {
+        let resp = client.get_job().await?;
+        // debug!("resp = {:#?}", resp);
 
-    let url = format!("http://{}{}", host, thumbnail);
+        // let thumbnail = resp.file.refs.download.clone();
+        let thumbnail = resp.file.refs.icon.clone();
+        // let thumbnail = resp.file.refs.thumbnail.clone();
 
-    debug!("url = {:?}", url);
+        debug!("thumbnail = {:?}", thumbnail);
 
-    let client = reqwest::ClientBuilder::new().build()?;
+        let host = env::var("PRUSA_CONNECT_HOST")?;
 
-    let key = env::var("PRUSA_LINK_KEY")?;
-    let mut resp = client
-        .get(&url)
-        .header("X-Api-Key", &key)
-        // .header("Digest", &key)
-        // .header(
-        //     "Authorization",
-        //     r#"Digest username="maker", realm="Printer API", uri="/thumb/l/usb/BAB~AA94.BGC""#,
-        // )
-        .send()
-        .await?;
+        let url = format!("http://{}{}", host, thumbnail);
 
-    debug!("resp = {:?}", resp);
+        debug!("url = {:?}", url);
 
-    let t0 = std::time::Instant::now();
-    let bytes = resp.bytes().await?;
-    let t1 = std::time::Instant::now();
+        let client = reqwest::ClientBuilder::new().build()?;
 
-    let duration = t1 - t0;
-    debug!("duration = {:?}", duration);
+        let key = env::var("PRUSA_LINK_KEY")?;
+        let mut resp = client
+            .get(&url)
+            .header("X-Api-Key", &key)
+            // .header("Digest", &key)
+            // .header(
+            //     "Authorization",
+            //     r#"Digest username="maker", realm="Printer API", uri="/thumb/l/usb/BAB~AA94.BGC""#,
+            // )
+            .send()
+            .await?;
 
-    // let path = "thumbnail.png";
-    let path = "icon.png";
-    // let path = "dl.gcode";
-    std::fs::write(path, bytes)?;
+        debug!("resp = {:?}", resp);
+
+        let t0 = std::time::Instant::now();
+        let bytes = resp.bytes().await?;
+        let t1 = std::time::Instant::now();
+
+        let duration = t1 - t0;
+        debug!("duration = {:?}", duration);
+
+        // let path = "thumbnail.png";
+        let path = "icon.png";
+        // let path = "dl.gcode";
+        std::fs::write(path, bytes)?;
+    }
 
     Ok(())
 }
@@ -416,6 +429,13 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(move |cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
+
+            /// repaint at least once per second
+            let ctx2 = cc.egui_ctx.clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                ctx2.request_repaint();
+            });
 
             Ok(Box::new(ui::app::App::new(
                 cc,
