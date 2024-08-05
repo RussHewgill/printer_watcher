@@ -326,6 +326,10 @@ impl PrinterStateBambu {
             }
         }
 
+        if let Some(ams0) = ams.ams.as_ref().and_then(|a| a.get(0)) {
+            out.humidity = Some(ams0.humidity.clone());
+        }
+
         Ok(out)
     }
 }
@@ -412,6 +416,7 @@ pub struct AmsStatus {
     pub tray_tar: Option<String>,
     pub version: Option<i64>,
     pub state: Option<AmsState>,
+    pub humidity: Option<String>,
 }
 
 impl AmsStatus {

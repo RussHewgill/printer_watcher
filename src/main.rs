@@ -13,6 +13,7 @@ pub mod config;
 pub mod conn_manager;
 pub mod logging;
 pub mod notifications;
+pub mod profiles;
 pub mod status;
 pub mod streaming;
 pub mod ui;
@@ -20,7 +21,6 @@ pub mod utils;
 // pub mod ui;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use streaming::StreamCmd;
 use tracing::{debug, error, info, trace, warn};
 
 use dashmap::DashMap;
@@ -35,6 +35,7 @@ use crate::{
     conn_manager::{PrinterConnCmd, PrinterConnMsg},
 };
 use config::printer_id::PrinterId;
+use streaming::StreamCmd;
 // use ui::model::SavedAppState;
 
 /// Prusa Test
@@ -276,9 +277,48 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    // let appdata = env::var("APPDATA")?;
+    // let path = format!(
+    //     "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_common.json",
+    //     appdata
+    // );
+
+    // debug!("path = {:?}", path);
+
+    // let f = std::fs::read_to_string(path)?;
+
+    let f = r#"{
+    "type": "filament",
+    "name": "fdm_filament_pla",
+    "from": "system",
+    "instantiation": "false",
+    "inherits": "fdm_filament_common",
+    "fan_cooling_layer_time": [
+        "100"
+    ],
+    "filament_max_volumetric_speed": [
+        "12"
+    ],
+    "filament_type": [
+        "PLA"
+    ]
+}
+"#;
+
+    let f: profiles::FilamentProfile = serde_json::from_str(&f)?;
+
+    debug!("f = {:#?}", f);
+
+    Ok(())
+}
+
 /// MARK: Main
 #[allow(unreachable_code)]
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();

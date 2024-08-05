@@ -255,10 +255,13 @@ impl PrinterConnManager {
                     }
                 }
 
-                if prev_state != state.state {
+                if printer.printer_type() != crate::config::printer_config::PrinterType::Klipper
+                    && prev_state != state.state
+                {
                     info!("printer state changed: {:?}", state.state);
 
-                    if prev_state != PrinterState::Disconnected
+                    // if (prev_state != PrinterState::Disconnected && prev_state != PrinterState::Busy)
+                    if prev_state == PrinterState::Printing
                         && (state.state == PrinterState::Finished
                             || state.state == PrinterState::Idle)
                     {
@@ -271,29 +274,6 @@ impl PrinterConnManager {
                                 .unwrap_or(&"Unknown File".to_string()),
                         )
                     }
-                }
-
-                #[cfg(feature = "nope")]
-                if !prev_error && state.is_error() {
-                    info!("printer state changed: {:?}", state.state);
-
-                    /// print just finished, send notification
-                    if prev_state != PrinterState::Disconnected && state.state == PrinterState::Idle
-                    {
-                        warn!("sent finish notification");
-                        crate::notifications::alert_print_complete(
-                            &printer.name().await,
-                            state
-                                .current_file
-                                .as_ref()
-                                .unwrap_or(&"Unknown File".to_string()),
-                        )
-                    }
-
-                    // /// either print just started, or app was just started
-                    // if state.state == PrinterState::Printing && entry.subtask_id.is_some() {
-                    //     state.current_task_thumbnail_url = None;
-                    // }
                 }
 
                 // self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;

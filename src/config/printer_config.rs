@@ -49,6 +49,15 @@ impl PrinterConfig {
             // PrinterConfig::Octoprint(_, config) => &config.read().await.name,
         }
     }
+
+    pub fn printer_type(&self) -> PrinterType {
+        match self {
+            PrinterConfig::Bambu(_, _) => PrinterType::Bambu,
+            PrinterConfig::Klipper(_, _) => PrinterType::Klipper,
+            PrinterConfig::Prusa(_, _) => PrinterType::Prusa,
+            // PrinterConfig::Octoprint(_, _) => PrinterType::Octoprint,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

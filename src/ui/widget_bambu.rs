@@ -478,6 +478,8 @@ impl App {
 
         let size = 62.;
 
+        // ui.label(format!("Humidity: {:?}", ams.humidity));
+
         // crate::ui::icons::paint_ams(ui, size, ams);
         paint_ams(ui, size, ams);
 
