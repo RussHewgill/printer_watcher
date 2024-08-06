@@ -30,6 +30,7 @@ src/ui_iced
 *.ppm
 example*.json
 *.gcode
+*.db
 
 !icon.png
 !assets/icons8-disconnected-100.png

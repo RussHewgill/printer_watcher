@@ -13,7 +13,7 @@ pub mod config;
 pub mod conn_manager;
 pub mod logging;
 pub mod notifications;
-pub mod profiles;
+// pub mod profiles;
 pub mod status;
 pub mod streaming;
 pub mod ui;
@@ -277,29 +277,33 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
+#[cfg(feature = "nope")]
+// #[tokio::main]
+async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
 
-    let appdata = env::var("APPDATA")?;
-    let path = format!(
-        // "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_common.json",
-        "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_pla.json",
-        appdata
-    );
+    // let appdata = env::var("APPDATA")?;
+    // let path = format!(
+    //     // "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_common.json",
+    //     "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_pla.json",
+    //     appdata
+    // );
 
-    let f = std::fs::read_to_string(path)?;
+    // let f = std::fs::read_to_string(path)?;
 
-    let f: profiles::FilamentProfile = serde_json::from_str(&f)?;
+    // let f: profiles::FilamentProfile = serde_json::from_str(&f)?;
 
-    debug!("f = {:#?}", f);
+    // debug!("f = {:#?}", f);
+
+    let _ = profiles::profiles_db::ProfileDb::new().await?;
 
     Ok(())
 }
 
 /// MARK: Main
 #[allow(unreachable_code)]
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
