@@ -281,33 +281,14 @@ fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
 
-    // let appdata = env::var("APPDATA")?;
-    // let path = format!(
-    //     "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_common.json",
-    //     appdata
-    // );
+    let appdata = env::var("APPDATA")?;
+    let path = format!(
+        // "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_common.json",
+        "{}\\OrcaSlicer\\system\\Custom\\filament\\fdm_filament_pla.json",
+        appdata
+    );
 
-    // debug!("path = {:?}", path);
-
-    // let f = std::fs::read_to_string(path)?;
-
-    let f = r#"{
-    "type": "filament",
-    "name": "fdm_filament_pla",
-    "from": "system",
-    "instantiation": "false",
-    "inherits": "fdm_filament_common",
-    "fan_cooling_layer_time": [
-        "100"
-    ],
-    "filament_max_volumetric_speed": [
-        "12"
-    ],
-    "filament_type": [
-        "PLA"
-    ]
-}
-"#;
+    let f = std::fs::read_to_string(path)?;
 
     let f: profiles::FilamentProfile = serde_json::from_str(&f)?;
 

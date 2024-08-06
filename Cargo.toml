@@ -29,6 +29,14 @@ tracing-subscriber = { version = "0.3.18", features = [
 serde_json = "1.0.117"
 futures = { version = "0.3.30", default-features = false }
 # serde_yaml = "0.9.34"
+# rusqlite = { version = "0.32.1", features = ["bundled"] }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "sqlite",
+    "derive",
+    "chrono",
+    "uuid",
+] }
 
 nanoid = "0.4.0"
 byteorder = "1.5.0"
