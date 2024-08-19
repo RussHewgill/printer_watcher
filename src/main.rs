@@ -38,6 +38,69 @@ use config::printer_id::PrinterId;
 use streaming::StreamCmd;
 // use ui::model::SavedAppState;
 
+/// Prusa Connect Test
+// #[cfg(feature = "nope")]
+#[tokio::main]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    let printer = {
+        let host = env::var("PRUSA_CONNECT_HOST")?;
+        // let host = "https://connect.prusa3d.com".to_string();
+        // let connect_key = env::var("PRUSA_CONNECT_KEY")?;
+        let token = env::var("PRUSA_CONNECT_TOKEN")?;
+        let serial = env::var("PRUSA_SERIAL")?;
+        let id = env::var("PRUSA_ID")?;
+        let id: PrinterId = id.into();
+        let fingerprint = std::env::var("PRUSA_CONNECT_FINGERPRINT")?;
+
+        let link_key = env::var("PRUSA_LINK_KEY")?;
+
+        config::printer_config::PrinterConfigPrusa {
+            id,
+            name: "test_printer".to_string(),
+            host: host.clone(),
+            key: link_key,
+            serial,
+            fingerprint,
+            token,
+            octo: None,
+            rtsp: None,
+        }
+    };
+
+    #[cfg(feature = "nope")]
+    {
+        // let url = env::var("PRUSA_CONNECT_TEST_URL")?;
+        let url = "https://connect.prusa3d.com/api/version".to_string();
+
+        // debug!("url = {:?}", url);
+
+        let client = reqwest::ClientBuilder::new()
+            .use_rustls_tls()
+            // .with_root_certificates(client_config.root_store)
+            // .tls_built_in_native_certs(true)
+            // .tls_built_in_root_certs(true)
+            .danger_accept_invalid_certs(true)
+            .build()?;
+
+        let req = client.get(&url);
+        debug!("sending request");
+
+        let response = req.send().await?;
+    }
+
+    let printer = Arc::new(RwLock::new(printer));
+
+    let client = conn_manager::conn_prusa::prusa_cloud::PrusaClient::new(printer)?;
+
+    client.get_info().await?;
+    // client.register().await?;
+
+    Ok(())
+}
+
 /// Prusa Test
 #[cfg(feature = "nope")]
 // #[tokio::main]
@@ -277,8 +340,9 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// profiles test
 #[cfg(feature = "nope")]
-// #[tokio::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -303,7 +367,7 @@ async fn main() -> Result<()> {
 
 /// MARK: Main
 #[allow(unreachable_code)]
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
