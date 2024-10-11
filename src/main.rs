@@ -11,6 +11,7 @@ pub mod auth;
 // pub mod camera;
 pub mod config;
 pub mod conn_manager;
+pub mod error_logging;
 pub mod logging;
 pub mod notifications;
 // pub mod profiles;
@@ -39,8 +40,8 @@ use streaming::StreamCmd;
 // use ui::model::SavedAppState;
 
 /// Prusa Connect Test
-// #[cfg(feature = "nope")]
-#[tokio::main]
+#[cfg(feature = "nope")]
+// #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -93,10 +94,12 @@ async fn main() -> Result<()> {
 
     let printer = Arc::new(RwLock::new(printer));
 
-    let client = conn_manager::conn_prusa::prusa_cloud::PrusaClient::new(printer)?;
+    let mut client = conn_manager::conn_prusa::prusa_cloud::PrusaClient::new(printer)?;
 
-    client.get_info().await?;
-    // client.register().await?;
+    // client.get_info().await?;
+    client.register().await?;
+
+    client.get_telemetry().await?;
 
     Ok(())
 }
@@ -367,7 +370,7 @@ async fn main() -> Result<()> {
 
 /// MARK: Main
 #[allow(unreachable_code)]
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();

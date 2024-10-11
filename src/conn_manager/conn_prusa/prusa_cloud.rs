@@ -11,6 +11,7 @@ use crate::config::printer_config::PrinterConfigPrusa;
 pub struct PrusaClient {
     pub(super) printer_cfg: Arc<RwLock<PrinterConfigPrusa>>,
     client: reqwest::Client,
+    code: Option<String>,
 }
 
 /// consts, new
@@ -49,58 +50,116 @@ impl PrusaClient {
         Ok(Self {
             printer_cfg,
             client,
+            code: None,
         })
     }
 }
 
 impl PrusaClient {
-    #[cfg(feature = "nope")]
-    pub async fn register(&self) -> Result<()> {
-        let fingerprint = std::env::var("PRUSA_CONNECT_FINGERPRINT")?;
-
+    // #[cfg(feature = "nope")]
+    pub async fn register(&mut self) -> Result<()> {
         let url = format!("https://{}/p/register", self.printer_cfg.read().await.host);
 
         debug!("url = {:#?}", url);
 
         let req = self.client.post(&url);
-        let req = self.set_headers(req).await?.json(&serde_json::json!({
+        let req = self.set_headers(req).await?;
+        let req = req.json(&serde_json::json!({
             "sn": self.printer_cfg.read().await.serial,
-            "fingerprint": fingerprint,
-            "printer_type": "XL",
-            "firmware": "6.0.4",
+            "fingerprint": self.printer_cfg.read().await.fingerprint,
+            // "printer_type": "XL5IS", // type = 3.1.0 ??
+            "printer_type": "3.1.0", // type = 3.1.0 ??
+            "firmware": "6.0.4+14924",
         }));
 
         debug!("sending request");
         let response = req.send().await?;
-        debug!("response = {:#?}", response);
+        // debug!("response = {:#?}", response);
         debug!("status = {:?}", response.status());
 
-        // Ok(())
-        unimplemented!()
+        let headers = response.headers();
+        // debug!("headers = {:#?}", headers);
+
+        if let Some(code) = headers.get("code") {
+            debug!("got code: {:?}", code);
+            let code = code.to_str()?.to_string();
+            self.code = Some(code);
+        }
+
+        // let text = response.text().await?;
+        // debug!("text = {:#?}", text);
+
+        // let json: serde_json::Value = response.json().await?;
+        // debug!("json = {:#?}", json);
+
+        Ok(())
+        // unimplemented!()
     }
 
     async fn set_headers(&self, req: RequestBuilder) -> Result<RequestBuilder> {
         let printer = self.printer_cfg.read().await;
 
         let timestamp = chrono::Utc::now().timestamp();
-
-        let fingerprint = std::env::var("PRUSA_CONNECT_FINGERPRINT")?;
+        let timestamp = format!("{}", timestamp);
+        // debug!("timestamp = {}", timestamp);
 
         let req = req
-            .header("Fingerprint", &fingerprint)
-            // .header("timestamp", &format!("{}", timestamp))
+            .header("Fingerprint", &self.printer_cfg.read().await.fingerprint)
+            .header("timestamp", &timestamp)
             // .header("X-Api-Key", &printer.key)
             .header("User-Agent", "printer_watcher")
             .header("Token", &printer.token)
-            // .header("User-Agent-Printer", "")
-            // .header("User-Agent-Version", "")
+            .header("User-Agent-Printer", "XL5IS")
+            // .header("User-Agent-Version", "0.0.1")
             ;
+
+        // let req = if let Some(code) = self.code.as_ref() {
+        //     req.header("Token", code)
+        // } else {
+        //     req
+        // };
 
         Ok(req)
     }
 }
 
 impl PrusaClient {
+    pub async fn get_telemetry(&self) -> Result<()> {
+        let timestamp = chrono::Utc::now().timestamp() - 60;
+        let timestamp = format!("{}", timestamp);
+
+        let url = format!(
+            "https://{}/app/printers/{}/telemetry?from={}&granularity=15",
+            self.printer_cfg.read().await.host,
+            self.printer_cfg.read().await.fingerprint,
+            timestamp,
+        );
+
+        debug!("url = {:#?}", url);
+
+        let req = self.client.get(&url);
+
+        let req = self.set_headers(req).await?;
+
+        // let cookie = std::env::var("PRUSA_CONNECT_TEST_COOKIE")?;
+        // let req = req.header("Cookie", cookie);
+
+        // let req = req.header("")
+
+        // let req = req.json("");
+
+        debug!("sending request");
+        let response = req.send().await?;
+
+        debug!("response = {:#?}", response);
+        debug!("status = {:?}", response.status());
+
+        let text: serde_json::Value = response.json().await?;
+        debug!("text = {:#?}", text);
+
+        Ok(())
+    }
+
     pub async fn get_info(&self) -> Result<()> {
         // let url = format!(
         //     "https://{}/{}",
@@ -108,30 +167,9 @@ impl PrusaClient {
         //     Self::URL_VERSION
         // );
 
-        let url = format!(
-            "https://{}/app/printers/{}/telemetry?from=1724091960&granularity=15",
-            self.printer_cfg.read().await.host,
-            self.printer_cfg.read().await.fingerprint,
-        );
-
-        debug!("url = {:#?}", url);
-
         // let payload = serde_json::json!({
         //     "command": "SEND_INFO",
         // });
-
-        let req = self.client.get(&url);
-
-        let req = self.set_headers(req).await?;
-        let cookie = std::env::var("PRUSA_CONNECT_TEST_COOKIE")?;
-
-        let req = req.header("Cookie", cookie);
-
-        debug!("sending request");
-        let response = req.send().await?;
-
-        debug!("response = {:#?}", response);
-        debug!("status = {:?}", response.status());
 
         // if !response.status().is_success() {
         //     bail!("failed to get info: {:?}", response);
