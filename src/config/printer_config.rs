@@ -128,7 +128,7 @@ pub struct PrinterConfigPrusa {
     pub host: String,
     pub key: String,
     pub serial: String,
-    pub fingerprint: String,
+    // pub fingerprint: String,
     pub token: String,
     pub octo: Option<PrinterConfigOcto>,
     pub rtsp: Option<crate::streaming::rtsp::RtspCreds>,

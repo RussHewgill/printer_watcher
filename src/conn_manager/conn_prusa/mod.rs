@@ -1,5 +1,5 @@
-pub mod prusa_cloud;
-pub mod prusa_cloud_types;
+// pub mod prusa_cloud;
+// pub mod prusa_cloud_types;
 pub mod prusa_local;
 pub mod prusa_local_types;
 pub mod telemetry;

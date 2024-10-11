@@ -104,112 +104,115 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Prusa Test
 #[cfg(feature = "nope")]
-// #[tokio::main]
-async fn main() -> Result<()> {
-    let _ = dotenvy::dotenv();
-    logging::init_logs();
-
-    let host = env::var("PRUSA_CONNECT_HOST")?;
-    // let host = "https://connect.prusa3d.com".to_string();
-    // let connect_key = env::var("PRUSA_CONNECT_KEY")?;
-    let token = env::var("PRUSA_CONNECT_TOKEN")?;
-    let serial = env::var("PRUSA_SERIAL")?;
-    let id = env::var("PRUSA_ID")?;
-    let id: PrinterId = id.into();
-
-    let link_key = env::var("PRUSA_LINK_KEY")?;
-
-    let printer = config::printer_config::PrinterConfigPrusa {
-        id,
-        name: "test_printer".to_string(),
-        host: host.clone(),
-        key: link_key,
-        serial,
-        token,
-        octo: None,
-        rtsp: None,
-    };
-
-    const URL_VERSION: &'static str = "api/version";
-    const URL_INFO: &'static str = "api/v1/info";
-    const URL_STATUS: &'static str = "api/v1/status";
-    const URL_JOB: &'static str = "api/v1/job";
-
-    let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<conn_manager::WorkerCmd>();
-    let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnMsg>();
-
-    let (tx, _) = tokio::sync::mpsc::unbounded_channel::<(
-        PrinterId,
-        conn_manager::worker_message::WorkerMsg,
-    )>();
-
-    let (_, kill_rx) = tokio::sync::oneshot::channel::<()>();
-
-    // let client = conn_manager::conn_prusa::PrusaClient::new(Arc::new(RwLock::new(printer)))?;
-    let client = conn_manager::conn_prusa::prusa_local::PrusaClientLocal::new(
-        Arc::new(RwLock::new(printer)),
-        tx,
-        cmd_rx,
-        kill_rx,
-        None,
-    )
-    .await?;
-
-    let url = "api/printer";
-
-    let resp: serde_json::Value = client.get_response(url).await?;
-
-    debug!("resp = {}", serde_json::to_string_pretty(&resp)?);
-
+mod prusa_test {
+    /// Prusa Test
     #[cfg(feature = "nope")]
-    {
-        let resp = client.get_job().await?;
-        // debug!("resp = {:#?}", resp);
-
-        // let thumbnail = resp.file.refs.download.clone();
-        let thumbnail = resp.file.refs.icon.clone();
-        // let thumbnail = resp.file.refs.thumbnail.clone();
-
-        debug!("thumbnail = {:?}", thumbnail);
+    // #[tokio::main]
+    async fn main() -> Result<()> {
+        let _ = dotenvy::dotenv();
+        logging::init_logs();
 
         let host = env::var("PRUSA_CONNECT_HOST")?;
+        // let host = "https://connect.prusa3d.com".to_string();
+        // let connect_key = env::var("PRUSA_CONNECT_KEY")?;
+        let token = env::var("PRUSA_CONNECT_TOKEN")?;
+        let serial = env::var("PRUSA_SERIAL")?;
+        let id = env::var("PRUSA_ID")?;
+        let id: PrinterId = id.into();
 
-        let url = format!("http://{}{}", host, thumbnail);
+        let link_key = env::var("PRUSA_LINK_KEY")?;
 
-        debug!("url = {:?}", url);
+        let printer = config::printer_config::PrinterConfigPrusa {
+            id,
+            name: "test_printer".to_string(),
+            host: host.clone(),
+            key: link_key,
+            serial,
+            token,
+            octo: None,
+            rtsp: None,
+        };
 
-        let client = reqwest::ClientBuilder::new().build()?;
+        const URL_VERSION: &'static str = "api/version";
+        const URL_INFO: &'static str = "api/v1/info";
+        const URL_STATUS: &'static str = "api/v1/status";
+        const URL_JOB: &'static str = "api/v1/job";
 
-        let key = env::var("PRUSA_LINK_KEY")?;
-        let mut resp = client
-            .get(&url)
-            .header("X-Api-Key", &key)
-            // .header("Digest", &key)
-            // .header(
-            //     "Authorization",
-            //     r#"Digest username="maker", realm="Printer API", uri="/thumb/l/usb/BAB~AA94.BGC""#,
-            // )
-            .send()
-            .await?;
+        let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<conn_manager::WorkerCmd>();
+        let (msg_tx, mut msg_rx) = tokio::sync::mpsc::unbounded_channel::<PrinterConnMsg>();
 
-        debug!("resp = {:?}", resp);
+        let (tx, _) = tokio::sync::mpsc::unbounded_channel::<(
+            PrinterId,
+            conn_manager::worker_message::WorkerMsg,
+        )>();
 
-        let t0 = std::time::Instant::now();
-        let bytes = resp.bytes().await?;
-        let t1 = std::time::Instant::now();
+        let (_, kill_rx) = tokio::sync::oneshot::channel::<()>();
 
-        let duration = t1 - t0;
-        debug!("duration = {:?}", duration);
+        // let client = conn_manager::conn_prusa::PrusaClient::new(Arc::new(RwLock::new(printer)))?;
+        let client = conn_manager::conn_prusa::prusa_local::PrusaClientLocal::new(
+            Arc::new(RwLock::new(printer)),
+            tx,
+            cmd_rx,
+            kill_rx,
+            None,
+        )
+        .await?;
 
-        // let path = "thumbnail.png";
-        let path = "icon.png";
-        // let path = "dl.gcode";
-        std::fs::write(path, bytes)?;
+        let url = "api/printer";
+
+        let resp: serde_json::Value = client.get_response(url).await?;
+
+        debug!("resp = {}", serde_json::to_string_pretty(&resp)?);
+
+        #[cfg(feature = "nope")]
+        {
+            let resp = client.get_job().await?;
+            // debug!("resp = {:#?}", resp);
+
+            // let thumbnail = resp.file.refs.download.clone();
+            let thumbnail = resp.file.refs.icon.clone();
+            // let thumbnail = resp.file.refs.thumbnail.clone();
+
+            debug!("thumbnail = {:?}", thumbnail);
+
+            let host = env::var("PRUSA_CONNECT_HOST")?;
+
+            let url = format!("http://{}{}", host, thumbnail);
+
+            debug!("url = {:?}", url);
+
+            let client = reqwest::ClientBuilder::new().build()?;
+
+            let key = env::var("PRUSA_LINK_KEY")?;
+            let mut resp = client
+                .get(&url)
+                .header("X-Api-Key", &key)
+                // .header("Digest", &key)
+                // .header(
+                //     "Authorization",
+                //     r#"Digest username="maker", realm="Printer API", uri="/thumb/l/usb/BAB~AA94.BGC""#,
+                // )
+                .send()
+                .await?;
+
+            debug!("resp = {:?}", resp);
+
+            let t0 = std::time::Instant::now();
+            let bytes = resp.bytes().await?;
+            let t1 = std::time::Instant::now();
+
+            let duration = t1 - t0;
+            debug!("duration = {:?}", duration);
+
+            // let path = "thumbnail.png";
+            let path = "icon.png";
+            // let path = "dl.gcode";
+            std::fs::write(path, bytes)?;
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }
 
 /// bambu still camera test
@@ -233,17 +236,16 @@ async fn main() -> Result<()> {
     let image = egui::ColorImage::new([32, 32], egui::Color32::from_gray(0));
     let handle = ctx.load_texture("icon.png", image, Default::default());
 
-    let mut conn = streaming::bambu::bambu_img::JpegStreamViewer::new(
-        id,
-        serial,
-        host,
-        access_code,
-        handle,
-        kill_rx,
-        // msg_tx,
-    )
-    .await
-    .unwrap();
+    // let mut conn = streaming::bambu::bambu_img::JpegStreamViewer::new(
+    //     id,
+    //     serial,
+    //     host,
+    //     access_code,
+    //     handle,
+    //     kill_rx,
+    // )
+    // .await
+    // .unwrap();
 
     conn.run().await.unwrap();
 
