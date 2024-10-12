@@ -370,9 +370,23 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// MARK: Main
-#[allow(unreachable_code)]
+/// error_logging test
+#[tokio::main]
 // #[cfg(feature = "nope")]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    let mut db = error_logging::error_db::ErrorDb::init().await?;
+
+    db.insert("test_printer", "test_message").await?;
+
+    Ok(())
+}
+
+/// MARK: Main
+// #[allow(unreachable_code)]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();

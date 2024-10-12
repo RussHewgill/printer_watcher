@@ -44,6 +44,8 @@ pub enum WorkerCmd {
 pub struct PrinterConnManager {
     config: AppConfig,
 
+    error_db: crate::error_logging::error_db::ErrorDb,
+
     // printers: HashMap<PrinterId, BambuClient>,
     printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
     worker_cmd_txs: HashMap<PrinterId, tokio::sync::mpsc::UnboundedSender<WorkerCmd>>,
@@ -87,9 +89,14 @@ impl PrinterConnManager {
         /// fetch error codes
         let error_map = ErrorMap::read_or_fetch().await.unwrap_or_default();
 
+        let error_db = crate::error_logging::error_db::ErrorDb::init()
+            .await
+            .unwrap();
+
         Self {
             config,
 
+            error_db,
             // printer_states,
 
             // printers: HashMap::new(),
@@ -248,9 +255,19 @@ impl PrinterConnManager {
                                 .get_error(e as u64)
                                 .unwrap_or("Unknown Error");
 
-                            crate::notifications::alert_printer_error(&printer.name().await, error);
+                            crate::notifications::alert_printer_error(
+                                &self.error_db,
+                                &printer.name().await,
+                                error,
+                            )
+                            .await;
                         } else {
-                            crate::notifications::alert_printer_error(&printer.name().await, error);
+                            crate::notifications::alert_printer_error(
+                                &self.error_db,
+                                &printer.name().await,
+                                error,
+                            )
+                            .await;
                         }
                     }
                 }
@@ -267,12 +284,14 @@ impl PrinterConnManager {
                     {
                         warn!("sent finish notification");
                         crate::notifications::alert_print_complete(
+                            &self.error_db,
                             &printer.name().await,
                             state
                                 .current_file
                                 .as_ref()
                                 .unwrap_or(&"Unknown File".to_string()),
                         )
+                        .await
                     }
                 }
 

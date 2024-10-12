@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Color32, Response, Stroke, Vec2};
+use egui::{Color32, Response, Stroke, UiBuilder, Vec2};
 
 use crate::{
     config::{printer_config::PrinterConfig, printer_id::PrinterId},
@@ -52,7 +52,13 @@ impl App {
                 let pos = GridLocation { col: x, row: y };
                 let (id, color) = self.get_printer_id_color(pos);
 
-                ui.allocate_ui_at_rect(max_rect_row, |ui| {
+                let builder = UiBuilder {
+                    max_rect: Some(max_rect_row),
+                    ..Default::default()
+                };
+
+                ui.allocate_new_ui(builder, |ui| {
+                    // ui.allocate_ui_at_rect(max_rect_row, |ui| {
                     /// Set colors
                     let prev_inactive = ui.visuals().widgets.inactive.bg_stroke;
                     let prev_active = ui.visuals().widgets.active.bg_stroke;

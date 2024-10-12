@@ -58,7 +58,8 @@ impl App {
         ui.separator();
 
         egui::Grid::new("options_grid").show(ui, |ui| {
-            egui::widgets::global_dark_light_mode_buttons(ui);
+            // egui::widgets::global_dark_light_mode_buttons(ui);
+            egui::widgets::global_theme_preference_buttons(ui);
             ui.end_row();
 
             ui.label("Rows");

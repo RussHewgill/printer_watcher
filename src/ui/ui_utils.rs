@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Color32, Rect, Response, Vec2};
+use egui::{Color32, Rect, Response, UiBuilder, Vec2};
 
 pub fn put_ui(
     ui: &mut egui::Ui,
@@ -18,7 +18,13 @@ pub fn put_ui(
         egui::Layout::left_to_right(egui::Align::Center)
     };
 
-    let mut ui = ui.child_ui(rect, layout, None);
+    let builder = UiBuilder {
+        max_rect: Some(rect),
+        layout: Some(layout),
+        ..Default::default()
+    };
+    // let mut ui = ui.child_ui(rect, layout, None);
+    let mut ui = ui.new_child(builder);
 
     // add_contents(&mut ui)
 
@@ -49,7 +55,14 @@ fn put_ui_prev(
 
     let layout = egui::Layout::left_to_right(egui::Align::Center);
 
-    let mut ui = ui.child_ui(rect, layout, None);
+    let builder = UiBuilder {
+        max_rect: Some(rect),
+        layout: Some(layout),
+        ..Default::default()
+    };
+
+    let mut ui = ui.new_child(builder);
+    // let mut ui = ui.child_ui(rect, layout, None);
 
     ui.set_max_size(size);
 
