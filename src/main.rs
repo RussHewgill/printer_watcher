@@ -371,8 +371,8 @@ async fn main() -> Result<()> {
 }
 
 /// error_logging test
-#[tokio::main]
-// #[cfg(feature = "nope")]
+// #[tokio::main]
+#[cfg(feature = "nope")]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -385,8 +385,8 @@ async fn main() -> Result<()> {
 }
 
 /// MARK: Main
-// #[allow(unreachable_code)]
-#[cfg(feature = "nope")]
+#[allow(unreachable_code)]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();

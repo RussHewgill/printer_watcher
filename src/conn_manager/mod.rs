@@ -257,6 +257,7 @@ impl PrinterConnManager {
 
                             crate::notifications::alert_printer_error(
                                 &self.error_db,
+                                &printer.id(),
                                 &printer.name().await,
                                 error,
                             )
@@ -264,6 +265,7 @@ impl PrinterConnManager {
                         } else {
                             crate::notifications::alert_printer_error(
                                 &self.error_db,
+                                &printer.id(),
                                 &printer.name().await,
                                 error,
                             )
@@ -285,6 +287,7 @@ impl PrinterConnManager {
                         warn!("sent finish notification");
                         crate::notifications::alert_print_complete(
                             &self.error_db,
+                            &printer.id(),
                             &printer.name().await,
                             state
                                 .current_file
