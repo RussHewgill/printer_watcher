@@ -2,7 +2,8 @@
 tasks.json
 .env
 certs*
-*.png
+# *.png
+thumbnail.png
 config*.yaml
 config*.toml
 example.ron
@@ -51,3 +52,4 @@ example*.json
 !assets/monitor_nozzle_temp_active.svg
 !assets/param_chamber_temp.svg
 !assets/printer_*.svg
+!assets/prusa_icon.png
