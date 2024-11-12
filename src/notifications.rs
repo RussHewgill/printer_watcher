@@ -1,8 +1,6 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use notify_rust::Notification;
-
 use crate::{config::printer_id::PrinterId, error_logging::error_db::ErrorDb};
 
 pub async fn alert_print_complete(

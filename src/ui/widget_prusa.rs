@@ -442,13 +442,17 @@ impl App {
                         // debug!("webcam clicked");
                         self.selected_stream = Some(printer.id.clone());
                     } else if resp.clicked_by(egui::PointerButton::Secondary) {
+                        #[cfg(feature = "rtsp")]
                         preview_type.toggle_type();
+                        #[cfg(feature = "rtsp")]
                         self.send_stream_cmd(crate::streaming::StreamCmd::StopStream(
                             printer.id.clone(),
                         ))
                         .unwrap();
                     } else if resp.clicked_by(egui::PointerButton::Middle) {
+                        #[cfg(feature = "rtsp")]
                         debug!("toggle skip frames");
+                        #[cfg(feature = "rtsp")]
                         self.send_stream_cmd(crate::streaming::StreamCmd::SendRtspCommand(
                             printer.id.clone(),
                             crate::streaming::SubStreamCmd::Rtsp(
@@ -465,6 +469,7 @@ impl App {
                     }
                 }
 
+                #[cfg(feature = "rtsp")]
                 if start {
                     if let Some(creds) = printer.rtsp.as_ref() {
                         self.stream_cmd_tx

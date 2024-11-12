@@ -1,12 +1,17 @@
 pub mod bambu;
+#[cfg(feature = "rtsp")]
 pub mod rtsp;
 
 use core::error;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use rtsp::{RtspCommand, RtspCreds};
 use tracing::{debug, error, info, trace, warn};
+
+#[cfg(feature = "rtsp")]
+use ffmpeg_next::codec::debug;
+#[cfg(feature = "rtsp")]
+use rtsp::{RtspCommand, RtspCreds};
 
 use egui::TextureHandle;
 
@@ -14,6 +19,7 @@ use crate::config::printer_id::PrinterId;
 
 #[derive(Clone)]
 pub enum StreamCmd {
+    #[cfg(feature = "rtsp")]
     StartRtsp(PrinterId, TextureHandle, RtspCreds, egui::Context),
     StartBambuStills {
         id: PrinterId,
@@ -28,6 +34,7 @@ pub enum StreamCmd {
 
 #[derive(Debug, Clone, Copy)]
 pub enum SubStreamCmd {
+    #[cfg(feature = "rtsp")]
     Rtsp(RtspCommand),
 }
 
@@ -83,6 +90,7 @@ impl StreamManager {
                 }
                 cmd = self.cmd_rx.recv() => match cmd {
                     None => return Ok(()),
+                    #[cfg(feature = "rtsp")]
                     Some(StreamCmd::StartRtsp(id, texture_handle, creds, ctx)) => {
                         debug!("starting RTSP stream for printer: {:?}", id);
                         self.start_stream_rtsp(id, texture_handle, creds, ctx, self.worker_tx.clone()).await?;
@@ -162,6 +170,7 @@ impl StreamManager {
         Ok(())
     }
 
+    #[cfg(feature = "rtsp")]
     async fn start_stream_rtsp(
         &mut self,
         id: PrinterId,

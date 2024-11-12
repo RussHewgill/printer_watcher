@@ -5,12 +5,14 @@ use klipper_types::metadata::KlipperMetadata;
 use serde_json::Value;
 use tracing::{debug, error, info, trace, warn};
 
-use ffmpeg_next::codec::debug;
 use futures::StreamExt;
 use rumqttc::Incoming;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+#[cfg(feature = "rtsp")]
+use ffmpeg_next::codec::debug;
 
 use jsonrpsee::core::client::{ClientT, SubscriptionClientT};
 

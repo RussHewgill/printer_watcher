@@ -131,6 +131,7 @@ pub struct PrinterConfigPrusa {
     // pub fingerprint: String,
     pub token: String,
     pub octo: Option<PrinterConfigOcto>,
+    #[cfg(feature = "rtsp")]
     pub rtsp: Option<crate::streaming::rtsp::RtspCreds>,
 }
 

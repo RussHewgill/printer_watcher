@@ -1,3 +1,4 @@
+#[cfg(feature = "rtsp")]
 pub mod test_player;
 
 use egui::{load::SizedTexture, Rect, Response, Sense, TextureHandle, Ui, Vec2};

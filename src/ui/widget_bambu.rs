@@ -446,11 +446,23 @@ impl App {
                     // ui.ctx()
                     //     .debug_painter()
                     //     .debug_rect(ui.max_rect(), Color32::RED, "");
+
+                    // ui.label()
                 });
 
                 //
             });
         ui.spacing_mut().item_spacing.x = 8.;
+
+        let Some(status) = self.printer_states.get(&printer.id) else {
+            warn!("Printer not found: {:?}", printer.id);
+            panic!();
+        };
+
+        let state = &status.state;
+        let bstate = status.state_bambu.as_ref().unwrap();
+        ui.label(format!("State: {:?}, {:?}", state, bstate.state));
+        // ui.label(format!("Bambu State: {:?}", bstate.state));
 
         resp
     }

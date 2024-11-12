@@ -6,6 +6,10 @@ edition = "2021"
 [profile.release]
 debug = true
 
+[features]
+default = []
+rtsp = ["ffmpeg-next"]
+
 [build-dependencies]
 dotenvy = "0.15.0"
 anyhow = "1"
@@ -89,7 +93,7 @@ egui_extras = { version = "0.29.1", features = [
     "http",
 ] }
 egui-phosphor = { version = "0.7.3", features = ["fill"] }
-ffmpeg-next = "7.0.2"
+ffmpeg-next = { version = "7.0.2", optional = true }
 image = { version = "0.25.2", features = ["jpeg", "png", "pnm"] }
 pretty-hex = "0.4.1"
 bytes = "1.6.0"
