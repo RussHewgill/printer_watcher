@@ -562,7 +562,11 @@ fn paint_ams(
         error!("No units found in ams status");
         return;
     } else if num_units == 1 {
-        let unit = &ams.units[&0];
+        // let unit = &ams.units[&0];
+        let Some(unit) = ams.units.get(&0) else {
+            error!("Unit 0 not found in ams status");
+            return;
+        };
 
         let edge_padding = rect.width() / 8.0;
 

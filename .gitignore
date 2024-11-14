@@ -32,6 +32,7 @@ src/ui_iced
 example*.json
 *.gcode
 *.db
+printer_watcher.exe
 
 !icon.png
 !assets/icons8-disconnected-100.png
