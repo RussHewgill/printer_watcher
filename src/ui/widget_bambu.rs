@@ -563,8 +563,16 @@ fn paint_ams(
         return;
     } else if num_units == 1 {
         // let unit = &ams.units[&0];
-        let Some(unit) = ams.units.get(&0) else {
-            error!("Unit 0 not found in ams status");
+        // let Some(unit) = ams.units.get(&0) else {
+        //     error!("Unit 0 not found in ams status");
+        //     for (k, v) in ams.units.iter() {
+        //         debug!("unit: {}", k);
+        //     }
+        //     return;
+        // };
+
+        let Some((k, unit)) = ams.units.iter().next() else {
+            error!("No AMS units found?");
             return;
         };
 
