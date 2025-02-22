@@ -14,16 +14,13 @@ OUTDATED
 
 1. Create a file in the same directory as the program, named `config.yaml`
 2. Paste the following template into it:
-```yaml
-printers:
-- name: printer1
-  host: XXX.XXX.XXX.XXX
-  access_code: 12341234
-  serial: XXXXXXXXXXXXXXX
-- name: printer2
-  host: XXX.XXX.XXX.XXX
-  access_code: 56785678
-  serial: XXXXXXXXXXXXXXX
+```toml
+[[bambu]]
+id = "some_random_name"
+serial = "XXXXXXXXXXXXXXX"
+name = "Name"
+host = "XXX.XXX.XXX.XXX"
+access_code = "12341234"
 ```
 3. For each P1S, go to the 3rd menu, then select "WLAN"
   - Copy the `IP` and `Access Code` to the `host` and `access_code` fields
