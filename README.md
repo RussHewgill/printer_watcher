@@ -10,8 +10,6 @@ Printer Watcher is a dashboard for monitoring the status of multiple printers.
 
 ## Instructions
 
-OUTDATED
-
 1. Create a file in the same directory as the program, named `config.yaml`
 2. Paste the following template into it:
 ```toml
