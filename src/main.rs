@@ -393,6 +393,7 @@ fn main() -> eframe::Result<()> {
 
     let mut config = AppConfig::load_from_file("config.toml").unwrap_or_default();
     // let mut config = AppConfig::default();
+    // debug!("loaded config from file");
 
     /// add bambu
     #[cfg(feature = "nope")]

@@ -14,7 +14,9 @@ pub struct JpegStreamViewer {
     buf: [u8; Self::READ_CHUNK_SIZE],
     handle: egui::TextureHandle,
     kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+    last_rx: std::time::Instant,
     // msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    id: PrinterId,
 }
 
 /// consts
@@ -92,11 +94,25 @@ impl JpegStreamViewer {
             buf: [0u8; Self::READ_CHUNK_SIZE],
             handle,
             kill_rx,
+            last_rx: std::time::Instant::now(),
             // msg_tx,
+            id,
         })
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        // // check if last rx was too long ago
+        // let elapsed = self.last_rx.elapsed().as_secs();
+        // if elapsed > 15 {
+        //     crate::notifications::alert_printer_stream_error(
+        //         &self.id,
+        //         "Stream has been inactive for too long",
+        //     )
+        //     .await;
+        //     error!("stream has been inactive for {} seconds", elapsed);
+        //     bail!("stream has been inactive for {} seconds", elapsed);
+        // }
+
         tokio::io::AsyncWriteExt::write_all(&mut self.tls_stream, &self.auth_data).await?;
 
         // debug!("getting socket status");
@@ -178,6 +194,8 @@ impl JpegStreamViewer {
 
                     got_header = false;
                     img_buf.clear();
+
+                    self.last_rx = std::time::Instant::now();
                 }
             } else if n == 16 {
                 // debug!("got header");
@@ -198,6 +216,8 @@ impl JpegStreamViewer {
                 break;
             }
         }
+
+        warn!("Exiting stream loop");
 
         Ok(())
     }

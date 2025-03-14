@@ -126,8 +126,6 @@ impl StreamManager {
         texture: egui::TextureHandle,
         worker_tx: tokio::sync::mpsc::UnboundedSender<StreamWorkerMsg>,
     ) -> Result<()> {
-        let (kill_tx, kill_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
-
         tokio::spawn(async move {
             let cmd = StreamCmd::StartBambuStills {
                 id: id.clone(),
@@ -137,33 +135,44 @@ impl StreamManager {
                 texture: texture.clone(),
             };
 
-            let mut conn = match bambu::bambu_img::JpegStreamViewer::new(
-                id.clone(),
-                serial,
-                host,
-                access_code,
-                texture,
-                kill_rx,
-            )
-            .await
-            {
-                Ok(c) => c,
-                Err(e) => {
-                    error!("error creating bambu stills: {:?}", e);
+            loop {
+                debug!("starting bambu stills outer loop");
+
+                let (kill_tx, kill_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+
+                let serial2 = serial.clone();
+                let host2 = host.clone();
+                let access_code2 = access_code.clone();
+                let texture2 = texture.clone();
+
+                let mut conn = match bambu::bambu_img::JpegStreamViewer::new(
+                    id.clone(),
+                    serial2,
+                    host2,
+                    access_code2,
+                    texture2,
+                    kill_rx,
+                )
+                .await
+                {
+                    Ok(c) => c,
+                    Err(e) => {
+                        error!("error creating bambu stills: {:?}", e);
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                        worker_tx
+                            .send(StreamWorkerMsg::Panic(id.clone(), cmd.clone()))
+                            .unwrap();
+                        return;
+                    }
+                };
+
+                if let Err(e) = conn.run().await {
+                    error!("error in bambu stills: {:?}", e);
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     worker_tx
-                        .send(StreamWorkerMsg::Panic(id.clone(), cmd))
+                        .send(StreamWorkerMsg::Panic(id.clone(), cmd.clone()))
                         .unwrap();
-                    return;
                 }
-            };
-
-            if let Err(e) = conn.run().await {
-                error!("error in bambu stills: {:?}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                worker_tx
-                    .send(StreamWorkerMsg::Panic(id.clone(), cmd))
-                    .unwrap();
             }
         });
 

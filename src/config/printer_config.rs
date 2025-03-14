@@ -127,9 +127,9 @@ pub struct PrinterConfigPrusa {
     pub name: String,
     pub host: String,
     pub key: String,
-    pub serial: String,
+    // pub serial: String,
     // pub fingerprint: String,
-    pub token: String,
+    // pub token: String,
     pub octo: Option<PrinterConfigOcto>,
     #[cfg(feature = "rtsp")]
     pub rtsp: Option<crate::streaming::rtsp::RtspCreds>,

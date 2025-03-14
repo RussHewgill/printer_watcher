@@ -40,3 +40,15 @@ pub async fn alert_printer_error(
         .timeout(0)
         .show();
 }
+
+pub async fn alert_printer_stream_error(printer_id: &PrinterId, error: &str) {
+    let _ = notify_rust::Notification::new()
+        .summary(&format!("Stream Error: {:?}", printer_id))
+        .body(&format!(
+            "Stream error: {:?}\n\nError: {:?}",
+            printer_id, error
+        ))
+        .appname("Printer Watcher")
+        .timeout(0)
+        .show();
+}

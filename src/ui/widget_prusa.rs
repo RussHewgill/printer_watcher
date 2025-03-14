@@ -462,10 +462,10 @@ impl App {
                         .unwrap();
                     }
                 } else if self.options.auto_start_streams {
-                    start = true;
+                    // start = true;
                 } else {
                     if ui.button("Enable webcam").clicked() {
-                        start = true;
+                        // start = true;
                     }
                 }
 

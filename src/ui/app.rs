@@ -190,7 +190,51 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.label("bottom");
+            ui.horizontal(|ui| {
+                // let now = chrono::Local::now();
+
+                // /// time from now until 10pm
+                // let dt0 = now.date_naive().and_hms(22, 0, 0);
+                // let dt0 = dt0 - now;
+
+                let now = chrono::Local::now();
+                let target = now
+                    .date_naive()
+                    .and_hms_opt(22, 0, 0)
+                    .unwrap()
+                    .and_local_timezone(now.timezone())
+                    .unwrap();
+
+                // If it's already past 10 PM, calculate for next day
+                let dt0 = if now.time() >= chrono::NaiveTime::from_hms_opt(22, 0, 0).unwrap() {
+                    target + chrono::Duration::days(1) - now
+                } else {
+                    target - now
+                };
+
+                ui.label(format!(
+                    "Time to 10PM: {:02}h{:02}min",
+                    dt0.num_hours(),
+                    dt0.num_minutes() % 60
+                ));
+
+                let target = (now + chrono::Duration::days(1))
+                    .date_naive()
+                    .and_hms_opt(8, 0, 0)
+                    .unwrap()
+                    .and_local_timezone(now.timezone())
+                    .unwrap();
+
+                let dt0 = target - now;
+
+                ui.separator();
+
+                ui.label(format!(
+                    "Time to 8AM tomorrow: {:02}h{:02}min",
+                    dt0.num_hours(),
+                    dt0.num_minutes() % 60
+                ));
+            });
         });
 
         match self.current_tab {
