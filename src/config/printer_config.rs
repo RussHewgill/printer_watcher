@@ -104,6 +104,7 @@ pub struct PrinterConfigKlipper {
     pub id: PrinterId,
     pub name: String,
     pub host: String,
+    pub toolchanger: bool,
 }
 
 impl PrinterConfigKlipper {
@@ -112,11 +113,17 @@ impl PrinterConfigKlipper {
             id: PrinterId::generate(),
             name,
             host,
+            toolchanger: false,
         }
     }
 
     pub fn from_id(name: String, host: String, id: PrinterId) -> Self {
-        Self { id, name, host }
+        Self {
+            id,
+            name,
+            host,
+            toolchanger: false,
+        }
     }
 }
 

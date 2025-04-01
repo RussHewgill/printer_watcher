@@ -85,71 +85,16 @@ impl App {
                 strip.strip(|mut builder| {
                     let font_size = 12.;
 
+                    if printer.toolchanger {
+                        self.klipper_temperatures_toolchanger(&status, layout, font_size, builder);
+                    } else {
+                        self.klipper_temperatures(&status, layout, font_size, builder);
+                    }
+
                     // let layout = Layout::left_to_right(egui::Align::Center)
                     //     .with_cross_justify(true)
                     //     .with_main_justify(true)
                     //     .with_cross_align(egui::Align::Center);
-
-                    builder
-                        .size(egui_extras::Size::relative(0.4))
-                        .size(egui_extras::Size::relative(0.4))
-                        .size(egui_extras::Size::remainder())
-                        .cell_layout(layout)
-                        .horizontal(|mut strip| {
-                            strip.cell(|ui| {
-                                ui.horizontal(|ui| {
-                                    // ui.ctx().debug_painter().debug_rect(
-                                    //     ui.max_rect(),
-                                    //     Color32::RED,
-                                    //     "",
-                                    // );
-                                    ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
-                                    ui.add(
-                                        Label::new(
-                                            // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
-                                            RichText::new(format!(
-                                                "{:.1}°C / {}",
-                                                status.nozzle_temp,
-                                                status.nozzle_temp_target as i64
-                                            ))
-                                            .strong()
-                                            .size(font_size),
-                                        )
-                                        .truncate(),
-                                    );
-                                });
-                            });
-                            strip.cell(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.add(thumbnail_bed(status.bed_temp_target > 0.));
-                                    ui.add(
-                                        Label::new(
-                                            RichText::new(format!(
-                                                "{:.1}°C / {}",
-                                                status.bed_temp, status.bed_temp_target as i64
-                                            ))
-                                            .strong()
-                                            .size(font_size),
-                                        )
-                                        .truncate(),
-                                    );
-                                });
-                            });
-                            strip.cell(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.add(thumbnail_chamber());
-                                    ui.label(
-                                        RichText::new(format!(
-                                            "--",
-                                            // "{}°C",
-                                            // status.temp_chamber.unwrap_or(0.) as i64
-                                        ))
-                                        .strong()
-                                        .size(font_size),
-                                    );
-                                });
-                            });
-                        });
                 });
 
                 /// Title
@@ -353,5 +298,85 @@ impl App {
             });
 
         resp
+    }
+}
+
+impl App {
+    fn klipper_temperatures_toolchanger(
+        &self,
+        status: &GenericPrinterState,
+        layout: Layout,
+        font_size: f32,
+        builder: egui_extras::StripBuilder<'_>,
+    ) {
+        unimplemented!()
+    }
+
+    fn klipper_temperatures(
+        &self,
+        status: &GenericPrinterState,
+        layout: Layout,
+        font_size: f32,
+        builder: egui_extras::StripBuilder<'_>,
+    ) {
+        builder
+            .size(egui_extras::Size::relative(0.4))
+            .size(egui_extras::Size::relative(0.4))
+            .size(egui_extras::Size::remainder())
+            .cell_layout(layout)
+            .horizontal(|mut strip| {
+                strip.cell(|ui| {
+                    ui.horizontal(|ui| {
+                        // ui.ctx().debug_painter().debug_rect(
+                        //     ui.max_rect(),
+                        //     Color32::RED,
+                        //     "",
+                        // );
+                        ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
+                        ui.add(
+                            Label::new(
+                                // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
+                                RichText::new(format!(
+                                    "{:.1}°C / {}",
+                                    status.nozzle_temp, status.nozzle_temp_target as i64
+                                ))
+                                .strong()
+                                .size(font_size),
+                            )
+                            .truncate(),
+                        );
+                    });
+                });
+                strip.cell(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(thumbnail_bed(status.bed_temp_target > 0.));
+                        ui.add(
+                            Label::new(
+                                RichText::new(format!(
+                                    "{:.1}°C / {}",
+                                    status.bed_temp, status.bed_temp_target as i64
+                                ))
+                                .strong()
+                                .size(font_size),
+                            )
+                            .truncate(),
+                        );
+                    });
+                });
+                strip.cell(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(thumbnail_chamber());
+                        ui.label(
+                            RichText::new(format!(
+                                "--",
+                                // "{}°C",
+                                // status.temp_chamber.unwrap_or(0.) as i64
+                            ))
+                            .strong()
+                            .size(font_size),
+                        );
+                    });
+                });
+            });
     }
 }

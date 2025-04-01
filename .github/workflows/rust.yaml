@@ -19,12 +19,12 @@ jobs:
           #   name: Printer-Watcher-Linux-x86_64-gnu.tar.gz
           #   command: build
 
-          # - os_name: macOS-x86_64
-          #   os: macOS-latest
-          #   target: x86_64-apple-darwin
-          #   bin: printer_watcher
-          #   name: Printer-Watcher-Darwin-x86_64.tar.gz
-          #   command: build
+          - os_name: macOS-x86_64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+            bin: printer_watcher
+            name: Printer-Watcher-Darwin-x86_64.tar.gz
+            command: build
 
           - os_name: Windows-x86_64
             os: windows-latest
