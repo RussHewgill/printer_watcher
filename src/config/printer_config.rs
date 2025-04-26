@@ -105,6 +105,8 @@ pub struct PrinterConfigKlipper {
     pub name: String,
     pub host: String,
     pub toolchanger: bool,
+    // #[serde(default)]
+    pub tools: usize,
 }
 
 impl PrinterConfigKlipper {
@@ -114,6 +116,7 @@ impl PrinterConfigKlipper {
             name,
             host,
             toolchanger: false,
+            tools: 1,
         }
     }
 
@@ -123,6 +126,7 @@ impl PrinterConfigKlipper {
             name,
             host,
             toolchanger: false,
+            tools: 1,
         }
     }
 }

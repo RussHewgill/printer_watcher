@@ -309,7 +309,17 @@ impl App {
         font_size: f32,
         builder: egui_extras::StripBuilder<'_>,
     ) {
-        unimplemented!()
+        let n = status.nozzle_temps.len();
+        builder
+            // .sizes(egui_extras::Size::relative(1. / n as f32), n)
+            .sizes(egui_extras::Size::exact(20.), n)
+            .horizontal(|mut strip| {
+                for i in 0..n {
+                    strip.cell(|ui| {
+                        ui.label(format!("{}", i + 1));
+                    });
+                }
+            });
     }
 
     fn klipper_temperatures(

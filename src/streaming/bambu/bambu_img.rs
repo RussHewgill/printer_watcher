@@ -17,6 +17,7 @@ pub struct JpegStreamViewer {
     last_rx: std::time::Instant,
     // msg_tx: tokio::sync::mpsc::UnboundedSender<()>,
     id: PrinterId,
+    started: std::time::Instant,
 }
 
 /// consts
@@ -25,7 +26,7 @@ impl JpegStreamViewer {
     const JPEG_END: [u8; 2] = [0xff, 0xd9];
     const READ_CHUNK_SIZE: usize = 4096;
 
-    const MAX_STREAM_LIFETIME_SEC: u64 = 10;
+    const MAX_STREAM_LIFETIME_SEC: u64 = 60 * 10; // 10 minutes
 
     const STREAM_TIMEOUT: u64 = 10;
 }
@@ -97,6 +98,7 @@ impl JpegStreamViewer {
             last_rx: std::time::Instant::now(),
             // msg_tx,
             id,
+            started: std::time::Instant::now(),
         })
     }
 
@@ -128,6 +130,11 @@ impl JpegStreamViewer {
         let mut got_header = false;
 
         loop {
+            if self.started.elapsed().as_secs() > Self::MAX_STREAM_LIFETIME_SEC {
+                error!("stream has been running for too long, exiting");
+                break;
+            }
+
             // debug!("looping");
             self.buf.fill(0);
 
@@ -160,8 +167,14 @@ impl JpegStreamViewer {
                     // got_header = false;
                     // img_buf.clear();
 
-                    /// not sure what the extra data is?
-                    img_buf.truncate(payload_size);
+                    // /// not sure what the extra data is?
+                    // img_buf.truncate(payload_size);
+
+                    bail!(
+                        "unexpected image payload received: {} > {}",
+                        img_buf.len(),
+                        payload_size,
+                    );
 
                     // break;
                 }

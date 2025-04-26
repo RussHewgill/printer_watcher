@@ -370,23 +370,49 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// error_logging test
-// #[tokio::main]
-#[cfg(feature = "nope")]
+/// Klipper test
+#[tokio::main]
+// #[cfg(feature = "nope")]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
 
-    let mut db = error_logging::error_db::ErrorDb::init().await?;
+    let id = PrinterId::from_id("tracerbullet_afsdhasdfhsdh");
 
-    db.insert("test_printer", "test_message").await?;
+    let printer = config::printer_config::PrinterConfigKlipper {
+        id: id.clone(),
+        host: "192.168.0.245".to_string(),
+        name: "Tracer Bullet".to_string(),
+        toolchanger: true,
+        tools: 4,
+    };
+
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<(
+        PrinterId,
+        conn_manager::worker_message::WorkerMsg,
+    )>();
+
+    let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<conn_manager::WorkerCmd>();
+    let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let mut client = conn_manager::conn_klipper::KlipperClient::new(
+        id,
+        Arc::new(RwLock::new(printer)),
+        tx,
+        cmd_rx,
+        kill_rx,
+    )
+    .await?;
+
+    debug!("Running client");
+    client.run().await?;
 
     Ok(())
 }
 
 /// MARK: Main
 #[allow(unreachable_code)]
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();

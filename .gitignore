@@ -33,6 +33,7 @@ example*.json
 *.gcode
 *.db
 printer_watcher.exe
+test.py
 
 !icon.png
 !assets/icons8-disconnected-100.png
