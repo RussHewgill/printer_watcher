@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Color32, Label, Layout, Pos2, Response, RichText, Rounding, Sense, Vec2};
+use egui::{Color32, Label, Layout, Pos2, Response, RichText, Sense, Vec2};
 
 use super::{
     app::App,

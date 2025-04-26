@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Label, Layout, Response, RichText, Rounding, Sense, Vec2};
+use egui::{CornerRadius, Label, Layout, Response, RichText, Sense, Vec2};
 
 use super::{
     app::App,
@@ -433,7 +433,7 @@ impl App {
                     let img = egui::Image::from_texture((entry.texture.id(), size))
                         .fit_to_exact_size(size)
                         .max_size(size)
-                        .rounding(Rounding::same(4.))
+                        .corner_radius(CornerRadius::same(4))
                         .sense(Sense::click());
 
                     let resp = ui.add(img);

@@ -79,6 +79,27 @@ impl KlipperClient {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        loop {
+            tokio::select! {
+                _ = self.update_timer.tick() => {
+                    let update = self.get_update().await?;
+
+                    debug!("got update: {:#?}", update);
+                    // self.tx.send((self.id.clone(), WorkerMsg::StatusUpdate(update))).unwrap();
+                }
+                cmd = self.cmd_rx.recv() => {
+                    debug!("got worker command");
+                    //
+                }
+                _ = &mut self.kill_rx => {
+                    debug!("got kill command");
+                    break Ok(());
+                }
+            }
+        }
+    }
+
+    async fn get_update(&mut self) -> Result<()> {
         unimplemented!()
     }
 }

@@ -296,7 +296,7 @@ impl App {
             // .fit_to_exact_size(size)
             .max_size(size)
             .maintain_aspect_ratio(true)
-            .rounding(egui::Rounding::same(4.))
+            .corner_radius(egui::CornerRadius::same(4))
             .sense(egui::Sense::click());
         if ui.add(img).clicked() {
             self.selected_stream = None;

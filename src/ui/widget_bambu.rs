@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Color32, Label, Layout, Pos2, Response, RichText, Rounding, Sense, Vec2};
+use egui::{Color32, CornerRadius, Label, Layout, Pos2, Response, RichText, Sense, Vec2};
 
 use super::{
     app::App,
@@ -102,7 +102,7 @@ impl App {
                         let img = egui::Image::from_texture((entry.texture.id(), size))
                             .fit_to_exact_size(size)
                             .max_size(size)
-                            .rounding(Rounding::same(4.))
+                            .corner_radius(CornerRadius::same(4))
                             .sense(Sense::click());
 
                         let resp = ui.add(img);
@@ -697,7 +697,12 @@ fn draw_ams_current(
     // let s = (circle_r + circle_stroke) * 2. + 2.;
     let s = (circle_r + circle_stroke) * 2.;
     let rect2 = egui::Rect::from_center_size(c, Vec2::splat(s));
-    painter.rect_stroke(rect2, 3., egui::Stroke::new(circle_stroke, slot.color));
+    painter.rect_stroke(
+        rect2,
+        3.,
+        egui::Stroke::new(circle_stroke, slot.color),
+        egui::StrokeKind::Middle,
+    );
 }
 
 #[cfg(feature = "nope")]

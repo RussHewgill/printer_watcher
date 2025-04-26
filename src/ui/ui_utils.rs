@@ -32,7 +32,7 @@ pub fn put_ui(
 
     // ui.visuals_mut().widgets.active.bg_fill = Color32::RED;
     // ui.visuals_mut().widgets.inactive.bg_fill = Color32::GREEN;
-    egui::Frame::none()
+    egui::Frame::new()
         // .fill(Color32::BLUE)
         .inner_margin(0.)
         .outer_margin(0.)
@@ -68,7 +68,7 @@ fn put_ui_prev(
 
     // ui.visuals_mut().widgets.active.bg_fill = Color32::RED;
     // ui.visuals_mut().widgets.inactive.bg_fill = Color32::GREEN;
-    egui::Frame::none()
+    egui::Frame::new()
         // .fill(Color32::BLUE)
         .inner_margin(0.)
         .outer_margin(0.)

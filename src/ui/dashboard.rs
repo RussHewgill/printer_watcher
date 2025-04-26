@@ -76,7 +76,7 @@ impl App {
                         // .stroke(Stroke::new(5., color))
                         // .stroke(Stroke::new(50., Color32::RED))
                         // .fill(color)
-                        .rounding(6.);
+                        .corner_radius(6.);
 
                     let (_, dropped_payload) = ui.dnd_drop_zone::<GridLocation, ()>(frame, |ui| {
                         // Unset colors, is this necessary?
