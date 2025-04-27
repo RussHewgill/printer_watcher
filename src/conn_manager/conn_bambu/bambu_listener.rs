@@ -214,18 +214,20 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
             }
 
             if let Some(t) = print.print.nozzle_temper {
-                out.push(PrinterStateUpdate::NozzleTemp(
-                    None,
-                    t as f32,
-                    print.print.nozzle_target_temper.map(|v| v as f32),
-                ));
+                out.push(PrinterStateUpdate::NozzleTemp(None, t as f32));
+                if let Some(target) = print.print.nozzle_target_temper {
+                    out.push(PrinterStateUpdate::NozzleTempTarget(None, target as f32));
+                }
             }
 
             if let Some(t) = print.print.bed_temper {
                 out.push(PrinterStateUpdate::BedTemp(
                     t as f32,
-                    print.print.bed_target_temper.map(|v| v as f32),
+                    // print.print.bed_target_temper.map(|v| v as f32),
                 ));
+                if let Some(target) = print.print.bed_target_temper {
+                    out.push(PrinterStateUpdate::BedTempTarget(target as f32));
+                }
             }
 
             if let Some(p) = print.print.mc_percent {

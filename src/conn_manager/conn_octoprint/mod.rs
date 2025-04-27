@@ -92,11 +92,21 @@ impl OctoClientLocal {
 
         out.push(PrinterStateUpdate::BedTemp(
             printer_state.temperature.bed.actual,
-            printer_state.temperature.bed.target,
+            // printer_state.temperature.bed.target,
         ));
+        if let Some(t) = printer_state.temperature.bed.target {
+            out.push(PrinterStateUpdate::BedTempTarget(t));
+        }
 
         for (id, tool) in printer_state.temperature.tools {
-            out.push(PrinterStateUpdate::NozzleTemp(Some(id), tool.actual, tool.target));
+            // out.push(PrinterStateUpdate::NozzleTemp(Some(id), tool.actual, tool.target));
+            out.push(PrinterStateUpdate::NozzleTemp(
+                Some(id),
+                tool.actual,
+            ));
+            if let Some(t) = tool.target {
+                out.push(PrinterStateUpdate::NozzleTempTarget(Some(id), t));
+            }
         }
 
         // let flags = printer_state.state.flags;

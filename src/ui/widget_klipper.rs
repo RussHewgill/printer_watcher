@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Label, Layout, Response, RichText, Vec2};
+use egui::{Color32, Label, Layout, Response, RichText, Vec2};
 
 use crate::{
     config::printer_config::{PrinterConfigKlipper, PrinterType},
@@ -60,6 +60,7 @@ impl App {
             .size(egui_extras::Size::exact(thumbnail_height + 6.))
             // temperatures
             .size(egui_extras::Size::exact(26.))
+            .size(egui_extras::Size::exact(26.))
             // Title
             .size(egui_extras::Size::exact(text_size_title + 4.))
             // progress bar
@@ -95,6 +96,11 @@ impl App {
                     //     .with_cross_justify(true)
                     //     .with_main_justify(true)
                     //     .with_cross_align(egui::Align::Center);
+                });
+
+                /// bed temp, fans
+                strip.strip(|mut builder| {
+                    self.klipper_temperatures_row2(&status, layout, builder);
                 });
 
                 /// Title
@@ -302,21 +308,87 @@ impl App {
 }
 
 impl App {
+    fn klipper_temperatures_row2(
+        &self,
+
+        status: &GenericPrinterState,
+        layout: Layout,
+        builder: egui_extras::StripBuilder<'_>,
+    ) {
+        builder
+            // .sizes(egui_extras::Size::relative(1. / n as f32), n)
+            .size(egui_extras::Size::exact(22.))
+            .size(egui_extras::Size::exact(80.))
+            // .sizes(egui_extras::Size::exact(55.), n)
+            .horizontal(|mut strip| {
+                strip.cell(|ui| {
+                    ui.add(thumbnail_bed(status.bed_temp_target > 0.));
+                });
+                strip.cell(|ui| {
+                    let text = RichText::new(format!(
+                        "{:.1}°C/{:.0}",
+                        status.bed_temp, status.bed_temp_target
+                    ))
+                    .monospace()
+                    .size(11.);
+
+                    ui.label(text);
+                });
+            });
+    }
+
     fn klipper_temperatures_toolchanger(
         &self,
         status: &GenericPrinterState,
         layout: Layout,
-        font_size: f32,
+        _font_size: f32,
         builder: egui_extras::StripBuilder<'_>,
     ) {
         let n = status.nozzle_temps.len();
+        // debug!("Nozzles: {}", n);
         builder
             // .sizes(egui_extras::Size::relative(1. / n as f32), n)
-            .sizes(egui_extras::Size::exact(20.), n)
+            .size(egui_extras::Size::exact(22.))
+            .sizes(egui_extras::Size::exact(55.), n)
             .horizontal(|mut strip| {
+                strip.cell(|ui| {
+                    ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
+                });
+
                 for i in 0..n {
                     strip.cell(|ui| {
-                        ui.label(format!("{}", i + 1));
+                        let color = if Some(i) == status.current_tool {
+                            ui.style().visuals.selection.bg_fill
+                        } else {
+                            // ui.style().visuals.selection.bg_fill
+                            ui.style().visuals.widgets.noninteractive.bg_stroke.color
+                        };
+
+                        egui::Frame::group(ui.style())
+                            .inner_margin(0.)
+                            .outer_margin(0.)
+                            // .stroke((1., ui.style().visuals.widgets.noninteractive.bg_stroke.color))
+                            .stroke((2.0, color))
+                            .show(ui, |ui| {
+                                let t = status.nozzle_temps.get(&i).unwrap_or(&0.);
+                                // debug!("Nozzle {}: {}", i, t);
+
+                                let text =
+                                    RichText::new(format!("{:.1}°C", t)).monospace().size(11.);
+
+                                let text = if let Some(target) = status.nozzle_temps_target.get(&i)
+                                {
+                                    text.strong().color(Color32::from_rgb(251, 149, 20))
+                                } else {
+                                    text
+                                };
+
+                                ui.label(
+                                    // RichText::new(format!("{}:{:.1}°C", i, t))
+                                    text,
+                                );
+                                // ui.label(format!("{}", i + 1));
+                            });
                     });
                 }
             });

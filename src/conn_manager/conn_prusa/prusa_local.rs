@@ -195,11 +195,18 @@ impl PrusaClientLocal {
         out.push(PrinterStateUpdate::NozzleTemp(
             None,
             status.printer.temp_nozzle as f32,
-            Some(status.printer.target_nozzle as f32),
+            // Some(status.printer.target_nozzle as f32),
+        ));
+        out.push(PrinterStateUpdate::NozzleTempTarget(
+            None,
+            status.printer.target_nozzle as f32,
         ));
         out.push(PrinterStateUpdate::BedTemp(
             status.printer.temp_bed as f32,
-            Some(status.printer.target_bed as f32),
+            // Some(status.printer.target_bed as f32),
+        ));
+        out.push(PrinterStateUpdate::BedTempTarget(
+            status.printer.target_bed as f32,
         ));
 
         out.push(PrinterStateUpdate::CurrentFile(

@@ -459,10 +459,10 @@ impl App {
             panic!();
         };
 
-        let state = &status.state;
-        let bstate = status.state_bambu.as_ref().unwrap();
-        ui.label(format!("State: {:?}, {:?}", state, bstate.state));
-        // ui.label(format!("Bambu State: {:?}", bstate.state));
+        // let state = &status.state;
+        // let bstate = status.state_bambu.as_ref().unwrap();
+        // ui.label(format!("State: {:?}, {:?}", state, bstate.state));
+        // // ui.label(format!("Bambu State: {:?}", bstate.state));
 
         resp
     }

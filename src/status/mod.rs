@@ -1,5 +1,8 @@
 pub mod bambu_status;
 
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use tracing::{debug, error, info, trace, warn};
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -48,6 +51,8 @@ pub struct GenericPrinterState {
     pub bed_temp_target: f32,
     pub nozzle_temps: HashMap<usize, f32>,
     pub nozzle_temps_target: HashMap<usize, f32>,
+    pub current_tool: Option<usize>,
+    pub fan_speed: f32,
     pub layer: Option<(u32, u32)>,
     pub progress: f32,
     pub time_printing: Option<chrono::Duration>,
@@ -85,26 +90,49 @@ impl GenericPrinterState {
     fn _update(&mut self, update: PrinterStateUpdate) {
         match update {
             PrinterStateUpdate::State(state) => self.state = state,
-            PrinterStateUpdate::NozzleTemp(None, temp, target) => {
-                self.nozzle_temp = temp;
-                if let Some(target) = target {
-                    self.nozzle_temp_target = target;
-                }
+
+            // PrinterStateUpdate::NozzleTemp(None, temp, target) => {
+            //     self.nozzle_temp = temp;
+            //     if let Some(target) = target {
+            //         self.nozzle_temp_target = target;
+            //     }
+            // }
+            // PrinterStateUpdate::NozzleTemp(Some(idx), temp, target) => {
+            //     self.nozzle_temps.insert(idx, temp);
+            //     if let Some(target) = target {
+            //         debug!("Nozzle Target Temp {}: {}", idx, target);
+            //         if target <= 0.0 {
+            //             self.nozzle_temps_target.remove(&idx);
+            //         } else {
+            //             self.nozzle_temps_target.insert(idx, target);
+            //         }
+            //         // } else {
+            //         // self.nozzle_temps_target.remove(&idx);
+            //     }
+            // }
+            // PrinterStateUpdate::BedTemp(temp, target) => {
+            //     self.bed_temp = temp;
+            //     if let Some(target) = target {
+            //         self.bed_temp_target = target;
+            //     }
+            // }
+            PrinterStateUpdate::NozzleTemp(None, temp) => self.nozzle_temp = temp,
+            PrinterStateUpdate::NozzleTemp(Some(t), temp) => {
+                self.nozzle_temps.insert(t, temp);
             }
-            PrinterStateUpdate::NozzleTemp(Some(idx), temp, target) => {
-                self.nozzle_temps.insert(idx, temp);
-                if let Some(target) = target {
-                    self.nozzle_temps_target.insert(idx, target);
+
+            PrinterStateUpdate::NozzleTempTarget(None, temp) => self.nozzle_temp_target = temp,
+            PrinterStateUpdate::NozzleTempTarget(Some(t), temp) => {
+                if temp <= 0.0 {
+                    self.nozzle_temps_target.remove(&t);
                 } else {
-                    self.nozzle_temps_target.remove(&idx);
+                    self.nozzle_temps_target.insert(t, temp);
                 }
             }
-            PrinterStateUpdate::BedTemp(temp, target) => {
-                self.bed_temp = temp;
-                if let Some(target) = target {
-                    self.bed_temp_target = target;
-                }
-            }
+
+            PrinterStateUpdate::BedTemp(temp) => self.bed_temp = temp,
+            PrinterStateUpdate::BedTempTarget(temp) => self.bed_temp_target = temp,
+
             PrinterStateUpdate::Progress(progress) => self.progress = progress,
             PrinterStateUpdate::ProgressLayers(current, total) => {
                 self.layer = Some((current, total))
@@ -112,7 +140,10 @@ impl GenericPrinterState {
             PrinterStateUpdate::CurrentFile(file) => self.current_file = Some(file),
             PrinterStateUpdate::TimeRemaining(time) => self.time_remaining = Some(time),
             PrinterStateUpdate::WifiSignal(strength) => self.wifi_signal = Some(strength),
-            _ => tracing::warn!("GenericPrinterState::_update TODO: {:?}", update),
+            // _ => tracing::warn!("GenericPrinterState::_update TODO: {:?}", update),
+            PrinterStateUpdate::CurrentTool(tool) => self.current_tool = tool,
+            PrinterStateUpdate::FanSetting(s) => self.fan_speed = s,
+            PrinterStateUpdate::Duration(_) => todo!(),
         }
     }
 
@@ -160,14 +191,18 @@ impl GenericPrinterState {
 #[derive(Debug, Clone)]
 pub enum PrinterStateUpdate {
     State(PrinterState),
-    NozzleTemp(Option<usize>, f32, Option<f32>),
-    BedTemp(f32, Option<f32>),
+    NozzleTemp(Option<usize>, f32),
+    NozzleTempTarget(Option<usize>, f32),
+    BedTemp(f32),
+    BedTempTarget(f32),
     Progress(f32),
     ProgressLayers(u32, u32),
     Duration(chrono::Duration),
     TimeRemaining(chrono::Duration),
     CurrentFile(String),
     WifiSignal(i32),
+    CurrentTool(Option<usize>),
+    FanSetting(f32),
 }
 
 #[derive(Debug, Default, Clone)]

@@ -72,10 +72,10 @@ impl App {
             .size(egui_extras::Size::exact(26.))
             // ETA
             .size(egui_extras::Size::exact(text_size_eta + 2.))
-            // AMS
-            .size(egui_extras::Size::exact(text_size_temps + 2.))
-            .size(egui_extras::Size::exact(text_size_temps + 2.))
-            // .size(egui_extras::Size::initial(10.))
+            // Tools (Placeholder)
+            .size(egui_extras::Size::exact(text_size_temps + 6.))
+            // .size(egui_extras::Size::exact(text_size_temps + 2.))
+            .size(egui_extras::Size::exact(text_size_temps + 6.))
             .vertical(|mut strip| {
                 /// thumbnail/webcam
                 strip.cell(|ui| {

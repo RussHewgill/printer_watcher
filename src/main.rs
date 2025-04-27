@@ -372,7 +372,7 @@ async fn main() -> Result<()> {
 
 /// Klipper test
 #[tokio::main]
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -412,7 +412,7 @@ async fn main() -> Result<()> {
 
 /// MARK: Main
 #[allow(unreachable_code)]
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
