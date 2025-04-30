@@ -459,6 +459,13 @@ impl App {
             panic!();
         };
 
+        let ams_status = status.state_bambu.as_ref().unwrap().ams_status.as_ref();
+        ui.label(format!("ams_status: {:?}", ams_status));
+
+        // let ams = status.state_bambu.as_ref().unwrap().ams.as_ref().unwrap();
+
+        // debug!("ams: {:#?}", ams);
+
         // let state = &status.state;
         // let bstate = status.state_bambu.as_ref().unwrap();
         // ui.label(format!("State: {:?}, {:?}", state, bstate.state));

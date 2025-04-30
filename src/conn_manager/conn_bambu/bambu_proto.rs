@@ -191,6 +191,8 @@ impl BambuClient {
         mqttoptions.set_transport(transport);
         // mqttoptions.set_clean_session(true);
 
+        mqttoptions.set_max_packet_size(100 * 1024, 100 * 1024);
+
         debug!("connecting, printer = {}", &printer.name);
         let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
         debug!("connected, printer = {}", &printer.name);

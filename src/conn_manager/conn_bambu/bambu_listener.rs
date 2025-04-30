@@ -158,6 +158,8 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
     let out = match msg {
         // Message::Print(print) => todo!(),
         Message::Print(print) => {
+            // trace!("Got print message: {:#?}", print);
+
             let mut out = vec![];
 
             let time_remaining = print

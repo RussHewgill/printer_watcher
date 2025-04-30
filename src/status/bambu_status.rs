@@ -19,6 +19,8 @@ pub struct PrinterStateBambu {
     pub stage: Option<i64>,
     pub sub_stage: Option<i64>,
 
+    pub device: Device,
+
     pub stg: Vec<i64>,
     pub stg_cur: i64,
 
@@ -218,7 +220,10 @@ impl PrinterStateBambu {
             self.ams_status = Some(s);
         }
 
+        // if let Some(d) = report.dev
+
         if let Some(ams) = report.ams.as_ref() {
+            // debug!("ams = {:#?}", ams);
             self.ams = Some(self.update_ams(ams, self.ams_status)?);
         }
 
@@ -380,6 +385,7 @@ pub enum BambuPrinterType {
     P1S,
     A1,
     A1m,
+    H2D,
     Unknown,
 }
 
@@ -621,6 +627,43 @@ pub enum AmsState {
     Debug,
     /// 0xFF
     Unknown,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct Device {
+    // pub airduct: Option<Airduct>,
+    // pub bed_temp: Option<i64>,
+    // pub cam: Option<Cam>,
+    // pub cham_temp: Option<i64>,
+    // pub ext_tool: Option<ExtTool>,
+    pub extruder: Option<Extruder>,
+    // pub fan: Option<i64>,
+    // pub laser: Option<LaserPower>,
+    // pub nozzle: Option<Nozzle>,
+    // pub plate: Option<Plate>,
+    // #[serde(rename = "type")]
+    // pub type_field: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Extruder {
+    pub info: Vec<ExtruderInfo>,
+    pub state: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ExtruderInfo {
+    pub filam_bak: Option<Vec<serde_json::Value>>, // Use specific struct if structure is known
+    pub hnow: Option<i64>,
+    pub hpre: Option<i64>,
+    pub htar: Option<i64>,
+    pub id: Option<i64>,
+    pub info: Option<i64>,
+    pub snow: Option<i64>,
+    pub spre: Option<i64>,
+    pub star: Option<i64>,
+    pub stat: Option<i64>,
+    pub temp: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]

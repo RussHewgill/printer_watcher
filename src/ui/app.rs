@@ -82,6 +82,11 @@ impl App {
             Self::default()
         };
 
+        /// fake printers for testing
+        {
+            // crate::fake_printer::fake_printer(&config, printer_states.clone());
+        }
+
         out.config = config;
         out.printer_states = printer_states;
 

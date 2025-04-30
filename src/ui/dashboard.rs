@@ -138,7 +138,23 @@ impl App {
                     return;
                 };
 
-                self.show_printer_bambu(ui, pos, &printer);
+                let Some(status) = self.printer_states.get(&printer.id) else {
+                    warn!("Printer not found: {:?}", printer.id);
+                    panic!();
+                };
+
+                let Some(bs) = status.state_bambu.as_ref() else {
+                    warn!("Printer not found: {:?}", printer.id);
+                    panic!();
+                };
+
+                if let Some(bambu_type) = bs.printer_type {
+                    drop(status);
+                    self.show_printer_bambu_v2(ui, pos, &printer);
+                } else {
+                    drop(status);
+                    self.show_printer_bambu(ui, pos, &printer);
+                }
             }
             PrinterConfig::Klipper(id, printer) => {
                 let Ok(printer) = printer.try_read() else {

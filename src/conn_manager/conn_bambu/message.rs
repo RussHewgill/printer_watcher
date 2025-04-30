@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum Message {
     Print(Print),
@@ -17,12 +17,12 @@ pub enum Message {
     Disconnected,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct Print {
     pub print: PrintData,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct PrintData {
     pub upload: Option<PrintUpload>,
     pub nozzle_diameter: Option<String>,
@@ -85,6 +85,7 @@ pub struct PrintData {
     pub command: Option<String>,
     pub msg: Option<i64>,
     pub sequence_id: Option<String>,
+    pub device: Option<crate::status::bambu_status::Device>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
