@@ -125,6 +125,11 @@ impl App {
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
         cc.egui_ctx.set_fonts(fonts);
 
+        cc.egui_ctx
+            .send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::Vec2::new(
+                1150., 860.,
+            )));
+
         out
     }
 }

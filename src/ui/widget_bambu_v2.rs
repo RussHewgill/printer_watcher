@@ -57,9 +57,10 @@ impl App {
             .clip(true)
             .cell_layout(layout)
             // thumbnail
-            // .size(egui_extras::Size::exact(thumbnail_height + 6.))
-            .size(egui_extras::Size::exact(26.))
+            .size(egui_extras::Size::exact(thumbnail_height + 6.))
+            // .size(egui_extras::Size::exact(26.))
             // temperatures
+            .size(egui_extras::Size::exact(26.))
             .size(egui_extras::Size::exact(26.))
             // Title
             .size(egui_extras::Size::exact(text_size_title + 4.))
@@ -152,8 +153,119 @@ impl App {
                         });
                 });
 
+                /// temperatures 1: nozzles, bed
+                strip.strip(|mut builder| {
+                    let font_size = 11.5;
+
+                    let Some(bambu) = &status.state_bambu else {
+                        error!("Bambu state not found: {:?}", printer.id);
+                        panic!();
+                    };
+
+                    let Some(extruder) = bambu.device.extruder.as_ref() else {
+                        // error!("Extruder not found: {:?}", printer.id);
+                        // panic!();
+                        return;
+                    };
+                    let Some(nozzle_state) = extruder.get_state() else {
+                        // error!("Nozzle state not found: {:?}", printer.id);
+                        // panic!();
+                        return;
+                    };
+
+                    builder
+                        .size(egui_extras::Size::relative(0.4))
+                        .size(egui_extras::Size::relative(0.35))
+                        .size(egui_extras::Size::remainder())
+                        .cell_layout(layout)
+                        .horizontal(|mut strip| {
+                            let left = &extruder.info[0];
+                            let right = &extruder.info[1];
+
+                            let current_nozzle = match nozzle_state {
+                                crate::status::bambu_status::H2DNozzleState::Left => "L",
+                                crate::status::bambu_status::H2DNozzleState::Right => "R",
+                                crate::status::bambu_status::H2DNozzleState::Other(_) => "_",
+                            };
+
+                            strip.cell(|ui| {
+                                // ui.ctx().debug_painter().debug_rect(
+                                //     ui.max_rect(),
+                                //     Color32::GREEN,
+                                //     "",
+                                // );
+                                ui.horizontal(|ui| {
+                                    ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
+                                    ui.add(
+                                        Label::new(
+                                            // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
+                                            RichText::new(format!(
+                                                "[{}] {:.1}°C/{}",
+                                                current_nozzle,
+                                                status.nozzle_temp,
+                                                status.nozzle_temp_target as i64 // 500.0,
+                                                                                 // 500.0,
+                                            ))
+                                            .strong()
+                                            .size(font_size),
+                                        )
+                                        .truncate(),
+                                    );
+                                });
+                            });
+
+                            strip.cell(|ui| {
+                                // ui.ctx().debug_painter().debug_rect(
+                                //     ui.max_rect(),
+                                //     Color32::RED,
+                                //     "",
+                                // );
+                                ui.horizontal(|ui| {
+                                    ui.add(thumbnail_bed(status.bed_temp_target > 0.));
+                                    ui.add(
+                                        Label::new(
+                                            RichText::new(format!(
+                                                "{:.1}°C/{}",
+                                                status.bed_temp,
+                                                status.bed_temp_target as i64 // 500.0,
+                                                                              // 500,
+                                            ))
+                                            .strong()
+                                            .size(font_size),
+                                        )
+                                        .truncate(),
+                                    );
+                                });
+                            });
+
+                            strip.cell(|ui| {
+                                // ui.ctx().debug_painter().debug_rect(
+                                //     ui.max_rect(),
+                                //     Color32::BLUE,
+                                //     "",
+                                // );
+                                ui.horizontal(|ui| {
+                                    ui.add(thumbnail_chamber());
+                                    ui.label(
+                                        RichText::new(format!(
+                                            // "--",
+                                            "{}°C/{}",
+                                            status.chamber_temp as i64,
+                                            status.chamber_temp_target.unwrap_or(0.) as i64
+                                        ))
+                                        .strong()
+                                        .size(font_size),
+                                    );
+                                });
+                            });
+
+                            //
+                        });
+                });
+
+                /// temperatures 2: chamber, fans
                 strip.cell(|ui| {
-                    ui.label("TODO: Temperatures/Fans");
+                    ui.label("TODO: Temperatures/Fans 2");
                 });
 
                 /// Title
@@ -292,7 +404,7 @@ impl App {
                 /// AMS
                 strip.cell(|ui| {
                     // ui.label("TODO: AMS");
-                    // self.show_ams(ui, printer);
+                    self.show_ams_h2d(ui, printer);
                     // ui.ctx()
                     //     .debug_painter()
                     //     .debug_rect(ui.max_rect(), Color32::RED, "");
@@ -317,23 +429,91 @@ impl App {
             return;
         };
 
-        let Some(ams) = &bambu.ams else {
-            error!("AMS not found: {:?}", printer.id);
-            return;
-        };
+        // let Some(ams) = &bambu.ams else {
+        //     error!("AMS not found: {:?}", printer.id);
+        //     return;
+        // };
 
         let size = 62.;
 
-        paint_ams_h2d(ui, size, ams);
+        paint_ams_h2d(ui, size, bambu);
     }
 }
 
+/// pretend that the configuration will always be one (external spool or AMS HT) + 1 AMS
 // #[cfg(feature = "nope")]
 fn paint_ams_h2d(
     ui: &mut egui::Ui,
     size: f32,
     // size: f32,
-    ams: &AmsStatus,
+    // ams: &AmsStatus,
+    bambu: &crate::status::bambu_status::PrinterStateBambu,
 ) {
-    unimplemented!()
+    let layout = Layout::left_to_right(egui::Align::Center)
+        .with_cross_justify(true)
+        .with_main_justify(true)
+        .with_cross_align(egui::Align::Center);
+
+    // let x = bambu
+    //     .ams
+    //     .as_ref()
+    //     .and_then(|a| a.units.get(&0).cloned())
+    //     .and_then(|u| u.info);
+    // debug!("AMS unit: {:?}", x);
+
+    let Some(ams) = bambu.ams.as_ref() else {
+        // warn!("AMS not found");
+        return;
+    };
+
+    let external_left = bambu
+        .vir_slot
+        .as_ref()
+        .and_then(|v| v.get(0))
+        .map(|v| &v.tray_color);
+
+    let external_left = bambu
+        .vir_slot
+        .as_ref()
+        .and_then(|v| v.get(1))
+        .map(|v| &v.tray_color);
+
+    /// info = 1003 = right AMS 2
+    /// info = 1103 = left AMS 2
+    ///
+    /// 1001 = right AMS 1
+    /// 1101 = left AMS 1
+    egui_extras::StripBuilder::new(ui)
+        .clip(true)
+        .cell_layout(layout)
+        .sizes(egui_extras::Size::relative(0.5), 2)
+        .horizontal(|mut strip| {
+            strip.cell(|ui| {
+                // ui.label("Left");
+                // ui.ctx()
+                //     .debug_painter()
+                //     .debug_rect(ui.max_rect(), Color32::RED, "");
+
+                let size = Vec2::new(ui.available_width(), size);
+                let (response, painter) = ui.allocate_painter(size, Sense::hover());
+
+                // _draw_ams_h2d(&painter, bambu);
+            });
+
+            strip.cell(|ui| {
+                // ui.label("Right");
+
+                // ui.ctx()
+                //     .debug_painter()
+                //     .debug_rect(ui.max_rect(), Color32::GREEN, "");
+            });
+        });
+}
+
+fn _draw_ams_h2d(
+    painter: &egui::Painter,
+    bambu: &crate::status::bambu_status::PrinterStateBambu,
+    //
+) {
+    // unimplemented!()
 }

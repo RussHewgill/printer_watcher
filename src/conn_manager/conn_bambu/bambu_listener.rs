@@ -87,9 +87,9 @@ impl BambuListener {
                         debug!("sending pushall");
                         self.send_pushall().await?;
                         debug!("sent");
-                        // debug!("sending get version");
-                        // self.send_get_version().await?;
-                        // debug!("sent");
+                        debug!("sending get version");
+                        self.send_get_version().await?;
+                        debug!("sent");
                     }
                 }
                 Event::Incoming(Incoming::Publish(p)) => {
@@ -232,6 +232,16 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
                 }
             }
 
+            if let Some(t) = print.print.chamber_temper {
+                out.push(PrinterStateUpdate::ChamberTemp(
+                    t as f32,
+                    // print.print.bed_target_temper.map(|v| v as f32),
+                ));
+                // if let Some(target) = print.print.chamber_target_temper {
+                //     out.push(PrinterStateUpdate::ChamberTempTarget(target as f32));
+                // }
+            }
+
             if let Some(p) = print.print.mc_percent {
                 out.push(PrinterStateUpdate::Progress(p as f32));
             }
@@ -260,9 +270,13 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
 
             let modules = info.info.module.clone();
 
-            let bt = get_bambu_type(&modules);
-
-            None
+            if let Some(bt) = get_bambu_type(&modules) {
+                debug!("Bambu type: {:?}", bt);
+                Some(WorkerMsg::SetBambuType(bt))
+            } else {
+                debug!("Bambu type: Unknown");
+                None
+            }
         }
         Message::System(msg) => {
             warn!("Unhandled System message: {:?}", msg);
@@ -284,7 +298,12 @@ fn get_bambu_type(modules: &[super::message::InfoModule]) -> Option<BambuPrinter
     let mut out = None;
 
     for m in modules.iter() {
-        debug!("Module: {:#?}", m);
+        // debug!("Module: {:#?}", m);
+        if m.name == "mc" {
+            if m.hw_ver == "MC09" {
+                return Some(BambuPrinterType::H2D);
+            }
+        }
     }
 
     out

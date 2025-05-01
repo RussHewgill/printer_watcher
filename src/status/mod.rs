@@ -52,6 +52,8 @@ pub struct GenericPrinterState {
     pub bed_temp_target: f32,
     pub nozzle_temps: HashMap<usize, f32>,
     pub nozzle_temps_target: HashMap<usize, f32>,
+    pub chamber_temp: f32,
+    pub chamber_temp_target: Option<f32>,
     pub current_tool: Option<usize>,
     pub fan_speed: f32,
     pub layer: Option<(u32, u32)>,
@@ -134,6 +136,15 @@ impl GenericPrinterState {
             PrinterStateUpdate::BedTemp(temp) => self.bed_temp = temp,
             PrinterStateUpdate::BedTempTarget(temp) => self.bed_temp_target = temp,
 
+            PrinterStateUpdate::ChamberTemp(temp) => self.chamber_temp = temp,
+            PrinterStateUpdate::ChamberTempTarget(temp) => {
+                if let Some(temp) = temp {
+                    self.chamber_temp_target = Some(temp);
+                } else {
+                    self.chamber_temp_target = None;
+                }
+            }
+
             PrinterStateUpdate::Progress(progress) => self.progress = progress,
             PrinterStateUpdate::ProgressLayers(current, total) => {
                 self.layer = Some((current, total))
@@ -196,6 +207,8 @@ pub enum PrinterStateUpdate {
     NozzleTempTarget(Option<usize>, f32),
     BedTemp(f32),
     BedTempTarget(f32),
+    ChamberTemp(f32),
+    ChamberTempTarget(Option<f32>),
     Progress(f32),
     ProgressLayers(u32, u32),
     Duration(chrono::Duration),

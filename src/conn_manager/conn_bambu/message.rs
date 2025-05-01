@@ -79,6 +79,8 @@ pub struct PrintData {
     pub online: Option<PrintOnline>,
     pub ams: Option<PrintAms>,
     pub ipcam: Option<PrintIpcam>,
+    // pub vir_slot: Option<VirtualSlot>,
+    pub vir_slot: Option<Vec<VirtualSlotItem>>,
     pub vt_tray: Option<PrintVtTray>,
     pub lights_report: Option<Vec<PrintLightsReport>>,
     pub upgrade_state: Option<PrintUpgradeState>,
@@ -125,6 +127,7 @@ pub struct PrintAmsData {
     pub id: String,
     pub humidity: String,
     pub temp: String,
+    pub info: Option<String>,
     pub tray: Vec<PrintTray>,
 }
 
@@ -158,6 +161,34 @@ pub struct PrintIpcam {
     pub ipcam_record: Option<String>,
     pub timelapse: Option<String>,
     pub mode_bits: Option<i64>,
+}
+
+// Add the new struct for items within the vir_slot array
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VirtualSlotItem {
+    pub bed_temp: String,
+    pub bed_temp_type: String,
+    pub cali_idx: i64,
+    pub cols: Vec<String>,
+    pub ctype: i64,
+    pub drying_temp: String,
+    pub drying_time: String,
+    pub id: String,
+    pub nozzle_temp_max: String,
+    pub nozzle_temp_min: String,
+    pub remain: i64,
+    pub tag_uid: String,
+    pub total_len: i64,
+    pub tray_color: String,
+    pub tray_diameter: String,
+    pub tray_id_name: String,
+    pub tray_info_idx: String,
+    pub tray_sub_brands: String,
+    pub tray_type: String,
+    pub tray_uuid: String,
+    pub tray_weight: String,
+    pub xcam_info: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

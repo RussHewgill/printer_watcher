@@ -11,6 +11,7 @@ pub enum WorkerMsg {
     StatusUpdate(GenericPrinterStateUpdate),
     StatusUpdatePrusa(super::conn_prusa::prusa_local_types::PrusaStatus),
     StatusUpdateBambu(crate::status::bambu_status::PrinterStateBambu),
+    SetBambuType(crate::status::bambu_status::BambuPrinterType),
     FetchedThumbnail(PrinterId, String, Vec<u8>),
 
     Connecting,
@@ -115,6 +116,5 @@ impl WorkerMsg {
 
 #[cfg(feature = "nope")]
 impl From<super::conn_bambu::message::Message> for WorkerMsg {
-    fn from(msg: super::conn_bambu::message::Message) -> Self {
-    }
+    fn from(msg: super::conn_bambu::message::Message) -> Self {}
 }

@@ -3,9 +3,9 @@ use tracing::{debug, error, info, trace, warn};
 
 use std::{collections::HashMap, time::Instant};
 
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 
-use crate::conn_manager::conn_bambu::message::{PrintAms, PrintData};
+use crate::conn_manager::conn_bambu::message::{PrintAms, PrintData, PrintVtTray, VirtualSlotItem};
 
 use super::PrinterState;
 
@@ -29,6 +29,9 @@ pub struct PrinterStateBambu {
 
     pub ams: Option<AmsStatus>,
     pub ams_status: Option<i64>,
+
+    pub vt_tray: Option<PrintVtTray>,
+    pub vir_slot: Option<Vec<VirtualSlotItem>>,
 
     pub current_file: Option<String>,
     pub subtask_id: Option<String>,
@@ -230,6 +233,16 @@ impl PrinterStateBambu {
             self.ams = Some(self.update_ams(ams, self.ams_status)?);
         }
 
+        if let Some(v) = report.vir_slot.as_ref() {
+            // debug!("vir_slot = {:#?}", v);
+            self.vir_slot = Some(v.clone());
+        }
+
+        if let Some(v) = report.vt_tray.as_ref() {
+            // debug!("vt_tray = {:#?}", v);
+            self.vt_tray = Some(v.clone());
+        }
+
         Ok(())
     }
 
@@ -277,6 +290,8 @@ impl PrinterStateBambu {
 
                 let id = unit.id.parse::<i64>()?;
 
+                let info = unit.info.as_ref().and_then(|i| i.parse::<i64>().ok());
+
                 // out.units.push(AmsUnit {
                 //     id,
                 //     humidity: unit.humidity.parse().unwrap_or(0),
@@ -287,6 +302,7 @@ impl PrinterStateBambu {
                     id,
                     AmsUnit {
                         id,
+                        info,
                         humidity: unit.humidity.parse().unwrap_or(0),
                         temp: unit.temp.parse().unwrap_or(0.),
                         slots,
@@ -457,6 +473,7 @@ pub struct AmsUnit {
     pub id: i64,
     pub humidity: i64,
     pub temp: f64,
+    pub info: Option<i64>,
     pub slots: [Option<AmsSlot>; 4],
 }
 
@@ -651,7 +668,25 @@ pub struct Device {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Extruder {
     pub info: Vec<ExtruderInfo>,
-    pub state: Option<i64>,
+    state: Option<i64>,
+}
+
+impl Extruder {
+    pub fn get_state(&self) -> Option<H2DNozzleState> {
+        match self.state {
+            Some(2) => Some(H2DNozzleState::Left),
+            Some(274) => Some(H2DNozzleState::Right),
+            Some(s) => Some(H2DNozzleState::Other(s)),
+            None => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum H2DNozzleState {
+    Left,
+    Right,
+    Other(i64),
 }
 
 #[derive(Debug, Clone, Deserialize)]

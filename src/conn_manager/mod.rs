@@ -309,8 +309,32 @@ impl PrinterConnManager {
                 // self.msg_tx.send(PrinterConnMsg::WorkerMsg(id, msg))?;
             }
             WorkerMsg::StatusUpdateBambu(update) => {
+                // debug!("updating bambu state");
                 let mut state = self.printer_states.entry(id.clone()).or_default();
+                let bt = state
+                    .state_bambu
+                    .as_ref()
+                    .and_then(|bs| bs.printer_type.clone());
                 state.update_bambu(update);
+                if let Some(bt) = bt {
+                    state
+                        .state_bambu
+                        .as_mut()
+                        .map(|bs| bs.printer_type = Some(bt));
+                }
+            }
+
+            WorkerMsg::SetBambuType(t) => {
+                debug!("setting bambu type: {:?}", t);
+                let mut state = self.printer_states.entry(id.clone()).or_default();
+                if let Some(bs) = state.state_bambu.as_mut() {
+                    bs.printer_type = Some(t);
+                } else {
+                    state.state_bambu = Some(crate::status::bambu_status::PrinterStateBambu {
+                        printer_type: Some(t),
+                        ..Default::default()
+                    });
+                }
             }
 
             WorkerMsg::FetchedThumbnail(id, file, img) => {

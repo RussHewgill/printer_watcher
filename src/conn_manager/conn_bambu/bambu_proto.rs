@@ -221,7 +221,9 @@ impl BambuClient {
         let topic_report = self.topic_device_report.clone();
         let topic_request = self.topic_device_request.clone();
 
-        self.publish(Command::GetVersion).await?;
+        // if let Err(e) = self.publish(Command::GetVersion).await {
+        //     error!("Error publishing command: {:?}", e);
+        // }
 
         tokio::task::spawn(async move {
             let mut listener = BambuListener::new(
@@ -232,6 +234,7 @@ impl BambuClient {
                 topic_report,
                 topic_request,
             );
+
             loop {
                 tokio::select! {
                     _ = &mut kill_rx => {
