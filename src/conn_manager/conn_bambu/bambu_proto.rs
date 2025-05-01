@@ -220,6 +220,9 @@ impl BambuClient {
         let tx2 = self.tx.clone();
         let topic_report = self.topic_device_report.clone();
         let topic_request = self.topic_device_request.clone();
+
+        self.publish(Command::GetVersion).await?;
+
         tokio::task::spawn(async move {
             let mut listener = BambuListener::new(
                 config2,

@@ -74,8 +74,8 @@ fn _parse_ams_status(status_code: i64) -> (i64, AmsState) {
     let ams_status_sub = status_code & 0xFF;
     let ams_status_main_int = (status_code & 0xFF00) >> 8;
 
-    debug!("ams_status_sub: {:#?}", ams_status_sub);
-    debug!("ams_status_main_int: {:#?}", ams_status_main_int);
+    // debug!("ams_status_sub: {:#?}", ams_status_sub);
+    // debug!("ams_status_main_int: {:#?}", ams_status_main_int);
 
     let state = match ams_status_main_int {
         0 => AmsState::Idle,

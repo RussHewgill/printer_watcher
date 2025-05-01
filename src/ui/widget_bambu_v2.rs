@@ -12,7 +12,7 @@ use super::{
 };
 use crate::{
     config::printer_config::{PrinterConfigBambu, PrinterType},
-    status::GenericPrinterState,
+    status::{bambu_status::AmsStatus, GenericPrinterState},
 };
 
 impl App {
@@ -57,7 +57,8 @@ impl App {
             .clip(true)
             .cell_layout(layout)
             // thumbnail
-            .size(egui_extras::Size::exact(thumbnail_height + 6.))
+            // .size(egui_extras::Size::exact(thumbnail_height + 6.))
+            .size(egui_extras::Size::exact(26.))
             // temperatures
             .size(egui_extras::Size::exact(26.))
             // Title
@@ -316,23 +317,23 @@ impl App {
             return;
         };
 
-        // let Some(ams) = &bambu.status.print.ams else {
-        //     error!("AMS not found: {:?}", printer.id);
-        //     return;
-        // };
+        let Some(ams) = &bambu.ams else {
+            error!("AMS not found: {:?}", printer.id);
+            return;
+        };
 
-        // let size = 62.;
+        let size = 62.;
 
-        // paint_ams_h2d(ui, size, ams);
+        paint_ams_h2d(ui, size, ams);
     }
 }
 
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn paint_ams_h2d(
     ui: &mut egui::Ui,
     size: f32,
     // size: f32,
-    ams: &crate::status::bambu_status::Ams,
+    ams: &AmsStatus,
 ) {
     unimplemented!()
 }

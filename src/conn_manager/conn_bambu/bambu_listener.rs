@@ -12,8 +12,8 @@ use crate::{
         worker_message::WorkerMsg,
     },
     status::{
-        bambu_status::PrinterStateBambu, GenericPrinterStateUpdate, PrinterState,
-        PrinterStateUpdate,
+        bambu_status::{BambuPrinterType, PrinterStateBambu},
+        GenericPrinterStateUpdate, PrinterState, PrinterStateUpdate,
     },
 };
 
@@ -256,7 +256,12 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
             Some(WorkerMsg::StatusUpdate(GenericPrinterStateUpdate(out)))
         }
         Message::Info(info) => {
-            warn!("Unhandled Info message: {:?}", info);
+            // warn!("Unhandled Info message: {:?}", info);
+
+            let modules = info.info.module.clone();
+
+            let bt = get_bambu_type(&modules);
+
             None
         }
         Message::System(msg) => {
@@ -273,4 +278,14 @@ fn bambu_to_workermsg(msg: Message) -> Result<Option<WorkerMsg>> {
         Message::Disconnected => Some(WorkerMsg::Disconnected),
     };
     Ok(out)
+}
+
+fn get_bambu_type(modules: &[super::message::InfoModule]) -> Option<BambuPrinterType> {
+    let mut out = None;
+
+    for m in modules.iter() {
+        debug!("Module: {:#?}", m);
+    }
+
+    out
 }

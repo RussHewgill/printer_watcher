@@ -220,7 +220,10 @@ impl PrinterStateBambu {
             self.ams_status = Some(s);
         }
 
-        // if let Some(d) = report.dev
+        if let Some(d) = report.device.as_ref() {
+            // debug!("device = {:#?}", d);
+            self.device = d.clone();
+        }
 
         if let Some(ams) = report.ams.as_ref() {
             // debug!("ams = {:#?}", ams);
