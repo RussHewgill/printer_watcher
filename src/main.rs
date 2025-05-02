@@ -1123,6 +1123,7 @@ fn main() -> eframe::Result<()> {
             // .with_icon(icon)
             .with_inner_size([850.0, 750.0])
             .with_min_inner_size([550.0, 400.0]),
+        renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
 
@@ -1220,6 +1221,58 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// GStreamer test
+#[cfg(feature = "nope")]
+fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    // // Create a GLib Main Context and Main Loop for this thread
+    // let main_context = glib::MainContext::new();
+    // let main_loop = glib::MainLoop::new(Some(&main_context), false);
+
+    crate::streaming::gstreamer_bambu::test_gstreamer().unwrap();
+
+    Ok(())
+}
+
+/// Retina test
+#[cfg(feature = "nope")]
+// #[tokio::main]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    let url = url::Url::parse("rtsps://192.168.0.23/streaming/live/1").unwrap();
+
+    debug!("url = {:?}", url);
+
+    let session_group = Arc::new(retina::client::SessionGroup::default());
+
+    let creds = retina::client::Credentials {
+        username: "bblp".to_string(),
+        password: env::var("RTSP_PASS").unwrap(),
+    };
+
+    let mut session = retina::client::Session::describe(
+        url,
+        retina::client::SessionOptions::default()
+            .creds(Some(creds))
+            .session_group(session_group.clone())
+            // .teardown(opts.teardown)
+            .user_agent("Retina jpeg example".to_owned()),
+    )
+    .await?;
+
+    debug!("got session");
+
+    for stream in session.streams().iter() {
+        debug!("stream = {:?}", stream);
+    }
+
+    Ok(())
+}
+
 /// video widget test
 #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
@@ -1231,16 +1284,19 @@ fn main() -> eframe::Result<()> {
             // .with_icon(icon)
             .with_inner_size([850.0, 750.0])
             .with_min_inner_size([550.0, 400.0]),
+        renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
 
     let (stream_tx, stream_rx) = tokio::sync::mpsc::unbounded_channel::<streaming::StreamCmd>();
+    let stream_tx2 = stream_tx.clone();
+    // let stream_rx2 = stream_rx.clone();
 
     debug!("spawning tokio runtime");
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
-            let mut stream_manager = streaming::StreamManager::new(stream_rx);
+            let mut stream_manager = streaming::StreamManager::new(stream_tx2, stream_rx);
 
             debug!("starting stream manager");
             loop {
@@ -1259,9 +1315,9 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            Box::new(ui::video_player::test_player::TestVideoApp::new(
+            Ok(Box::new(ui::video_player::test_player::TestVideoApp::new(
                 cc, stream_tx,
-            ))
+            )))
         }),
     )
 }

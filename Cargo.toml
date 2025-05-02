@@ -8,7 +8,15 @@ debug = true
 
 [features]
 default = []
-rtsp = ["ffmpeg-next"]
+# default = ["retina"]
+# default = ["gstreamer"]
+# default = ["rtsp"]
+# rtsp = ["ffmpeg-next"]
+retina = ["dep:retina"]
+# retina = ["dep:retina", "rtsp"]
+# rtsp = []
+rtsp = ["ffmpeg-the-third"]
+gstreamer = ["dep:gstreamer", "gstreamer-app", "gstreamer-video", "glib"]
 
 [build-dependencies]
 dotenvy = "0.15.0"
@@ -80,12 +88,12 @@ base64 = "0.22.1"
 regex = "1.11.0"
 # strum = { version = "0.26.2", features = ["derive"] }
 
-retina = "0.4.8"
+retina = { version = "0.4.13", optional = true }
 
 # notify-rust = { version = "4.11.0", features = ["async"] }
 
 egui = "0.31.1"
-eframe = { version = "0.31.1", features = ["persistence"] }
+eframe = { version = "0.31.1", features = ["persistence", "wgpu"] }
 egui_extras = { version = "0.31.1", features = [
     "file",
     "image",
@@ -93,7 +101,8 @@ egui_extras = { version = "0.31.1", features = [
     "http",
 ] }
 egui-phosphor = { version = "0.9.0", features = ["fill"] }
-ffmpeg-next = { version = "7.0.2", optional = true }
+# ffmpeg-next = { version = "7.0.2", optional = true }
+ffmpeg-the-third = { version = "3.0.1", optional = true }
 image = { version = "0.25.6", features = ["jpeg", "png", "pnm"] }
 pretty-hex = "0.4.1"
 bytes = "1.6.0"
@@ -115,6 +124,11 @@ notify-rust = { version = "4.11.3", features = ["async"] }
 #     "tabs",
 # "grid",
 # ] }
+
+glib = { version = "0.20.9", optional = true }
+gstreamer = { version = "0.23.5", optional = true }
+gstreamer-app = { version = "0.23.5", optional = true }
+gstreamer-video = { version = "0.23.5", optional = true }
 
 [patch.crates-io]
 

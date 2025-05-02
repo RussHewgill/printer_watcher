@@ -3,12 +3,15 @@
     "rust-analyzer.showUnlinkedFileNotification": false,
     "rust-analyzer.server.extraEnv": {
         "CARGO_TARGET_DIR": "target/analyzer",
-        "PATH": "${env:PATH};C:\\Program Files\\NASM;C:\\Program Files\\CMake\\bin",
-        "LIBCLANG_PATH": "Q:\\Software\\LLVM\\bin",
-        "OPENSSL_DIR": "Q:\\code\\~repos\\vcpkg\\installed\\x64-windows-static",
-        "VCPKG_ROOT": "Q:\\code\\~repos\\vcpkg",
-        "VCPKGRS_DYNAMIC": "1",
-        "FFMPEG_DIR": "Q:\\code\\~repos\\ffmpeg-7.0.1-full_build-shared",
+        "PATH": "C:\\Program Files\\gstreamer\\1.0\\msvc_x86_64\\bin;${env:PATH};C:\\Program Files\\NASM;C:\\Program Files\\CMake\\bin",
+        // "PATH": "${env:PATH};C:\\Program Files\\NASM;C:\\Program Files\\CMake\\bin",
+        "LIBCLANG_PATH": "C:\\Program Files\\LLVM\\bin",
+        // "OPENSSL_DIR": "Q:\\code\\~repos\\vcpkg\\installed\\x64-windows-static",
+        // "VCPKG_ROOT": "Q:\\code\\~repos\\vcpkg",
+        // "VCPKGRS_DYNAMIC": "1",
+        // "RUST_BACKTRACE": "1",
+        // "FFMPEG_DIR": "Q:\\code\\~repos\\ffmpeg-7.0.1-full_build-shared",
+        "FFMPEG_DIR": "C:\\Libraries\\ffmpeg-7.1.1-full_build-shared",
     },
     "rust-analyzer.check.extraArgs": [
         "--target-dir=target/analyzer"

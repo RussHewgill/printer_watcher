@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{response, Color32, Layout, Pos2, Rect, Sense, Stroke, Vec2};
+use egui::{response, Color32, Layout, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 
 use crate::status::bambu_status::AmsUnit;
 
@@ -93,12 +93,14 @@ pub(super) fn paint_ams_h2d(
                         match left_ams {
                             Some((_, unit)) => {
                                 // debug!("Left AMS: {:?}", unit);
-                                _draw_ams_h2d(&response, &painter, bambu, unit);
+                                _draw_ams_h2d(ui, &response, &painter, bambu, unit);
                             }
                             None => {
                                 match external_left {
                                     Some(color) => {
-                                        _draw_external_spool_h2d(&response, &painter, bambu, color);
+                                        _draw_external_spool_h2d(
+                                            ui, &response, &painter, bambu, color,
+                                        );
                                     }
                                     None => {
                                         // debug!("No external spool found");
@@ -127,12 +129,14 @@ pub(super) fn paint_ams_h2d(
                         match right_ams {
                             Some((_, unit)) => {
                                 // debug!("Left AMS: {:?}", unit);
-                                _draw_ams_h2d(&response, &painter, bambu, unit);
+                                _draw_ams_h2d(ui, &response, &painter, bambu, unit);
                             }
                             None => {
                                 match external_right {
                                     Some(color) => {
-                                        _draw_external_spool_h2d(&response, &painter, bambu, color);
+                                        _draw_external_spool_h2d(
+                                            ui, &response, &painter, bambu, color,
+                                        );
                                     }
                                     None => {
                                         // debug!("No external spool found");
@@ -145,43 +149,77 @@ pub(super) fn paint_ams_h2d(
         });
 }
 
+const MARGIN_H: f32 = 2.;
+const SLOT_SIZE: (f32, f32) = (30., 40.);
+
 fn _draw_external_spool_h2d(
+    ui: &mut egui::Ui,
     response: &response::Response,
     painter: &egui::Painter,
     bambu: &crate::status::bambu_status::PrinterStateBambu,
     color: &str,
-    //
 ) {
+    // ui.label("Ext");
+
     let rect = response.rect;
 
-    let rect = Rect::from_center_size(rect.center(), rect.size() * 0.5);
+    let y = rect.top() + MARGIN_H + (SLOT_SIZE.1 / 2.);
+
+    let rect = Rect::from_center_size(
+        Pos2::new(rect.center().x + SLOT_SIZE.0, y),
+        Vec2::new(SLOT_SIZE.0, SLOT_SIZE.1),
+    );
 
     let Ok(color) = Color32::from_hex(&format!("#{}", color)) else {
         error!("Invalid color: {}", color);
         return;
     };
 
+    // painter.debug_text(
+    //     Pos2::new(rect.left() + 5., rect.top() + 5.),
+    //     egui::Align2::LEFT_TOP,
+    //     ui.style().visuals.widgets.noninteractive.fg_stroke.color,
+    //     "External Spool",
+    // );
+
     painter.rect_filled(rect, 3, color);
+
+    let border_color = ui.style().visuals.widgets.noninteractive.fg_stroke.color;
+    painter.rect_stroke(
+        rect,
+        3,
+        Stroke::new(3., border_color),
+        egui::StrokeKind::Inside,
+    );
+
+    let mut rect = response.rect;
+    rect.set_center(Pos2::new(rect.left() + rect.width() / 2. - 30., y));
+
+    let layout = Layout::left_to_right(egui::Align::Center);
+
+    ui.with_layout(layout, |ui| {
+        ui.put(
+            rect,
+            egui::Label::new(RichText::new("External").strong().size(14.)),
+        );
+    });
 
     // unimplemented!()
 }
 
 fn _draw_ams_h2d(
+    ui: &egui::Ui,
     response: &response::Response,
     painter: &egui::Painter,
     bambu: &crate::status::bambu_status::PrinterStateBambu,
     unit: &AmsUnit,
-    //
 ) {
-    const MARGIN_H: f32 = 2.;
-
-    const SLOT_SIZE: (f32, f32) = (30., 40.);
-
     let rect = response.rect;
 
-    // center = margin + slot width / 2 + slot width * i
+    let border_color = ui.style().visuals.widgets.noninteractive.fg_stroke.color;
 
     for (i, slot) in unit.slots.iter().enumerate() {
+        // center = margin + slot width / 2 + slot width * i
         let x = rect.left()
             + MARGIN_H
             + ((SLOT_SIZE.0 + MARGIN_H * 2.) * i as f32)
@@ -193,12 +231,18 @@ fn _draw_ams_h2d(
         match slot {
             Some(slot) => {
                 painter.rect_filled(rect, 3, slot.color);
+                painter.rect_stroke(
+                    rect,
+                    3,
+                    Stroke::new(3., border_color),
+                    egui::StrokeKind::Inside,
+                );
             }
             None => {
                 painter.rect_stroke(
                     rect,
                     3,
-                    Stroke::new(3.0, Color32::from_gray(120)),
+                    Stroke::new(3.0, border_color),
                     egui::StrokeKind::Inside,
                 );
             }

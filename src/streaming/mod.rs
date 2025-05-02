@@ -1,4 +1,6 @@
 pub mod bambu;
+#[cfg(feature = "gstreamer")]
+pub mod gstreamer_bambu;
 #[cfg(feature = "rtsp")]
 pub mod rtsp;
 
@@ -9,7 +11,7 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
 #[cfg(feature = "rtsp")]
-use ffmpeg_next::codec::debug;
+use ffmpeg_the_third::codec::debug;
 #[cfg(feature = "rtsp")]
 use rtsp::{RtspCommand, RtspCreds};
 

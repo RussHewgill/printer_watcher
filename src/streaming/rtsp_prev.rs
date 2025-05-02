@@ -3,7 +3,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use std::{result, sync::Arc};
 
-use ffmpeg_the_third as ffmpeg;
+use ffmpeg_next as ffmpeg;
 use serde::{Deserialize, Serialize};
 
 use processor::H264Processor;
@@ -17,7 +17,7 @@ pub enum RtspCommand {
 
 pub mod processor {
     use anyhow::{anyhow, bail, ensure, Context, Result};
-    use ffmpeg_the_third as ffmpeg;
+    use ffmpeg_next as ffmpeg;
     use tracing::{debug, error, info, trace, warn};
 
     pub struct H264Processor {
@@ -126,7 +126,9 @@ pub mod processor {
             let mut decoded = ffmpeg::util::frame::video::Video::empty();
             loop {
                 match self.decoder.receive_frame(&mut decoded) {
-                    Err(ffmpeg::Error::Other { errno }) => {
+                    Err(ffmpeg::Error::Other {
+                        errno: ffmpeg::util::error::EAGAIN,
+                    }) => {
                         // No complete frame available.
                         break;
                     }
@@ -234,13 +236,13 @@ pub async fn rtsp_task(
     ctx: &egui::Context,
 ) -> Result<()> {
     /// Init ffmpeg
-    ffmpeg_the_third::init().unwrap();
+    ffmpeg_next::init().unwrap();
 
     if cfg!(debug_assertions) {
         // ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Trace);
-        ffmpeg_the_third::util::log::set_level(ffmpeg_the_third::util::log::Level::Warning);
+        ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Warning);
     } else {
-        ffmpeg_the_third::util::log::set_level(ffmpeg_the_third::util::log::Level::Trace);
+        ffmpeg_next::util::log::set_level(ffmpeg_next::util::log::Level::Trace);
     }
 
     let url = url::Url::parse(&format!("rtsp://{}", creds.host))?;

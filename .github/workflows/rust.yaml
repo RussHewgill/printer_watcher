@@ -36,6 +36,8 @@ jobs:
     # env:
     #   COCOON_KEY: ${{ secrets.COCOON_KEY }}
 
+    # MARK: TODO: ffmpeg build: https://github.com/zmwangx/rust-ffmpeg/blob/master/.github/workflows/build.yml
+
     runs-on:  ${{ matrix.platform.os }}
 
     steps:
