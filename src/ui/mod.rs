@@ -9,6 +9,7 @@ pub mod video_player;
 pub mod widget_bambu;
 pub mod widget_klipper;
 // pub mod widget_octo;
+mod ams;
 pub mod printer_header;
 pub mod widget_bambu_v2;
 pub mod widget_prusa;

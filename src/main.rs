@@ -975,7 +975,7 @@ fn main() -> Result<()> {
 }
 
 /// MARK: Main
-#[allow(unreachable_code)]
+// #[allow(unreachable_code)]
 // #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
@@ -1099,9 +1099,9 @@ fn main() -> eframe::Result<()> {
     // #[cfg(feature = "nope")]
     let stream_tx3 = stream_tx.clone();
 
-    // debug!("spawning streaming runtime");
-    warn!("Skipping streaming runtime");
-    #[cfg(feature = "nope")]
+    debug!("spawning streaming runtime");
+    // warn!("Skipping streaming runtime");
+    // #[cfg(feature = "nope")]
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {

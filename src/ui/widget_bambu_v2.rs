@@ -61,7 +61,7 @@ impl App {
             // .size(egui_extras::Size::exact(26.))
             // temperatures
             .size(egui_extras::Size::exact(26.))
-            .size(egui_extras::Size::exact(26.))
+            // .size(egui_extras::Size::exact(26.))
             // Title
             .size(egui_extras::Size::exact(text_size_title + 4.))
             // progress bar
@@ -153,7 +153,7 @@ impl App {
                         });
                 });
 
-                /// temperatures 1: nozzles, bed
+                /// temperatures: nozzles, bed, chamber
                 strip.strip(|mut builder| {
                     let font_size = 11.5;
 
@@ -263,10 +263,10 @@ impl App {
                         });
                 });
 
-                /// temperatures 2: chamber, fans
-                strip.cell(|ui| {
-                    ui.label("TODO: Temperatures/Fans 2");
-                });
+                // /// temperatures 2: chamber, fans
+                // strip.cell(|ui| {
+                //     ui.label("TODO: Temperatures/Fans 2");
+                // });
 
                 /// Title
                 strip.cell(|ui| {
@@ -436,84 +436,6 @@ impl App {
 
         let size = 62.;
 
-        paint_ams_h2d(ui, size, bambu);
+        super::ams::paint_ams_h2d(ui, size, bambu);
     }
-}
-
-/// pretend that the configuration will always be one (external spool or AMS HT) + 1 AMS
-// #[cfg(feature = "nope")]
-fn paint_ams_h2d(
-    ui: &mut egui::Ui,
-    size: f32,
-    // size: f32,
-    // ams: &AmsStatus,
-    bambu: &crate::status::bambu_status::PrinterStateBambu,
-) {
-    let layout = Layout::left_to_right(egui::Align::Center)
-        .with_cross_justify(true)
-        .with_main_justify(true)
-        .with_cross_align(egui::Align::Center);
-
-    // let x = bambu
-    //     .ams
-    //     .as_ref()
-    //     .and_then(|a| a.units.get(&0).cloned())
-    //     .and_then(|u| u.info);
-    // debug!("AMS unit: {:?}", x);
-
-    let Some(ams) = bambu.ams.as_ref() else {
-        // warn!("AMS not found");
-        return;
-    };
-
-    let external_left = bambu
-        .vir_slot
-        .as_ref()
-        .and_then(|v| v.get(0))
-        .map(|v| &v.tray_color);
-
-    let external_left = bambu
-        .vir_slot
-        .as_ref()
-        .and_then(|v| v.get(1))
-        .map(|v| &v.tray_color);
-
-    /// info = 1003 = right AMS 2
-    /// info = 1103 = left AMS 2
-    ///
-    /// 1001 = right AMS 1
-    /// 1101 = left AMS 1
-    egui_extras::StripBuilder::new(ui)
-        .clip(true)
-        .cell_layout(layout)
-        .sizes(egui_extras::Size::relative(0.5), 2)
-        .horizontal(|mut strip| {
-            strip.cell(|ui| {
-                // ui.label("Left");
-                // ui.ctx()
-                //     .debug_painter()
-                //     .debug_rect(ui.max_rect(), Color32::RED, "");
-
-                let size = Vec2::new(ui.available_width(), size);
-                let (response, painter) = ui.allocate_painter(size, Sense::hover());
-
-                // _draw_ams_h2d(&painter, bambu);
-            });
-
-            strip.cell(|ui| {
-                // ui.label("Right");
-
-                // ui.ctx()
-                //     .debug_painter()
-                //     .debug_rect(ui.max_rect(), Color32::GREEN, "");
-            });
-        });
-}
-
-fn _draw_ams_h2d(
-    painter: &egui::Painter,
-    bambu: &crate::status::bambu_status::PrinterStateBambu,
-    //
-) {
-    // unimplemented!()
 }

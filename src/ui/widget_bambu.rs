@@ -454,13 +454,13 @@ impl App {
             });
         ui.spacing_mut().item_spacing.x = 8.;
 
-        let Some(status) = self.printer_states.get(&printer.id) else {
-            warn!("Printer not found: {:?}", printer.id);
-            panic!();
-        };
+        // let Some(status) = self.printer_states.get(&printer.id) else {
+        //     warn!("Printer not found: {:?}", printer.id);
+        //     panic!();
+        // };
 
-        let ams_status = status.state_bambu.as_ref().unwrap().ams_status.as_ref();
-        ui.label(format!("ams_status: {:?}", ams_status));
+        // let ams_status = status.state_bambu.as_ref().unwrap().ams_status.as_ref();
+        // ui.label(format!("ams_status: {:?}", ams_status));
 
         // let ams = status.state_bambu.as_ref().unwrap().ams.as_ref().unwrap();
 

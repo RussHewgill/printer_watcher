@@ -127,7 +127,7 @@ impl App {
 
         cc.egui_ctx
             .send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::Vec2::new(
-                1150., 860.,
+                1250., 950.,
             )));
 
         out
