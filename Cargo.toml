@@ -7,16 +7,24 @@ edition = "2021"
 debug = true
 
 [features]
-default = []
+# default = []
 # default = ["retina"]
-# default = ["gstreamer"]
+default = ["gstreamer"]
 # default = ["rtsp"]
 # rtsp = ["ffmpeg-next"]
 retina = ["dep:retina"]
 # retina = ["dep:retina", "rtsp"]
 # rtsp = []
 rtsp = ["ffmpeg-the-third"]
-gstreamer = ["dep:gstreamer", "gstreamer-app", "gstreamer-video", "glib"]
+gstreamer = [
+    "dep:gstreamer",
+    "gstreamer-app",
+    "gstreamer-video",
+    "gstreamer-rtsp",
+    "gstreamer-rtsp-server",
+    "glib",
+    "gio",
+]
 
 [build-dependencies]
 dotenvy = "0.15.0"
@@ -126,9 +134,15 @@ notify-rust = { version = "4.11.3", features = ["async"] }
 # ] }
 
 glib = { version = "0.20.9", optional = true }
+gio = { version = "0.20.9", optional = true }
 gstreamer = { version = "0.23.5", optional = true }
 gstreamer-app = { version = "0.23.5", optional = true }
 gstreamer-video = { version = "0.23.5", optional = true }
+gstreamer-rtsp = { version = "0.23.5", optional = true }
+gstreamer-rtsp-server = { version = "0.23.5", optional = true }
+
+crossbeam-channel = "0.5.15"
+parking_lot = "0.12.3"
 
 [patch.crates-io]
 

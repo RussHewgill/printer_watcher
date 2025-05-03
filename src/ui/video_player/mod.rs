@@ -1,4 +1,5 @@
-#[cfg(feature = "rtsp")]
+// #[cfg(feature = "rtsp")]
+#[cfg(feature = "gstreamer")]
 pub mod test_player;
 
 use egui::{load::SizedTexture, Rect, Response, Sense, TextureHandle, Ui, Vec2};
@@ -9,8 +10,58 @@ pub struct VideoPlayer {
     /// The size of the video stream.
     pub size: Vec2,
     ctx_ref: egui::Context,
+    stream_tx: crossbeam_channel::Sender<crate::streaming::StreamCmd>,
 }
 
+impl VideoPlayer {
+    pub fn new(
+        id: &str,
+        ctx: &egui::Context,
+        size: Vec2,
+        stream_tx: crossbeam_channel::Sender<crate::streaming::StreamCmd>,
+    ) -> Self {
+        let image = egui::ColorImage::new(
+            [size.x as usize, size.y as usize],
+            egui::Color32::from_gray(0),
+        );
+        let texture_handle =
+            ctx.load_texture(format!("{}_texture", &id), image, Default::default());
+
+        stream_tx
+            .send(crate::streaming::StreamCmd::StartBambuStills {
+                id: crate::config::printer_id::PrinterId::from_id("test"),
+                host: "192.168.0.23".to_string(),
+                access_code: std::env::var("RTSP_PASS").unwrap(),
+                serial: std::env::var("BAMBU_SERIAL").unwrap(),
+                texture: texture_handle.clone(),
+            })
+            .unwrap();
+
+        Self {
+            texture_handle,
+            size,
+            ctx_ref: ctx.clone(),
+            stream_tx,
+        }
+    }
+
+    /// Draw the video frame and player controls and process state changes.
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.label("Video Player UI");
+
+        let img = egui::Image::from_texture((self.texture_handle.id(), self.size))
+            .fit_to_exact_size(self.size)
+            .max_size(self.size)
+            .corner_radius(egui::CornerRadius::same(4))
+            .sense(egui::Sense::click());
+
+        ui.add(img);
+
+        // unimplemented!()
+    }
+}
+
+#[cfg(feature = "nope")]
 impl VideoPlayer {
     pub fn new(id: &str, ctx: &egui::Context, size: Vec2) -> Self {
         let image = egui::ColorImage::new(

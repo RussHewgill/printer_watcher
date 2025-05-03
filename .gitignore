@@ -34,6 +34,8 @@ example*.json
 *.db
 printer_watcher.exe
 test.py
+test.png
+test.*
 
 !icon.png
 !assets/icons8-disconnected-100.png

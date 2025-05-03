@@ -976,7 +976,7 @@ fn main() -> Result<()> {
 
 /// MARK: Main
 // #[allow(unreachable_code)]
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -1231,7 +1231,40 @@ fn main() -> Result<()> {
     // let main_context = glib::MainContext::new();
     // let main_loop = glib::MainLoop::new(Some(&main_context), false);
 
-    crate::streaming::gstreamer_bambu::test_gstreamer().unwrap();
+    // crate::streaming::gstreamer_bambu::test_gstreamer().unwrap();
+
+    /// use image crate to load an image with an unknown format from a file
+    let path = "test.dat";
+
+    // 1680x1080 Format: Bgr
+
+    // load Vec<u8> from file
+    let mut buffer_vec = Vec::new();
+    let mut file = std::fs::File::open(path).unwrap();
+    std::io::Read::read_to_end(&mut file, &mut buffer_vec).unwrap();
+
+    let width = 1680;
+    let height = 1080;
+
+    // /// convert buffer from BGR to RGB
+    // let mut rgb_buffer = Vec::new();
+
+    // for i in (0..buffer_vec.len()).step_by(3) {
+    //     rgb_buffer.push(buffer_vec[i + 2]);
+    //     rgb_buffer.push(buffer_vec[i + 1]);
+    //     rgb_buffer.push(buffer_vec[i]);
+    // }
+
+    let img_buffer: Option<image::ImageBuffer<image::Rgba<u8>, Vec<u8>>> =
+        image::ImageBuffer::from_raw(width, height, buffer_vec);
+
+    // let img = image::open(path).unwrap();
+
+    // debug!("img = {:#?}", img_buffer);
+
+    // save to file
+
+    img_buffer.unwrap().save("test.png").unwrap();
 
     Ok(())
 }
@@ -1274,7 +1307,7 @@ async fn main() -> Result<()> {
 }
 
 /// video widget test
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -1288,11 +1321,28 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
-    let (stream_tx, stream_rx) = tokio::sync::mpsc::unbounded_channel::<streaming::StreamCmd>();
-    let stream_tx2 = stream_tx.clone();
-    // let stream_rx2 = stream_rx.clone();
+    // let (stream_tx, stream_rx) = tokio::sync::mpsc::unbounded_channel::<streaming::StreamCmd>();
+    // let stream_tx2 = stream_tx.clone();
+    // // let stream_rx2 = stream_rx.clone();
 
-    debug!("spawning tokio runtime");
+    let (stream_tx, stream_rx) = crossbeam_channel::unbounded::<streaming::StreamCmd>();
+
+    let stream_rx2 = stream_rx.clone();
+
+    std::thread::spawn(|| {
+        let pass = env::var("RTSP_PASS").unwrap();
+        let player = streaming::gstreamer_bambu::GStreamerPlayer::new(
+            "bblp",
+            &pass,
+            "192.168.0.23",
+            322,
+            stream_rx2,
+        );
+        player.init().unwrap();
+    });
+
+    // debug!("spawning tokio runtime");
+    #[cfg(feature = "nope")]
     std::thread::spawn(|| {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
