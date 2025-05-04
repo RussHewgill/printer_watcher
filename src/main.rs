@@ -976,7 +976,7 @@ fn main() -> Result<()> {
 
 /// MARK: Main
 // #[allow(unreachable_code)]
-#[cfg(feature = "nope")]
+// #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
@@ -1227,44 +1227,48 @@ fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
 
-    // // Create a GLib Main Context and Main Loop for this thread
-    // let main_context = glib::MainContext::new();
-    // let main_loop = glib::MainLoop::new(Some(&main_context), false);
+    const DISCOVERER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15); // Timeout for discovery
 
-    // crate::streaming::gstreamer_bambu::test_gstreamer().unwrap();
+    let access_code = std::env::var("RTSP_PASS").unwrap();
+    let uri = format!(
+        // "rtsps://bblp:{}@192.168.0.23:322/streaming/live/1",
+        "rtsps://bblp:{}@{}:{}/streaming/live/1",
+        access_code, "192.168.0.23", 322
+    );
 
-    /// use image crate to load an image with an unknown format from a file
-    let path = "test.dat";
+    // --- 1. Discover Available Resolutions ---
+    println!(
+        "\nAttempting to discover stream resolutions (timeout: {:?})...",
+        DISCOVERER_TIMEOUT
+    );
 
-    // 1680x1080 Format: Bgr
+    streaming::gstreamer_bambu::discover_resolutions(&uri, DISCOVERER_TIMEOUT)?;
 
-    // load Vec<u8> from file
-    let mut buffer_vec = Vec::new();
-    let mut file = std::fs::File::open(path).unwrap();
-    std::io::Read::read_to_end(&mut file, &mut buffer_vec).unwrap();
-
-    let width = 1680;
-    let height = 1080;
-
-    // /// convert buffer from BGR to RGB
-    // let mut rgb_buffer = Vec::new();
-
-    // for i in (0..buffer_vec.len()).step_by(3) {
-    //     rgb_buffer.push(buffer_vec[i + 2]);
-    //     rgb_buffer.push(buffer_vec[i + 1]);
-    //     rgb_buffer.push(buffer_vec[i]);
-    // }
-
-    let img_buffer: Option<image::ImageBuffer<image::Rgba<u8>, Vec<u8>>> =
-        image::ImageBuffer::from_raw(width, height, buffer_vec);
-
-    // let img = image::open(path).unwrap();
-
-    // debug!("img = {:#?}", img_buffer);
-
-    // save to file
-
-    img_buffer.unwrap().save("test.png").unwrap();
+    #[cfg(feature = "nope")]
+    let discovered_resolutions = match streaming::gstreamer_bambu::discover_resolutions(
+        &uri,
+        DISCOVERER_TIMEOUT,
+    ) {
+        Ok(res) => {
+            if res.is_empty() {
+                println!("Warning: Discoverer did not find any specific video resolutions. Pipeline might use default.");
+                res
+            } else {
+                println!("Discovered potential resolutions:");
+                for (i, r) in res.iter().enumerate() {
+                    println!("  {}: {}x{}", i, r.width, r.height);
+                }
+                res
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "Failed to discover resolutions: {}. Continuing with default settings.",
+                e
+            );
+            Vec::new() // Proceed without specific resolution selection
+        }
+    };
 
     Ok(())
 }
@@ -1307,7 +1311,7 @@ async fn main() -> Result<()> {
 }
 
 /// video widget test
-// #[cfg(feature = "nope")]
+#[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();

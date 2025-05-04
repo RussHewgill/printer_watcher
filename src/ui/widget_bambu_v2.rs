@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
-use egui::{Color32, Label, Layout, Pos2, Response, RichText, Sense, Vec2};
+use egui::{Color32, CornerRadius, Label, Layout, Pos2, Response, RichText, Sense, Vec2};
 
 use super::{
     app::App,
@@ -77,8 +77,52 @@ impl App {
                 };
                 /// thumbnail/webcam
                 strip.cell(|ui| {
+                    let mut entry = self
+                        .webcam_textures
+                        .entry(printer.id.clone())
+                        .or_insert_with(|| {
+                            let image =
+                                egui::ColorImage::new([1920, 1080], egui::Color32::from_gray(220));
+                            let texture = ui.ctx().load_texture(
+                                format!("{:?}_texture", printer.id),
+                                image,
+                                Default::default(),
+                            );
+                            super::ui_types::WebcamTexture::new(texture)
+                        });
+
+                    let size = Vec2::new(thumbnail_width, thumbnail_height);
+
+                    if entry.enabled {
+                        let img = egui::Image::from_texture((entry.texture.id(), size))
+                            .fit_to_exact_size(size)
+                            .max_size(size)
+                            .corner_radius(CornerRadius::same(4))
+                            .sense(Sense::click());
+
+                        let resp = ui.add(img);
+
+                        if resp.clicked_by(egui::PointerButton::Primary) {
+                            // debug!("webcam clicked");
+                            self.selected_stream = Some(printer.id.clone());
+                        }
+                    } else if self.options.auto_start_streams {
+                        self.stream_cmd_tx
+                            .as_ref()
+                            .unwrap()
+                            .send(crate::streaming::StreamCmd::StartRtsp {
+                                id: printer.id.clone(),
+                                host: printer.host.clone(),
+                                access_code: printer.access_code.clone(),
+                                serial: printer.serial.clone(),
+                                texture: entry.texture.clone(),
+                            })
+                            .unwrap();
+                        entry.enabled = true;
+                        //
+                    }
+
                     //
-                    ui.label("TODO: Thumbnail");
                 });
 
                 #[cfg(feature = "nope")]

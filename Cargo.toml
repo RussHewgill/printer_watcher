@@ -22,6 +22,7 @@ gstreamer = [
     "gstreamer-video",
     "gstreamer-rtsp",
     "gstreamer-rtsp-server",
+    # "gstreamer-pbutils",
     "glib",
     "gio",
 ]
@@ -140,6 +141,7 @@ gstreamer-app = { version = "0.23.5", optional = true }
 gstreamer-video = { version = "0.23.5", optional = true }
 gstreamer-rtsp = { version = "0.23.5", optional = true }
 gstreamer-rtsp-server = { version = "0.23.5", optional = true }
+# gstreamer-pbutils = { version = "0.23.5", optional = true }
 
 crossbeam-channel = "0.5.15"
 parking_lot = "0.12.3"

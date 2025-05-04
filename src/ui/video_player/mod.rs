@@ -28,7 +28,7 @@ impl VideoPlayer {
             ctx.load_texture(format!("{}_texture", &id), image, Default::default());
 
         stream_tx
-            .send(crate::streaming::StreamCmd::StartBambuStills {
+            .send(crate::streaming::StreamCmd::StartRtsp {
                 id: crate::config::printer_id::PrinterId::from_id("test"),
                 host: "192.168.0.23".to_string(),
                 access_code: std::env::var("RTSP_PASS").unwrap(),

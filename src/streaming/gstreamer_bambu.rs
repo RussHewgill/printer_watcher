@@ -12,9 +12,11 @@ use gstreamer_video as gst_video;
 
 pub struct GStreamerPlayer {
     pub uri: String,
-    // texture_handle: Option<egui::TextureHandle>,
-    texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
-    cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
+    texture_handle: egui::TextureHandle,
+    // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
+    // cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
+    cmd_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
+    // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
 }
 
 impl GStreamerPlayer {
@@ -24,7 +26,10 @@ impl GStreamerPlayer {
         host: &str,
         port: u16,
         // port: u16,
-        cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
+        texture_handle: egui::TextureHandle,
+        // cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
+        cmd_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
+        // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
     ) -> Self {
         let access_code = std::env::var("RTSP_PASS").unwrap();
         let uri = format!(
@@ -36,25 +41,33 @@ impl GStreamerPlayer {
         Self {
             // uri: format!("rtsp://{username}:{password}@{host}:{port}/stream1"),
             uri,
-            texture_handle: Arc::new(Mutex::new(None)),
-            cmd_rx,
+            texture_handle,
+            // texture_handle: Arc::new(Mutex::new(None)),
+            cmd_tx,
+            // kill_rx,
         }
     }
 
+    pub fn init(&self) -> Result<()> {
+        run_gstreamer(&self.uri, self.texture_handle.clone())?;
+        Ok(())
+    }
+
+    #[cfg(feature = "nope")]
     pub fn init(&self) -> Result<()> {
         let cmd_rx2 = self.cmd_rx.clone();
         let texture_handle2 = self.texture_handle.clone();
 
         std::thread::spawn(move || loop {
             match cmd_rx2.recv() {
-                Ok(crate::streaming::StreamCmd::StartBambuStills {
+                Ok(crate::streaming::StreamCmd::StartRtsp {
                     id,
                     host,
                     access_code,
                     serial,
                     texture,
                 }) => {
-                    debug!("Received StartBambuStills command");
+                    debug!("Received StartRtsp command");
 
                     texture_handle2.lock().replace(texture);
                     break;
@@ -65,7 +78,7 @@ impl GStreamerPlayer {
             }
         });
 
-        test_gstreamer(&self.uri, self.texture_handle.clone())?;
+        run_gstreamer(&self.uri, self.texture_handle.clone())?;
 
         Ok(())
     }
@@ -75,7 +88,8 @@ struct PipelineData {
     pipeline: gst::Pipeline,
     appsink: gst_app::AppSink,
     // frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
-    texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
+    // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
+    texture_handle: egui::TextureHandle,
     // Keep track of width/height/format once known
     frame_info: Arc<Mutex<Option<gst_video::VideoInfo>>>,
 }
@@ -98,19 +112,22 @@ struct SelectedStream {
 fn build_pipeline(
     uri: &str,
     // frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
-    texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
+    // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
+    texture_handle: egui::TextureHandle,
     frame_info: Arc<Mutex<Option<gst_video::VideoInfo>>>,
-    selected_stream_info: Arc<Mutex<Option<SelectedStream>>>,
+    // selected_stream_info: Arc<Mutex<Option<SelectedStream>>>,
 ) -> Result<PipelineData> {
     const TLS_DISABLE_VALIDATION: bool = true;
-    // const CUSTOM_CA_CERT_PATH: Option<&str> = Some("ca_cert.pem"); // e.g., Some("/path/to/your/ca.pem");
-    const CUSTOM_CA_CERT_PATH: Option<&str> = None; // e.g., Some("/path/to/your/ca.pem");
+    // const TLS_DISABLE_VALIDATION: bool = false;
 
-    // --- Stream Selection ---
-    // How to select? "FIRST" selects the first video stream found.
-    // "HIGHEST" selects the video stream with the highest resolution (width * height).
-    // You could add "LOWEST" or specific width/height matching later.
-    const SELECTION_MODE: &str = "HIGHEST";
+    // const CUSTOM_CA_CERT_PATH: Option<&str> = Some("ca_cert.pem");
+    const CUSTOM_CA_CERT_PATH: Option<&str> = None;
+
+    let desired_width = 276;
+    let desired_height = 155;
+
+    // let desired_width = 1710;
+    // let desired_height = 960;
 
     // --- Create Elements ---
     let pipeline = gst::Pipeline::new();
@@ -137,9 +154,9 @@ fn build_pipeline(
         debug!("Configuring custom CA certificate: {}", ca_path_str);
         let ca_path = std::path::Path::new(ca_path_str);
 
-        // // make path absolute
-        // let ca_path = std::fs::canonicalize(ca_path)
-        //     .map_err(|e| anyhow!("Failed to canonicalize CA path '{}': {}", ca_path_str, e))?;
+        // make path absolute
+        let ca_path = std::fs::canonicalize(ca_path)
+            .map_err(|e| anyhow!("Failed to canonicalize CA path '{}': {}", ca_path_str, e))?;
 
         if !ca_path.exists() {
             return Err(anyhow!(
@@ -147,6 +164,7 @@ fn build_pipeline(
                 ca_path_str
             ));
         }
+        debug!("Custom CA certificate file exists: {}", ca_path.display());
 
         // Create a TLS database and load the custom CA
         let tls_db = gio::TlsFileDatabase::new(ca_path).map_err(|e| {
@@ -158,18 +176,19 @@ fn build_pipeline(
         })?;
 
         // Set the custom database on rtspsrc
-        // The property expects a GTlsDatabase object. We pass our TlsFileDatabase.
         rtspsrc.set_property("tls-database", &tls_db); // Pass db by reference
         debug!("Custom CA certificate loaded into TLS database for rtspsrc.");
-        // Default validation flags will be used (VALIDATE_ALL), but now against the custom DB + system CAs
-        // You could explicitly set VALIDATE_ALL if needed:
+
         // let flags = gio::TlsCertificateFlags::VALIDATE_ALL;
-        // rtspsrc.set_property("tls-validation-flags", &flags);
+        let flags = gio::TlsCertificateFlags::BAD_IDENTITY;
+        rtspsrc.set_property("tls-validation-flags", &flags);
+        // debug!("Explicitly set tls-validation-flags to VALIDATE_ALL.");
     } else {
         debug!("Using default system TLS certificate validation.");
         // No specific config needed; rtspsrc uses system CAs by default.
         // Ensure VALIDATE_ALL is the default (it usually is) or set it explicitly:
-        let flags = gio::TlsCertificateFlags::VALIDATE_ALL;
+        // let flags = gio::TlsCertificateFlags::VALIDATE_ALL;
+        let flags = gio::TlsCertificateFlags::BAD_IDENTITY;
         rtspsrc.set_property("tls-validation-flags", &flags);
     }
 
@@ -177,6 +196,17 @@ fn build_pipeline(
         .name("depay")
         .build()
         .context("Failed to create rtph264depay element")?;
+
+    let caps_filter = gst::ElementFactory::make("capsfilter")
+        .name("resolution_filter")
+        .build()
+        .context("Failed to create capsfilter element")?;
+
+    let resolution_caps = gst::Caps::builder("video/x-h264")
+        .field("width", desired_width)
+        .field("height", desired_height)
+        .build();
+    caps_filter.set_property("caps", &resolution_caps);
 
     let h264parse = gst::ElementFactory::make("h264parse")
         .name("parse")
@@ -205,17 +235,17 @@ fn build_pipeline(
     appsink.set_property("max-buffers", 5u32);
     appsink.set_property("drop", true);
 
-    // let caps_str = format!("video/x-raw,format={}", "BGR");
     let caps_str = format!("video/x-raw,format={}", "RGBA");
     let sink_caps = gst::Caps::from_str(&caps_str)
         .map_err(|_| anyhow!("Failed to parse caps string: {}", caps_str))?;
     appsink.set_caps(Some(&sink_caps));
 
-    // --- Add Elements to Pipeline ---
+    // Add Elements to Pipeline
     pipeline
         .add_many(&[
             &rtspsrc,
             &rtph264depay,
+            &caps_filter,
             &h264parse,
             &decoder,
             &videoconvert,
@@ -226,6 +256,7 @@ fn build_pipeline(
     // --- Link Static Elements (same as before) ---
     gst::Element::link_many(&[
         &rtph264depay,
+        &caps_filter,
         &h264parse,
         &decoder,
         &videoconvert,
@@ -234,12 +265,9 @@ fn build_pipeline(
     .context("Failed to link static elements")?;
 
     // --- Connect Dynamic Pad for rtspsrc ---
-    // The logic here is identical to the rtspsrc2 version, but it's even more
-    // important with rtspsrc as it might emit pads for audio/metadata too.
-    // We must ensure we only link the *video* pad.
     let rtph264depay_weak = rtph264depay.downgrade();
     rtspsrc.connect_pad_added(move |src, src_pad| {
-        debug!(
+        trace!(
             "Received new pad '{}' from '{}'",
             src_pad.name(),
             src.name()
@@ -275,12 +303,12 @@ fn build_pipeline(
 
         // We are looking for video encoded as H264
         if media_type == "video" && encoding_name.eq_ignore_ascii_case("H264") {
-            debug!(
+            trace!(
                 "Pad '{}' is H.264 video. Attempting to link.",
                 src_pad.name()
             );
         } else {
-            debug!(
+            trace!(
                 "Pad '{}' is not the H.264 video stream we want ({}/{}), ignoring.",
                 src_pad.name(),
                 media_type,
@@ -303,7 +331,7 @@ fn build_pipeline(
 
         // Check if the depayloader's sink pad is already linked
         if sink_pad.is_linked() {
-            debug!(
+            trace!(
                 "Depayloader sink pad is already linked, ignoring '{}'",
                 src_pad.name()
             );
@@ -312,7 +340,7 @@ fn build_pipeline(
 
         // Attempt to link the rtspsrc pad to the depayloader sink pad
         match src_pad.link(&sink_pad) {
-            Ok(_) => debug!(
+            Ok(_) => trace!(
                 "Successfully linked '{}' to '{}'",
                 src_pad.name(),
                 sink_pad.name()
@@ -322,7 +350,7 @@ fn build_pipeline(
     });
 
     // --- Set up AppSink Callback (same as before) ---
-    let frame_buffer_clone = texture_handle.clone();
+    let mut texture_handle_clone = texture_handle.clone();
     let frame_info_clone = frame_info.clone();
     appsink.set_callbacks(
         gst_app::AppSinkCallbacks::builder()
@@ -361,7 +389,7 @@ fn build_pipeline(
                 let frame_data = map.as_slice();
 
                 {
-                    let mut buffer = frame_buffer_clone.lock();
+                    // let mut buffer = frame_buffer_clone.lock();
                     // let mut info_guard = frame_info_clone.lock();
 
                     // warn!("TODO: copy frame data to buffer");
@@ -378,6 +406,12 @@ fn build_pipeline(
                     // std::io::Write::write_all(&mut f, frame_data).unwrap();
                     // panic!();
 
+                    let img_size = [info.width() as _, info.height() as _];
+                    let img = egui::ColorImage::from_rgba_unmultiplied(img_size, frame_data);
+
+                    texture_handle_clone.set(img, Default::default());
+
+                    #[cfg(feature = "nope")]
                     if let Some(buffer) = buffer.as_mut() {
                         let img_size = [info.width() as _, info.height() as _];
                         let img = egui::ColorImage::from_rgba_unmultiplied(img_size, frame_data);
@@ -403,24 +437,24 @@ fn build_pipeline(
     })
 }
 
-pub fn test_gstreamer(
+pub fn run_gstreamer(
     uri: &str,
-    texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
+    // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
+    texture_handle: egui::TextureHandle,
     //
 ) -> Result<()> {
     // TODO: Ensure GStreamer is initialized only once
     gst::init()?;
 
-    // let frame_buffer = Arc::new(Mutex::new(None::<Vec<u8>>));
     let frame_info = Arc::new(Mutex::new(None::<gst_video::VideoInfo>));
 
-    let selected_stream_info = Arc::new(Mutex::new(None::<SelectedStream>));
+    // let selected_stream_info = Arc::new(Mutex::new(None::<SelectedStream>));
 
     let pipeline_data = build_pipeline(
         &uri,
         texture_handle.clone(),
         frame_info.clone(),
-        selected_stream_info.clone(),
+        // selected_stream_info.clone(),
     )
     .context("Failed to build pipeline")?;
     debug!("Pipeline built successfully.");

@@ -23,6 +23,14 @@ use crate::config::printer_id::PrinterId;
 pub enum StreamCmd {
     #[cfg(feature = "rtsp")]
     StartRtsp(PrinterId, TextureHandle, RtspCreds, egui::Context),
+    #[cfg(feature = "gstreamer")]
+    StartRtsp {
+        id: PrinterId,
+        host: String,
+        access_code: String,
+        serial: String,
+        texture: TextureHandle,
+    },
     StartBambuStills {
         id: PrinterId,
         host: String,
@@ -97,6 +105,11 @@ impl StreamManager {
                         debug!("starting RTSP stream for printer: {:?}", id);
                         self.start_stream_rtsp(id, texture_handle, creds, ctx, self.worker_tx.clone()).await?;
                     }
+                    #[cfg(feature = "gstreamer")]
+                    Some(StreamCmd::StartRtsp { id, host, access_code, serial, texture }) => {
+                        debug!("starting RTSP stream for printer: {:?}", id);
+                        self.start_stream_bambu_rtsp(id, host, access_code, serial, texture, self.worker_tx.clone())?;
+                    }
                     Some(StreamCmd::StartBambuStills { id, host, access_code, serial, texture }) => {
                         debug!("starting Bambu still stream");
                         self.start_stream_bambu_stills(id, host, access_code, serial, texture, self.worker_tx.clone()).await?;
@@ -117,6 +130,32 @@ impl StreamManager {
                 }
             }
         }
+    }
+
+    fn start_stream_bambu_rtsp(
+        &mut self,
+        id: PrinterId,
+        host: String,
+        access_code: String,
+        _serial: String,
+        texture: egui::TextureHandle,
+        worker_tx: tokio::sync::mpsc::UnboundedSender<StreamWorkerMsg>,
+        // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+    ) -> Result<()> {
+        std::thread::spawn(move || {
+            let player = gstreamer_bambu::GStreamerPlayer::new(
+                &access_code,
+                &host,
+                322,
+                texture,
+                worker_tx,
+                // kill_rx,
+            );
+            if let Err(e) = player.init() {
+                error!("error initializing gstreamer player: {:?}", e);
+            }
+        });
+        Ok(())
     }
 
     async fn start_stream_bambu_stills(

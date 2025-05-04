@@ -17,10 +17,14 @@ impl TestVideoApp {
         // cmd_tx: tokio::sync::mpsc::UnboundedSender<PrinterConnCmd>,
         // msg_rx: tokio::sync::mpsc::UnboundedReceiver<PrinterConnMsg>,
     ) -> Self {
+        /// 276 x 155.25
+        let thumbnail_width = crate::ui::PRINTER_WIDGET_SIZE.0 - 24.;
+        let thumbnail_height = thumbnail_width * 0.5625;
+
         let video_player = VideoPlayer::new(
             "test_player",
             &cc.egui_ctx,
-            Vec2::new(640., 480.),
+            Vec2::new(thumbnail_width, thumbnail_height),
             stream_tx.clone(),
         );
 
