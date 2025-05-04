@@ -1332,7 +1332,7 @@ fn main() -> eframe::Result<()> {
     std::thread::spawn(|| {
         let pass = env::var("RTSP_PASS").unwrap();
         let player = streaming::gstreamer_bambu::GStreamerPlayer::new(
-            "bblp",
+            // "bblp",
             &pass,
             "192.168.0.23",
             322,

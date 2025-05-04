@@ -7,6 +7,7 @@ use std::{cell::LazyCell, io::Write, str::FromStr, sync::Arc};
 use gst::prelude::*;
 use gstreamer::{self as gst, glib::FlagsClass};
 use gstreamer_app as gst_app;
+use gstreamer_rtsp as gst_rtsp;
 use gstreamer_video as gst_video;
 
 pub struct GStreamerPlayer {
@@ -18,29 +19,29 @@ pub struct GStreamerPlayer {
 
 impl GStreamerPlayer {
     pub fn new(
-        username: &str,
+        // username: &str,
         password: &str,
         host: &str,
         port: u16,
         // port: u16,
         cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
     ) -> Self {
+        let access_code = std::env::var("RTSP_PASS").unwrap();
+        let uri = format!(
+            // "rtsps://bblp:{}@192.168.0.23:322/streaming/live/1",
+            "rtsps://bblp:{}@{}:{}/streaming/live/1",
+            access_code, host, port
+        );
+
         Self {
-            uri: format!("rtsp://{username}:{password}@{host}:{port}/stream1"),
+            // uri: format!("rtsp://{username}:{password}@{host}:{port}/stream1"),
+            uri,
             texture_handle: Arc::new(Mutex::new(None)),
             cmd_rx,
         }
     }
 
     pub fn init(&self) -> Result<()> {
-        // let uri = "rtsp://camera:camera@192.168.0.147:554/stream1";
-
-        let access_code = std::env::var("RTSP_PASS")?;
-        let uri = format!(
-            "rtsps://bblp:{}@192.168.0.23:322/streaming/live/1",
-            access_code
-        );
-
         let cmd_rx2 = self.cmd_rx.clone();
         let texture_handle2 = self.texture_handle.clone();
 
@@ -64,7 +65,7 @@ impl GStreamerPlayer {
             }
         });
 
-        test_gstreamer(&uri, self.texture_handle.clone())?;
+        test_gstreamer(&self.uri, self.texture_handle.clone())?;
 
         Ok(())
     }
@@ -79,12 +80,38 @@ struct PipelineData {
     frame_info: Arc<Mutex<Option<gst_video::VideoInfo>>>,
 }
 
+#[derive(Clone, Debug)]
+struct DiscoveredStream {
+    stream_id: String,
+    caps: gst::Caps,
+    width: u32,
+    height: u32,
+}
+
+#[derive(Clone, Debug)]
+struct SelectedStream {
+    stream_id: String,
+    width: u32,
+    height: u32,
+}
+
 fn build_pipeline(
     uri: &str,
     // frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
     texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
     frame_info: Arc<Mutex<Option<gst_video::VideoInfo>>>,
+    selected_stream_info: Arc<Mutex<Option<SelectedStream>>>,
 ) -> Result<PipelineData> {
+    const TLS_DISABLE_VALIDATION: bool = true;
+    // const CUSTOM_CA_CERT_PATH: Option<&str> = Some("ca_cert.pem"); // e.g., Some("/path/to/your/ca.pem");
+    const CUSTOM_CA_CERT_PATH: Option<&str> = None; // e.g., Some("/path/to/your/ca.pem");
+
+    // --- Stream Selection ---
+    // How to select? "FIRST" selects the first video stream found.
+    // "HIGHEST" selects the video stream with the highest resolution (width * height).
+    // You could add "LOWEST" or specific width/height matching later.
+    const SELECTION_MODE: &str = "HIGHEST";
+
     // --- Create Elements ---
     let pipeline = gst::Pipeline::new();
 
@@ -100,9 +127,6 @@ fn build_pipeline(
         .build()
         .context("Failed to create rtspsrc element")?; // Updated context message
 
-    const TLS_DISABLE_VALIDATION: bool = false;
-    const CUSTOM_CA_CERT_PATH: Option<&str> = Some("./ca_cert.pem"); // e.g., Some("/path/to/your/ca.pem");
-
     // --- Configure TLS on rtspsrc ---
     if TLS_DISABLE_VALIDATION {
         debug!("WARNING: Disabling TLS certificate validation (tls-validation-flags=NONE). This is insecure!");
@@ -112,6 +136,11 @@ fn build_pipeline(
     } else if let Some(ca_path_str) = CUSTOM_CA_CERT_PATH {
         debug!("Configuring custom CA certificate: {}", ca_path_str);
         let ca_path = std::path::Path::new(ca_path_str);
+
+        // // make path absolute
+        // let ca_path = std::fs::canonicalize(ca_path)
+        //     .map_err(|e| anyhow!("Failed to canonicalize CA path '{}': {}", ca_path_str, e))?;
+
         if !ca_path.exists() {
             return Err(anyhow!(
                 "Custom CA certificate file not found: {}",
@@ -356,27 +385,6 @@ fn build_pipeline(
                         buffer.set(img, Default::default());
                     }
 
-                    #[cfg(feature = "nope")]
-                    if let Some(buffer) = buffer.as_mut() {
-                        match image::load_from_memory(&frame_data) {
-                            Ok(image) => {
-                                let img_size = [image.width() as _, image.height() as _];
-                                let image_buffer = image.to_rgba8();
-                                let pixels = image_buffer.as_flat_samples();
-                                let img = egui::ColorImage::from_rgba_unmultiplied(
-                                    img_size,
-                                    pixels.as_slice(),
-                                );
-
-                                buffer.set(img, Default::default());
-                            }
-                            Err(e) => {
-                                error!("Failed to load image from memory: {}", e);
-                                // return Err(gst::FlowError::Error);
-                            }
-                        }
-                    }
-
                     // if info_guard.as_ref().map_or(true, |i| i != &info) {
                     //     *info_guard = Some(info);
                     // }
@@ -406,8 +414,15 @@ pub fn test_gstreamer(
     // let frame_buffer = Arc::new(Mutex::new(None::<Vec<u8>>));
     let frame_info = Arc::new(Mutex::new(None::<gst_video::VideoInfo>));
 
-    let pipeline_data = build_pipeline(&uri, texture_handle.clone(), frame_info.clone())
-        .context("Failed to build pipeline")?;
+    let selected_stream_info = Arc::new(Mutex::new(None::<SelectedStream>));
+
+    let pipeline_data = build_pipeline(
+        &uri,
+        texture_handle.clone(),
+        frame_info.clone(),
+        selected_stream_info.clone(),
+    )
+    .context("Failed to build pipeline")?;
     debug!("Pipeline built successfully.");
 
     let bus = pipeline_data
