@@ -21,7 +21,7 @@ gstreamer = [
     "gstreamer-app",
     "gstreamer-video",
     "gstreamer-rtsp",
-    "gstreamer-rtsp-server",
+    # "gstreamer-rtsp-server",
     # "gstreamer-pbutils",
     "glib",
     "gio",
@@ -140,7 +140,7 @@ gstreamer = { version = "0.23.5", optional = true }
 gstreamer-app = { version = "0.23.5", optional = true }
 gstreamer-video = { version = "0.23.5", optional = true }
 gstreamer-rtsp = { version = "0.23.5", optional = true }
-gstreamer-rtsp-server = { version = "0.23.5", optional = true }
+# gstreamer-rtsp-server = { version = "0.23.5", optional = true }
 # gstreamer-pbutils = { version = "0.23.5", optional = true }
 
 crossbeam-channel = "0.5.15"

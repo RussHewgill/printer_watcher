@@ -15,4 +15,4 @@ pub mod widget_bambu_v2;
 pub mod widget_prusa;
 
 // pub const PRINTER_WIDGET_SIZE: (f32, f32) = (280., 370.);
-pub const PRINTER_WIDGET_SIZE: (f32, f32) = (300., 370.);
+pub const PRINTER_WIDGET_SIZE: (f32, f32) = (300., 380.);

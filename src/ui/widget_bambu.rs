@@ -508,7 +508,7 @@ impl App {
 
 /// Circle for each slot
 /// Line going down for active slot
-fn paint_ams(
+pub fn paint_ams(
     ui: &mut egui::Ui,
     size: f32,
     // size: f32,

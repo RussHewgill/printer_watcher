@@ -967,9 +967,49 @@ fn main() -> Result<()> {
         json
     };
 
-    // let json: crate::status::bambu_status::PrintStatus = serde_json::from_str(json)?;
+    let json = {
+        let json = r#"{
+"extruder": {
+    "info": [
+        {
+            "filam_bak": [],
+            "hnow": 0,
+            "hpre": 0,
+            "htar": 0,
+            "id": 0,
+            "info": 15,
+            "snow": 65280,
+            "spre": 65280,
+            "star": 65280,
+            "stat": 196608,
+            "temp": 77
+        },
+        {
+            "filam_bak": [],
+            "hnow": 1,
+            "hpre": 1,
+            "htar": 1,
+            "id": 1,
+            "info": 78,
+            "snow": 0,
+            "spre": 0,
+            "star": 0,
+            "stat": 197376,
+            "temp": 14418140
+        }
+    ],
+    "state": 33042
+}
+    }
+        "#;
+        json
+    };
 
-    // debug!("json = {:#?}", json);
+    // let json: crate::status::bambu_status::PrinterStateBambu = serde_json::from_str(json)?;
+
+    let json: crate::status::bambu_status::h2d_extruder::Extruder = serde_json::from_str(json)?;
+
+    debug!("json = {:#?}", json);
 
     Ok(())
 }
@@ -1133,10 +1173,10 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            /// repaint at least once per second
+            /// repaint
             let ctx2 = cc.egui_ctx.clone();
             std::thread::spawn(move || loop {
-                std::thread::sleep(std::time::Duration::from_secs(1));
+                std::thread::sleep(std::time::Duration::from_millis(200));
                 ctx2.request_repaint();
             });
 

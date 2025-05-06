@@ -10,21 +10,30 @@ use gstreamer_app as gst_app;
 use gstreamer_rtsp as gst_rtsp;
 use gstreamer_video as gst_video;
 
+use crate::config::printer_id::PrinterId;
+
+use super::StreamCmd;
+
 pub struct GStreamerPlayer {
+    id: PrinterId,
     pub uri: String,
     texture_handle: egui::TextureHandle,
     // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
     // cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
     cmd_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
-    // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+    // kill_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
+    start_time: std::time::Instant,
+    panic_cmd: StreamCmd,
 }
 
 impl GStreamerPlayer {
     pub fn new(
+        id: PrinterId,
         // username: &str,
-        password: &str,
-        host: &str,
+        password: String,
+        host: String,
         port: u16,
+        serial: String,
         // port: u16,
         texture_handle: egui::TextureHandle,
         // cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
@@ -38,48 +47,43 @@ impl GStreamerPlayer {
             access_code, host, port
         );
 
+        let panic_cmd = StreamCmd::StartRtsp {
+            id: id.clone(),
+            host: host.to_string(),
+            access_code: password.to_string(),
+            serial,
+            texture: texture_handle.clone(),
+        };
+
         Self {
-            // uri: format!("rtsp://{username}:{password}@{host}:{port}/stream1"),
+            id,
             uri,
             texture_handle,
-            // texture_handle: Arc::new(Mutex::new(None)),
             cmd_tx,
-            // kill_rx,
+            // kill_rx: Some(kill_rx),
+            start_time: std::time::Instant::now(),
+            panic_cmd,
         }
     }
 
-    pub fn init(&self) -> Result<()> {
-        run_gstreamer(&self.uri, self.texture_handle.clone())?;
-        Ok(())
-    }
-
-    #[cfg(feature = "nope")]
-    pub fn init(&self) -> Result<()> {
-        let cmd_rx2 = self.cmd_rx.clone();
-        let texture_handle2 = self.texture_handle.clone();
-
-        std::thread::spawn(move || loop {
-            match cmd_rx2.recv() {
-                Ok(crate::streaming::StreamCmd::StartRtsp {
-                    id,
-                    host,
-                    access_code,
-                    serial,
-                    texture,
-                }) => {
-                    debug!("Received StartRtsp command");
-
-                    texture_handle2.lock().replace(texture);
-                    break;
-                }
-                _ => {
-                    debug!("Received unknown command");
-                }
-            }
-        });
-
-        run_gstreamer(&self.uri, self.texture_handle.clone())?;
-
+    pub fn init(
+        &mut self,
+        kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+        cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
+    ) -> Result<()> {
+        let worker_tx = self.cmd_tx.clone();
+        run_gstreamer(
+            self.id.clone(),
+            // (276, 155),
+            (1710, 960),
+            &self.start_time,
+            &self.uri,
+            self.texture_handle.clone(),
+            kill_rx,
+            cmd_rx,
+            worker_tx,
+            self.panic_cmd.clone(),
+        )?;
         Ok(())
     }
 }
@@ -110,6 +114,7 @@ struct SelectedStream {
 }
 
 fn build_pipeline(
+    desired_res: (u32, u32),
     uri: &str,
     // frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
     // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
@@ -123,28 +128,27 @@ fn build_pipeline(
     // const CUSTOM_CA_CERT_PATH: Option<&str> = Some("ca_cert.pem");
     const CUSTOM_CA_CERT_PATH: Option<&str> = None;
 
-    let desired_width = 276;
-    let desired_height = 155;
+    // let desired_width = 276;
+    // let desired_height = 155;
 
     // let desired_width = 1710;
     // let desired_height = 960;
 
-    // --- Create Elements ---
+    // Create Elements
     let pipeline = gst::Pipeline::new();
 
-    // *** Use rtspsrc instead of rtspsrc2 ***
+    // Use rtspsrc instead of rtspsrc2
     let rtspsrc = gst::ElementFactory::make("rtspsrc") // Changed from rtspsrc2
         .name("source")
         .property("location", uri)
         .property("latency", 200u32) // milliseconds
         .property("protocols", gstreamer_rtsp::RTSPLowerTrans::TCP) // TCP often more reliable
-        // .property("protocols", gstreamer_rtsp::RTSPLowerTrans::TLS) // TCP often more reliable
         // Optional: You might need 'do-rtcp=true' for better sync/stats with some servers
-        // .property("do-rtcp", true)
+        .property("do-rtcp", true)
         .build()
         .context("Failed to create rtspsrc element")?; // Updated context message
 
-    // --- Configure TLS on rtspsrc ---
+    // Configure TLS on rtspsrc
     if TLS_DISABLE_VALIDATION {
         debug!("WARNING: Disabling TLS certificate validation (tls-validation-flags=NONE). This is insecure!");
         // Use GIO flags to disable validation
@@ -203,8 +207,8 @@ fn build_pipeline(
         .context("Failed to create capsfilter element")?;
 
     let resolution_caps = gst::Caps::builder("video/x-h264")
-        .field("width", desired_width)
-        .field("height", desired_height)
+        .field("width", desired_res.0)
+        .field("height", desired_res.1)
         .build();
     caps_filter.set_property("caps", &resolution_caps);
 
@@ -223,7 +227,7 @@ fn build_pipeline(
         .build()
         .context("Failed to create videoconvert element")?;
 
-    // --- Configure AppSink (same as before) ---
+    // Configure AppSink
     let appsink = gst::ElementFactory::make("appsink")
         .name("sink")
         .build()
@@ -253,7 +257,7 @@ fn build_pipeline(
         ])
         .context("Failed to add elements to the pipeline")?;
 
-    // --- Link Static Elements (same as before) ---
+    // Link Static Elements
     gst::Element::link_many(&[
         &rtph264depay,
         &caps_filter,
@@ -264,7 +268,7 @@ fn build_pipeline(
     ])
     .context("Failed to link static elements")?;
 
-    // --- Connect Dynamic Pad for rtspsrc ---
+    // Connect Dynamic Pad for rtspsrc
     let rtph264depay_weak = rtph264depay.downgrade();
     rtspsrc.connect_pad_added(move |src, src_pad| {
         trace!(
@@ -349,7 +353,7 @@ fn build_pipeline(
         }
     });
 
-    // --- Set up AppSink Callback (same as before) ---
+    // Set up AppSink Callback
     let mut texture_handle_clone = texture_handle.clone();
     let frame_info_clone = frame_info.clone();
     appsink.set_callbacks(
@@ -438,10 +442,15 @@ fn build_pipeline(
 }
 
 pub fn run_gstreamer(
+    id: PrinterId,
+    desired_res: (u32, u32),
+    start_time: &std::time::Instant,
     uri: &str,
-    // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
     texture_handle: egui::TextureHandle,
-    //
+    mut kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+    mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
+    mut worker_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
+    panic_cmd: StreamCmd,
 ) -> Result<()> {
     // TODO: Ensure GStreamer is initialized only once
     gst::init()?;
@@ -451,6 +460,7 @@ pub fn run_gstreamer(
     // let selected_stream_info = Arc::new(Mutex::new(None::<SelectedStream>));
 
     let pipeline_data = build_pipeline(
+        desired_res,
         &uri,
         texture_handle.clone(),
         frame_info.clone(),
@@ -464,10 +474,19 @@ pub fn run_gstreamer(
         .bus()
         .context("Failed to get pipeline bus")?;
 
+    let start_time2 = start_time.clone();
+
     // 5. Set up the bus watch to handle messages
     let pipeline_weak = pipeline_data.pipeline.downgrade(); // Use weak ref to avoid cycles
+    let worker_tx = worker_tx.clone();
+
     let bus_handle = std::thread::spawn(move || {
         for msg in bus.iter_timed(gst::ClockTime::NONE) {
+            if start_time2.elapsed() > std::time::Duration::from_secs(300) {
+                debug!("Bus watcher: timeout seconds elapsed, exiting.");
+                break;
+            };
+
             let pipeline = match pipeline_weak.upgrade() {
                 Some(p) => p,
                 None => {
@@ -516,6 +535,11 @@ pub fn run_gstreamer(
             }
         }
         debug!("Bus watcher thread finished.");
+
+        worker_tx
+            .send(super::StreamWorkerMsg::Panic(id, panic_cmd))
+            .unwrap();
+        debug!("Bus watcher thread sent panic alert.");
     });
 
     // 6. Start the Pipeline
@@ -527,32 +551,46 @@ pub fn run_gstreamer(
 
     // 7. Example: Periodically check the frame buffer (replace with your actual logic)
     // debug!("Starting frame reader loop (runs for 30 seconds).");
-    let start_time = std::time::Instant::now();
-    while start_time.elapsed() < std::time::Duration::from_secs(30) {
-        std::thread::sleep(std::time::Duration::from_millis(500)); // Check every 500ms
+    // let start_time = std::time::Instant::now();
 
-        // match frame_info.lock().as_ref() {
-        //     Some(info) => {
-        //         debug!(
-        //             "[{:.1?}] Latest Frame Info: {}x{} Format: {:?}",
-        //             start_time.elapsed(),
-        //             info.width(),
-        //             info.height(),
-        //             info.format()
-        //         );
-        //     }
-        //     None => {
-        //         debug!("No frame info available yet.");
-        //     }
-        // }
+    let mut playing = true;
 
-        // Add a check to see if the pipeline is still running
-        if pipeline_data.pipeline.current_state() != gst::State::Playing {
-            debug!("Frame reader loop: Pipeline is no longer playing. Exiting loop.");
-            break;
+    loop {
+        match kill_rx.try_recv() {
+            Ok(_) => {
+                debug!("Received kill signal, shutting down...");
+                break;
+            }
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
+                // No message received, continue the loop
+            }
+            Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
+                debug!("Kill channel closed, shutting down...");
+                break;
+            }
+        }
+
+        // doesn't work, leaves stream lagging behind
+        #[cfg(feature = "nope")]
+        match cmd_rx.try_recv() {
+            Ok(super::SubStreamCmd::TogglePause) => {
+                if playing {
+                    playing = false;
+                    pipeline_data
+                        .pipeline
+                        .set_state(gst::State::Paused)
+                        .context("Failed to set pipeline state to Paused")?;
+                } else {
+                    playing = true;
+                    pipeline_data
+                        .pipeline
+                        .set_state(gst::State::Playing)
+                        .context("Failed to set pipeline state to Playing")?;
+                }
+            }
+            _ => {}
         }
     }
-    debug!("Frame reader loop finished.");
 
     // 8. Shutdown
     debug!("Shutting down pipeline...");

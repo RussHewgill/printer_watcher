@@ -9,8 +9,9 @@ use crate::status::bambu_status::AmsUnit;
 // #[cfg(feature = "nope")]
 pub(super) fn paint_ams_h2d(
     ui: &mut egui::Ui,
-    size: f32,
     // size: f32,
+    // size: f32,
+    height: f32,
     // ams: &AmsStatus,
     bambu: &crate::status::bambu_status::PrinterStateBambu,
 ) {
@@ -18,6 +19,9 @@ pub(super) fn paint_ams_h2d(
         .with_cross_justify(true)
         .with_main_justify(true)
         .with_cross_align(egui::Align::Center);
+
+    // // let height = 62.;
+    // let height = 44.;
 
     // let x = bambu
     //     .ams
@@ -87,7 +91,7 @@ pub(super) fn paint_ams_h2d(
                     .inner_margin(0.)
                     .outer_margin(0.)
                     .show(ui, |ui| {
-                        let size = Vec2::new(ui.available_width(), size);
+                        let size = Vec2::new(ui.available_width(), height);
                         let (response, painter) = ui.allocate_painter(size, Sense::hover());
 
                         match left_ams {
@@ -123,7 +127,7 @@ pub(super) fn paint_ams_h2d(
                         //     .debug_painter()
                         //     .debug_rect(ui.max_rect(), Color32::GREEN, "");
 
-                        let size = Vec2::new(ui.available_width(), size);
+                        let size = Vec2::new(ui.available_width(), height);
                         let (response, painter) = ui.allocate_painter(size, Sense::hover());
 
                         match right_ams {
@@ -147,6 +151,12 @@ pub(super) fn paint_ams_h2d(
                     });
             });
         });
+
+    // ui.ctx().debug_painter().debug_rect(
+    //     ui.max_rect(),
+    //     Color32::from_rgba_unmultiplied(255, 0, 0, 50),
+    //     "",
+    // );
 }
 
 const MARGIN_H: f32 = 2.;

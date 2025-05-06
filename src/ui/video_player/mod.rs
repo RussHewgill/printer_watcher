@@ -14,6 +14,7 @@ pub struct VideoPlayer {
 }
 
 impl VideoPlayer {
+    #[cfg(feature = "gstreamer")]
     pub fn new(
         id: &str,
         ctx: &egui::Context,

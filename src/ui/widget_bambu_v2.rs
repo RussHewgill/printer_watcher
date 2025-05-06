@@ -12,7 +12,10 @@ use super::{
 };
 use crate::{
     config::printer_config::{PrinterConfigBambu, PrinterType},
-    status::{bambu_status::AmsStatus, GenericPrinterState},
+    status::{
+        bambu_status::{h2d_extruder::ExtruderSwitchState, AmsStatus, BambuPrinterType},
+        GenericPrinterState,
+    },
 };
 
 impl App {
@@ -22,6 +25,7 @@ impl App {
         pos: GridLocation,
         // frame_size: Vec2,
         printer: &PrinterConfigBambu,
+        bambu_type: Option<BambuPrinterType>,
     ) -> Response {
         /// checked at call site
         let Some(status) = self.printer_states.get(&printer.id) else {
@@ -57,11 +61,11 @@ impl App {
             .clip(true)
             .cell_layout(layout)
             // thumbnail
-            .size(egui_extras::Size::exact(thumbnail_height + 6.))
+            .size(egui_extras::Size::exact(thumbnail_height + 4.))
             // .size(egui_extras::Size::exact(26.))
             // temperatures
-            .size(egui_extras::Size::exact(26.))
-            // .size(egui_extras::Size::exact(26.))
+            .size(egui_extras::Size::exact(20.))
+            .size(egui_extras::Size::exact(20.))
             // Title
             .size(egui_extras::Size::exact(text_size_title + 4.))
             // progress bar
@@ -69,61 +73,174 @@ impl App {
             // ETA
             .size(egui_extras::Size::exact(text_size_eta + 2.))
             // AMS
-            .size(egui_extras::Size::exact(60. + 2.))
+            .size(egui_extras::Size::exact(48.))
             .vertical(|mut strip| {
                 let Some(status) = self.printer_states.get(&printer.id) else {
                     warn!("Printer not found: {:?}", printer.id);
                     panic!();
                 };
                 /// thumbnail/webcam
-                strip.cell(|ui| {
-                    let mut entry = self
-                        .webcam_textures
-                        .entry(printer.id.clone())
-                        .or_insert_with(|| {
-                            let image =
-                                egui::ColorImage::new([1920, 1080], egui::Color32::from_gray(220));
-                            let texture = ui.ctx().load_texture(
-                                format!("{:?}_texture", printer.id),
-                                image,
-                                Default::default(),
-                            );
-                            super::ui_types::WebcamTexture::new(texture)
-                        });
+                if bambu_type == Some(BambuPrinterType::H2D) {
+                    #[cfg(not(feature = "gstreamer"))]
+                    strip.cell(|ui| {
+                        ui.label("Webcam disabled");
+                    });
 
-                    let size = Vec2::new(thumbnail_width, thumbnail_height);
+                    #[cfg(feature = "gstreamer")]
+                    strip.cell(|ui| {
+                        let mut entry = self
+                            .webcam_textures
+                            .entry(printer.id.clone())
+                            .or_insert_with(|| {
+                                let image = egui::ColorImage::new(
+                                    [1920, 1080],
+                                    egui::Color32::from_gray(220),
+                                );
+                                let texture = ui.ctx().load_texture(
+                                    format!("{:?}_texture", printer.id),
+                                    image,
+                                    Default::default(),
+                                );
+                                super::ui_types::WebcamTexture::new(texture)
+                            });
 
-                    if entry.enabled {
-                        let img = egui::Image::from_texture((entry.texture.id(), size))
-                            .fit_to_exact_size(size)
-                            .max_size(size)
-                            .corner_radius(CornerRadius::same(4))
-                            .sense(Sense::click());
+                        let size = Vec2::new(thumbnail_width, thumbnail_height);
 
-                        let resp = ui.add(img);
+                        if entry.enabled {
+                            let img = egui::Image::from_texture((entry.texture.id(), size))
+                                .fit_to_exact_size(size)
+                                .max_size(size)
+                                .corner_radius(CornerRadius::same(4))
+                                .sense(Sense::click());
 
-                        if resp.clicked_by(egui::PointerButton::Primary) {
-                            // debug!("webcam clicked");
-                            self.selected_stream = Some(printer.id.clone());
+                            let img_resp = ui.add(img);
+
+                            if img_resp.clicked_by(egui::PointerButton::Primary) {
+                                // debug!("webcam clicked");
+                                self.selected_stream = Some(printer.id.clone());
+                            }
+
+                            if img_resp.clicked_by(egui::PointerButton::Secondary) {
+                                self.stream_cmd_tx
+                                    .as_ref()
+                                    .unwrap()
+                                    .send(crate::streaming::StreamCmd::StopStream(
+                                        printer.id.clone(),
+                                    ))
+                                    .unwrap();
+                                entry.enabled = false;
+                            }
+                        } else if self.options.auto_start_streams && entry.first_start {
+                            self.stream_cmd_tx
+                                .as_ref()
+                                .unwrap()
+                                .send(crate::streaming::StreamCmd::StartRtsp {
+                                    id: printer.id.clone(),
+                                    host: printer.host.clone(),
+                                    access_code: printer.access_code.clone(),
+                                    serial: printer.serial.clone(),
+                                    texture: entry.texture.clone(),
+                                })
+                                .unwrap();
+                            entry.enabled = true;
+                            entry.first_start = false;
+                        } else {
+                            // debug!("webcam not enabled: {:?}", printer.id);
+                            let img = egui::Image::from_texture((entry.texture.id(), size))
+                                .fit_to_exact_size(size)
+                                .max_size(size)
+                                .corner_radius(CornerRadius::same(4))
+                                // .bg_fill(Color32::RED)
+                                .sense(Sense::click());
+                            let img_resp = ui.add(img);
+                            super::ui_utils::draw_pause_overlay(ui, &img_resp);
+
+                            if img_resp.clicked() {
+                                debug!("restarting webcam stream: {:?}", printer.id);
+                                self.stream_cmd_tx
+                                    .as_ref()
+                                    .unwrap()
+                                    .send(crate::streaming::StreamCmd::StartRtsp {
+                                        id: printer.id.clone(),
+                                        host: printer.host.clone(),
+                                        access_code: printer.access_code.clone(),
+                                        serial: printer.serial.clone(),
+                                        texture: entry.texture.clone(),
+                                    })
+                                    .unwrap();
+                                entry.enabled = true;
+                            }
                         }
-                    } else if self.options.auto_start_streams {
-                        self.stream_cmd_tx
-                            .as_ref()
-                            .unwrap()
-                            .send(crate::streaming::StreamCmd::StartRtsp {
-                                id: printer.id.clone(),
-                                host: printer.host.clone(),
-                                access_code: printer.access_code.clone(),
-                                serial: printer.serial.clone(),
-                                texture: entry.texture.clone(),
-                            })
-                            .unwrap();
-                        entry.enabled = true;
-                        //
-                    }
 
-                    //
-                });
+                        //
+                    });
+                } else {
+                    /// thumbnail/webcam
+                    strip.cell(|ui| {
+                        // ui.label("Webcam: TODO");
+
+                        let mut entry = self
+                            .webcam_textures
+                            .entry(printer.id.clone())
+                            .or_insert_with(|| {
+                                let image = egui::ColorImage::new(
+                                    [1920, 1080],
+                                    egui::Color32::from_gray(220),
+                                );
+                                let texture = ui.ctx().load_texture(
+                                    format!("{:?}_texture", printer.id),
+                                    image,
+                                    Default::default(),
+                                );
+                                super::ui_types::WebcamTexture::new(texture)
+                            });
+
+                        let size = Vec2::new(thumbnail_width, thumbnail_height);
+
+                        if entry.enabled {
+                            let img = egui::Image::from_texture((entry.texture.id(), size))
+                                .fit_to_exact_size(size)
+                                .max_size(size)
+                                .corner_radius(CornerRadius::same(4))
+                                .sense(Sense::click());
+
+                            let resp = ui.add(img);
+
+                            if resp.clicked_by(egui::PointerButton::Primary) {
+                                // debug!("webcam clicked");
+                                self.selected_stream = Some(printer.id.clone());
+                            }
+                        } else if self.options.auto_start_streams {
+                            self.stream_cmd_tx
+                                .as_ref()
+                                .unwrap()
+                                .send(crate::streaming::StreamCmd::StartBambuStills {
+                                    id: printer.id.clone(),
+                                    host: printer.host.clone(),
+                                    access_code: printer.access_code.clone(),
+                                    serial: printer.serial.clone(),
+                                    texture: entry.texture.clone(),
+                                })
+                                .unwrap();
+                            entry.enabled = true;
+                        } else {
+                            if ui.button("Enable webcam").clicked() {
+                                self.stream_cmd_tx
+                                    .as_ref()
+                                    .unwrap()
+                                    .send(crate::streaming::StreamCmd::StartBambuStills {
+                                        id: printer.id.clone(),
+                                        host: printer.host.clone(),
+                                        access_code: printer.access_code.clone(),
+                                        serial: printer.serial.clone(),
+                                        texture: entry.texture.clone(),
+                                    })
+                                    .unwrap();
+                                entry.enabled = true;
+                            }
+                        }
+                    });
+                }
 
                 #[cfg(feature = "nope")]
                 /// temperatures
@@ -198,119 +315,199 @@ impl App {
                 });
 
                 /// temperatures: nozzles, bed, chamber
-                strip.strip(|mut builder| {
-                    let font_size = 11.5;
+                if bambu_type == Some(BambuPrinterType::H2D) {
+                    strip.strip(|mut builder| {
+                        let font_size = 11.5;
 
-                    let Some(bambu) = &status.state_bambu else {
-                        error!("Bambu state not found: {:?}", printer.id);
-                        panic!();
-                    };
+                        let Some(bambu) = &status.state_bambu else {
+                            error!("Bambu state not found: {:?}", printer.id);
+                            panic!();
+                        };
 
-                    let Some(extruder) = bambu.device.extruder.as_ref() else {
-                        // error!("Extruder not found: {:?}", printer.id);
-                        // panic!();
-                        return;
-                    };
-                    let Some(nozzle_state) = extruder.get_state() else {
-                        // error!("Nozzle state not found: {:?}", printer.id);
-                        // panic!();
-                        return;
-                    };
+                        let Some(extruder) = bambu.device.extruder.as_ref() else {
+                            return;
+                        };
+                        // let Some(nozzle_state) = extruder.get_state() else {
+                        //     return;
+                        // };
 
-                    builder
-                        .size(egui_extras::Size::relative(0.4))
-                        .size(egui_extras::Size::relative(0.35))
-                        .size(egui_extras::Size::remainder())
-                        .cell_layout(layout)
-                        .horizontal(|mut strip| {
-                            let left = &extruder.info[0];
-                            let right = &extruder.info[1];
+                        // debug!(
+                        //     "extruder state: \n{:#?}\n{:#?}",
+                        //     extruder.info[0], extruder.info[1]
+                        // );
 
-                            let current_nozzle = match nozzle_state {
-                                crate::status::bambu_status::H2DNozzleState::Left => "L",
-                                crate::status::bambu_status::H2DNozzleState::Right => "R",
-                                crate::status::bambu_status::H2DNozzleState::Other(_) => "_",
-                            };
+                        // for i in 0..2 {
+                        //     let e = &extruder.info[i];
+                        // }
 
-                            strip.cell(|ui| {
-                                // ui.ctx().debug_painter().debug_rect(
-                                //     ui.max_rect(),
-                                //     Color32::GREEN,
-                                //     "",
-                                // );
-                                ui.horizontal(|ui| {
-                                    ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
-                                    ui.add(
-                                        Label::new(
-                                            // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
+                        builder
+                            .size(egui_extras::Size::relative(0.4))
+                            .size(egui_extras::Size::relative(0.35))
+                            .size(egui_extras::Size::remainder())
+                            .cell_layout(layout)
+                            .horizontal(|mut strip| {
+                                let current_nozzle = match extruder.switch_state {
+                                    ExtruderSwitchState::Idle => match extruder.current_extruder {
+                                        0 => "R",
+                                        1 => "L",
+                                        _ => "??",
+                                    },
+                                    ExtruderSwitchState::Busy => "B",
+                                    ExtruderSwitchState::Switching => "S",
+                                    ExtruderSwitchState::Failed => "F",
+                                    ExtruderSwitchState::Other(_) => "?",
+                                };
+
+                                strip.cell(|ui| {
+                                    // ui.ctx().debug_painter().debug_rect(
+                                    //     ui.max_rect(),
+                                    //     Color32::GREEN,
+                                    //     "",
+                                    // );
+                                    ui.horizontal(|ui| {
+                                        ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
+                                        ui.add(
+                                            Label::new(
+                                                // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
+                                                RichText::new(format!(
+                                                    "[{}] {:.1}°C/{}",
+                                                    current_nozzle,
+                                                    status.nozzle_temp,
+                                                    status.nozzle_temp_target as i64 // 500.0,
+                                                                                     // 500.0,
+                                                ))
+                                                .strong()
+                                                .size(font_size),
+                                            )
+                                            .truncate(),
+                                        );
+                                    });
+                                });
+
+                                strip.cell(|ui| {
+                                    // ui.ctx().debug_painter().debug_rect(
+                                    //     ui.max_rect(),
+                                    //     Color32::RED,
+                                    //     "",
+                                    // );
+                                    ui.horizontal(|ui| {
+                                        ui.add(thumbnail_bed(status.bed_temp_target > 0.));
+                                        ui.add(
+                                            Label::new(
+                                                RichText::new(format!(
+                                                    "{:.1}°C/{}",
+                                                    status.bed_temp,
+                                                    status.bed_temp_target as i64 // 500.0,
+                                                                                  // 500,
+                                                ))
+                                                .strong()
+                                                .size(font_size),
+                                            )
+                                            .truncate(),
+                                        );
+                                    });
+                                });
+
+                                strip.cell(|ui| {
+                                    // ui.ctx().debug_painter().debug_rect(
+                                    //     ui.max_rect(),
+                                    //     Color32::BLUE,
+                                    //     "",
+                                    // );
+                                    ui.horizontal(|ui| {
+                                        ui.add(thumbnail_chamber());
+                                        ui.label(
                                             RichText::new(format!(
-                                                "[{}] {:.1}°C/{}",
-                                                current_nozzle,
-                                                status.nozzle_temp,
-                                                status.nozzle_temp_target as i64 // 500.0,
-                                                                                 // 500.0,
+                                                // "--",
+                                                "{}°C/{}",
+                                                status.chamber_temp as i64,
+                                                status.chamber_temp_target.unwrap_or(0.) as i64
                                             ))
                                             .strong()
                                             .size(font_size),
-                                        )
-                                        .truncate(),
-                                    );
+                                        );
+                                    });
                                 });
-                            });
 
-                            strip.cell(|ui| {
-                                // ui.ctx().debug_painter().debug_rect(
-                                //     ui.max_rect(),
-                                //     Color32::RED,
-                                //     "",
-                                // );
-                                ui.horizontal(|ui| {
-                                    ui.add(thumbnail_bed(status.bed_temp_target > 0.));
-                                    ui.add(
-                                        Label::new(
+                                //
+                            });
+                    });
+                } else {
+                    strip.strip(|mut builder| {
+                        let font_size = 11.5;
+
+                        // let layout = Layout::left_to_right(egui::Align::Center)
+                        //     .with_cross_justify(true)
+                        //     .with_main_justify(true)
+                        //     .with_cross_align(egui::Align::Center);
+
+                        builder
+                            .size(egui_extras::Size::relative(0.4))
+                            .size(egui_extras::Size::relative(0.4))
+                            .size(egui_extras::Size::remainder())
+                            .cell_layout(layout)
+                            .horizontal(|mut strip| {
+                                strip.cell(|ui| {
+                                    ui.horizontal(|ui| {
+                                        // ui.ctx().debug_painter().debug_rect(
+                                        //     ui.max_rect(),
+                                        //     Color32::RED,
+                                        //     "",
+                                        // );
+                                        ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
+                                        ui.add(
+                                            Label::new(
+                                                // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
+                                                RichText::new(format!(
+                                                    "{:.1}°C / {}",
+                                                    status.nozzle_temp,
+                                                    status.nozzle_temp_target as i64
+                                                ))
+                                                .strong()
+                                                .size(font_size),
+                                            )
+                                            .truncate(),
+                                        );
+                                    });
+                                });
+                                strip.cell(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.add(thumbnail_bed(status.bed_temp_target > 0.));
+                                        ui.add(
+                                            Label::new(
+                                                RichText::new(format!(
+                                                    "{:.1}°C / {}",
+                                                    status.bed_temp, status.bed_temp_target as i64
+                                                ))
+                                                .strong()
+                                                .size(font_size),
+                                            )
+                                            .truncate(),
+                                        );
+                                    });
+                                });
+                                strip.cell(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.add(thumbnail_chamber());
+                                        ui.label(
                                             RichText::new(format!(
-                                                "{:.1}°C/{}",
-                                                status.bed_temp,
-                                                status.bed_temp_target as i64 // 500.0,
-                                                                              // 500,
+                                                "--",
+                                                // "{}°C",
+                                                // status.temp_chamber.unwrap_or(0.) as i64
                                             ))
                                             .strong()
                                             .size(font_size),
-                                        )
-                                        .truncate(),
-                                    );
+                                        );
+                                    });
                                 });
                             });
+                    });
+                }
 
-                            strip.cell(|ui| {
-                                // ui.ctx().debug_painter().debug_rect(
-                                //     ui.max_rect(),
-                                //     Color32::BLUE,
-                                //     "",
-                                // );
-                                ui.horizontal(|ui| {
-                                    ui.add(thumbnail_chamber());
-                                    ui.label(
-                                        RichText::new(format!(
-                                            // "--",
-                                            "{}°C/{}",
-                                            status.chamber_temp as i64,
-                                            status.chamber_temp_target.unwrap_or(0.) as i64
-                                        ))
-                                        .strong()
-                                        .size(font_size),
-                                    );
-                                });
-                            });
-
-                            //
-                        });
+                /// temperatures 2: chamber, fans
+                strip.cell(|ui| {
+                    ui.label("TODO: Temperatures/Fans 2");
                 });
-
-                // /// temperatures 2: chamber, fans
-                // strip.cell(|ui| {
-                //     ui.label("TODO: Temperatures/Fans 2");
-                // });
 
                 /// Title
                 strip.cell(|ui| {
@@ -448,7 +645,31 @@ impl App {
                 /// AMS
                 strip.cell(|ui| {
                     // ui.label("TODO: AMS");
-                    self.show_ams_h2d(ui, printer);
+
+                    let Some(status) = self.printer_states.get(&printer.id) else {
+                        warn!("Printer not found: {}", printer.serial);
+                        panic!();
+                    };
+
+                    let Some(bambu) = &status.state_bambu else {
+                        error!("Bambu state not found: {:?}", printer.id);
+                        return;
+                    };
+
+                    let height = 44.;
+
+                    if bambu_type == Some(BambuPrinterType::H2D) {
+                        super::ams::paint_ams_h2d(ui, height, bambu);
+                    } else {
+                        // self.show_ams(ui, printer);
+
+                        let Some(ams) = &bambu.ams else {
+                            error!("AMS not found: {:?}", printer.id);
+                            return;
+                        };
+
+                        super::widget_bambu::paint_ams(ui, height, ams);
+                    }
                     // ui.ctx()
                     //     .debug_painter()
                     //     .debug_rect(ui.max_rect(), Color32::RED, "");
@@ -460,26 +681,5 @@ impl App {
         ui.spacing_mut().item_spacing.x = 8.;
 
         resp
-    }
-
-    fn show_ams_h2d(&self, ui: &mut egui::Ui, printer: &PrinterConfigBambu) {
-        let Some(status) = self.printer_states.get(&printer.id) else {
-            warn!("Printer not found: {}", printer.serial);
-            panic!();
-        };
-
-        let Some(bambu) = &status.state_bambu else {
-            error!("Bambu state not found: {:?}", printer.id);
-            return;
-        };
-
-        // let Some(ams) = &bambu.ams else {
-        //     error!("AMS not found: {:?}", printer.id);
-        //     return;
-        // };
-
-        let size = 62.;
-
-        super::ams::paint_ams_h2d(ui, size, bambu);
     }
 }

@@ -39,13 +39,16 @@ pub enum StreamCmd {
         texture: TextureHandle,
     },
     StopStream(PrinterId),
+    TogglePauseStream(PrinterId),
     SendRtspCommand(PrinterId, SubStreamCmd),
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum SubStreamCmd {
-    #[cfg(feature = "rtsp")]
-    Rtsp(RtspCommand),
+    // #[cfg(feature = "rtsp")]
+    // #[cfg(feature = "gstreamer")]
+    // Rtsp(RtspCommand),
+    TogglePause,
 }
 
 #[derive(Clone)]
@@ -127,31 +130,47 @@ impl StreamManager {
                             tx.send(()).unwrap();
                         }
                     }
+                    Some(StreamCmd::TogglePauseStream(id)) => {
+                        // debug!("toggling pause stream for printer: {:?}", id);
+                        // if let Some((_, tx)) = self.worker_channels.get(&id) {
+                        //     tx.send(SubStreamCmd::TogglePause).unwrap();
+                        // }
+                    }
                 }
             }
         }
     }
 
+    #[cfg(feature = "gstreamer")]
     fn start_stream_bambu_rtsp(
         &mut self,
         id: PrinterId,
         host: String,
         access_code: String,
-        _serial: String,
+        serial: String,
         texture: egui::TextureHandle,
         worker_tx: tokio::sync::mpsc::UnboundedSender<StreamWorkerMsg>,
         // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
     ) -> Result<()> {
+        let (kill_tx, kill_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+
+        let (worker_cmd_tx, worker_cmd_rx) = tokio::sync::mpsc::unbounded_channel::<SubStreamCmd>();
+
+        self.worker_channels
+            .insert(id.clone(), (kill_tx, worker_cmd_tx));
+
         std::thread::spawn(move || {
-            let player = gstreamer_bambu::GStreamerPlayer::new(
-                &access_code,
-                &host,
+            let mut player = gstreamer_bambu::GStreamerPlayer::new(
+                id,
+                access_code,
+                host,
                 322,
+                serial,
                 texture,
                 worker_tx,
                 // kill_rx,
             );
-            if let Err(e) = player.init() {
+            if let Err(e) = player.init(kill_rx, worker_cmd_rx) {
                 error!("error initializing gstreamer player: {:?}", e);
             }
         });

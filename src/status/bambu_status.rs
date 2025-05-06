@@ -656,7 +656,7 @@ pub struct Device {
     // pub cam: Option<Cam>,
     // pub cham_temp: Option<i64>,
     // pub ext_tool: Option<ExtTool>,
-    pub extruder: Option<Extruder>,
+    pub extruder: Option<h2d_extruder::Extruder>,
     // pub fan: Option<i64>,
     // pub laser: Option<LaserPower>,
     // pub nozzle: Option<Nozzle>,
@@ -665,43 +665,236 @@ pub struct Device {
     // pub type_field: Option<i64>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Extruder {
-    pub info: Vec<ExtruderInfo>,
-    state: Option<i64>,
-}
+pub mod h2d_extruder {
+    use anyhow::{anyhow, bail, ensure, Context, Result};
+    use tracing::{debug, error, info, trace, warn};
 
-impl Extruder {
-    pub fn get_state(&self) -> Option<H2DNozzleState> {
-        match self.state {
-            Some(2) => Some(H2DNozzleState::Left),
-            Some(274) => Some(H2DNozzleState::Right),
-            Some(s) => Some(H2DNozzleState::Other(s)),
-            None => None,
+    use serde::{Deserialize, Deserializer};
+
+    #[derive(Debug, Clone)]
+    pub struct Extruder {
+        /// 0 = Right
+        /// 1 = Left
+        pub current_extruder: i64,
+        pub switch_state: ExtruderSwitchState,
+
+        pub left: ExtruderInfo,
+        pub right: ExtruderInfo,
+    }
+
+    impl<'de> serde::Deserialize<'de> for Extruder {
+        fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+            let s: serde_json::Value = Deserialize::deserialize(d)?;
+            // debug!("extruder = {}", serde_json::to_string_pretty(&s).unwrap());
+
+            let right = {
+                let Some(right) = s.pointer("/info/0") else {
+                    warn!(
+                        "Missing right extruder info, s = {}",
+                        serde_json::to_string_pretty(&s).unwrap()
+                    );
+                    return Err(serde::de::Error::custom("Missing right extruder info"));
+                };
+                // let right = s.pointer("/extruder/info/0").unwrap();
+                let info = right["info"].as_i64().unwrap_or(0);
+                let temp = right["temp"].as_i64().unwrap_or(0);
+
+                let spre = right["spre"].as_i64().unwrap_or(0);
+                let snow = right["snow"].as_i64().unwrap_or(0);
+                let star = right["star"].as_i64().unwrap_or(0);
+
+                ExtruderInfo {
+                    id: right["id"].as_i64().unwrap(),
+                    has_filament: get_flag_bits_from_int(info, 1, 1) == Some(1),
+                    buffer_has_filament: get_flag_bits_from_int(info, 2, 1) == Some(1),
+                    temp: get_flag_bits_from_int(temp, 0, 16).unwrap(),
+                    target_temp: get_flag_bits_from_int(temp, 16, 16).unwrap(),
+
+                    ams_slot_pre: (
+                        get_flag_bits_from_int(spre, 0, 8).unwrap(),
+                        get_flag_bits_from_int(spre, 8, 8).unwrap(),
+                    ),
+                    ams_slot_now: (
+                        get_flag_bits_from_int(snow, 0, 8).unwrap(),
+                        get_flag_bits_from_int(snow, 8, 8).unwrap(),
+                    ),
+                    ams_slot_tar: (
+                        get_flag_bits_from_int(star, 0, 8).unwrap(),
+                        get_flag_bits_from_int(star, 8, 8).unwrap(),
+                    ),
+
+                    nozzle_id: right["hnow"].as_i64().unwrap_or(0),
+                    target_nozzle_id: right["htar"].as_i64().unwrap_or(0),
+                }
+            };
+
+            let left = {
+                let left = s.pointer("/info/1").unwrap();
+                let info = left["info"].as_i64().unwrap_or(0);
+                let temp = left["temp"].as_i64().unwrap_or(0);
+
+                let spre = left["spre"].as_i64().unwrap_or(0);
+                let snow = left["snow"].as_i64().unwrap_or(0);
+                let star = left["star"].as_i64().unwrap_or(0);
+
+                ExtruderInfo {
+                    id: left["id"].as_i64().unwrap(),
+                    has_filament: get_flag_bits_from_int(info, 1, 1) == Some(1),
+                    buffer_has_filament: get_flag_bits_from_int(info, 2, 1) == Some(1),
+                    temp: get_flag_bits_from_int(temp, 0, 16).unwrap(),
+                    target_temp: get_flag_bits_from_int(temp, 16, 16).unwrap(),
+
+                    ams_slot_pre: (
+                        get_flag_bits_from_int(spre, 0, 8).unwrap(),
+                        get_flag_bits_from_int(spre, 8, 8).unwrap(),
+                    ),
+                    ams_slot_now: (
+                        get_flag_bits_from_int(snow, 0, 8).unwrap(),
+                        get_flag_bits_from_int(snow, 8, 8).unwrap(),
+                    ),
+                    ams_slot_tar: (
+                        get_flag_bits_from_int(star, 0, 8).unwrap(),
+                        get_flag_bits_from_int(star, 8, 8).unwrap(),
+                    ),
+
+                    nozzle_id: left["hnow"].as_i64().unwrap_or(0),
+                    target_nozzle_id: left["htar"].as_i64().unwrap_or(0),
+                }
+            };
+
+            let state = s.pointer("/state").unwrap().as_i64().unwrap();
+
+            let total_extruder_count = get_flag_bits_from_int(state, 0, 4).unwrap();
+            let current_extruder = get_flag_bits_from_int(state, 4, 4).unwrap();
+            let target_extruder = get_flag_bits_from_int(state, 8, 4).unwrap();
+
+            let switch_state = get_flag_bits_from_int(state, 12, 3).unwrap();
+
+            Ok(Self {
+                current_extruder,
+                switch_state: ExtruderSwitchState::from_code(switch_state),
+
+                left,
+                right,
+            })
         }
     }
-}
 
-#[derive(Debug, Clone, Copy)]
-pub enum H2DNozzleState {
-    Left,
-    Right,
-    Other(i64),
-}
+    /// Extracts a specified number of bits from an integer, interpreting it based on the provided base.
+    ///
+    /// # Arguments
+    ///
+    /// * `num` - The number containing the bits.
+    /// * `start` - The starting bit position (0-indexed, from the right).
+    /// * `count` - The number of bits to extract.
+    /// * `base` - The base to interpret `num` (10 or 16). If 16, `num` is converted
+    ///           to a string and then parsed as hexadecimal (mimicking the C++ behavior).
+    ///
+    /// # Returns
+    ///
+    /// The extracted bits as an `i64`, or 0 if the base is unsupported, parsing fails, or an error occurs.
+    // fn get_flag_bits_from_int(num: i64, start: u64, count: u64, base: u64) -> Option<i64>
+    fn get_flag_bits_from_int(num: i64, start: u64, count: u64) -> Option<i64> {
+        let base = 10;
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct ExtruderInfo {
-    pub filam_bak: Option<Vec<serde_json::Value>>, // Use specific struct if structure is known
-    pub hnow: Option<i64>,
-    pub hpre: Option<i64>,
-    pub htar: Option<i64>,
-    pub id: Option<i64>,
-    pub info: Option<i64>,
-    pub snow: Option<i64>,
-    pub spre: Option<i64>,
-    pub star: Option<i64>,
-    pub stat: Option<i64>,
-    pub temp: Option<i64>,
+        if count == 0 || count > 64 || start >= 64 {
+            return None; // Avoid invalid shifts or mask creation
+        }
+
+        let value_res: Result<u64, std::num::ParseIntError> = match base {
+            10 => Ok(num as u64),
+            16 => {
+                // Note: This mimics the C++ logic of converting the integer to a string
+                // first, then parsing that string as hex. This might not be the
+                // intended behavior in all scenarios. Consider if `num` should
+                // already represent the hex value directly.
+                u64::from_str_radix(&num.to_string(), 16)
+            }
+            _ => return None, // Unsupported base
+        };
+
+        Some(value_res.map_or(0, |value| {
+            let mask = if count == 64 {
+                u64::MAX // Special case for 64 bits
+            } else {
+                (1u64 << count) - 1
+            };
+            // Perform the shift and mask
+            ((value >> start) & mask) as i64
+        }))
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct ExtruderInfo {
+        id: i64,
+        has_filament: bool,
+        buffer_has_filament: bool,
+        // nozzle_exist: bool,
+        temp: i64,
+        target_temp: i64,
+        ams_slot_pre: (i64, i64),
+        ams_slot_now: (i64, i64),
+        ams_slot_tar: (i64, i64),
+        nozzle_id: i64,
+        target_nozzle_id: i64,
+        // ams_stat: (),
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub enum ExtruderSwitchState {
+        Idle,
+        Busy,
+        Switching,
+        Failed,
+        Other(i64),
+    }
+
+    impl ExtruderSwitchState {
+        pub fn from_code(code: i64) -> Self {
+            match code {
+                0 => Self::Idle,
+                1 => Self::Busy,
+                2 => Self::Switching,
+                3 => Self::Failed,
+                other => Self::Other(other),
+            }
+        }
+    }
+
+    #[cfg(feature = "nope")]
+    /// 0 = Right
+    /// 1 = Left
+    #[derive(Debug, Clone, Deserialize)]
+    pub struct Extruder {
+        pub info: Vec<ExtruderInfo>,
+        state: Option<i64>,
+    }
+
+    #[cfg(feature = "nope")]
+    impl Extruder {
+        pub fn get_state(&self) -> Option<H2DNozzleState> {
+            // seen:
+            // Left:
+            // 2        0b0000_0000_0000_0010 (?)
+            // 33042    0b1000_0001_0001_0010 (AMS slot 1)
+            // Right:
+            // 274      0b0000_0001_0001_0010
+
+            match self.state {
+                Some(2) => Some(H2DNozzleState::Left),
+                Some(274) => Some(H2DNozzleState::Right),
+                Some(s) => Some(H2DNozzleState::Other(s)),
+                None => None,
+            }
+        }
+    }
+
+    // #[derive(Debug, Clone, Copy)]
+    // pub enum H2DNozzleState {
+    //     Left,
+    //     Right,
+    //     Other(i64),
+    // }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]

@@ -148,6 +148,12 @@ impl App {
                     panic!();
                 };
 
+                let bambu_type = bs.printer_type;
+
+                drop(status);
+                self.show_printer_bambu_v2(ui, pos, &printer, bambu_type);
+
+                #[cfg(feature = "nope")]
                 if let Some(bambu_type) = bs.printer_type {
                     drop(status);
                     self.show_printer_bambu_v2(ui, pos, &printer);

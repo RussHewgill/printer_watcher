@@ -47,6 +47,7 @@ pub enum Thumbnail {
 pub struct WebcamTexture {
     pub texture: egui::TextureHandle,
     pub enabled: bool,
+    pub first_start: bool,
 }
 
 impl WebcamTexture {
@@ -54,6 +55,7 @@ impl WebcamTexture {
         Self {
             texture,
             enabled: false,
+            first_start: true,
         }
     }
 }
