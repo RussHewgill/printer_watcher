@@ -93,7 +93,7 @@ impl App {
                             .entry(printer.id.clone())
                             .or_insert_with(|| {
                                 let image = egui::ColorImage::new(
-                                    [1920, 1080],
+                                    [1680, 1080],
                                     egui::Color32::from_gray(220),
                                 );
                                 let texture = ui.ctx().load_texture(
@@ -115,12 +115,14 @@ impl App {
 
                             let img_resp = ui.add(img);
 
+                            if img_resp.hovered() {
+                                ui.ctx().request_repaint();
+                            }
+
                             if img_resp.clicked_by(egui::PointerButton::Primary) {
                                 // debug!("webcam clicked");
                                 self.selected_stream = Some(printer.id.clone());
-                            }
-
-                            if img_resp.clicked_by(egui::PointerButton::Secondary) {
+                            } else if img_resp.clicked_by(egui::PointerButton::Secondary) {
                                 self.stream_cmd_tx
                                     .as_ref()
                                     .unwrap()
@@ -135,6 +137,7 @@ impl App {
                                 .as_ref()
                                 .unwrap()
                                 .send(crate::streaming::StreamCmd::StartRtsp {
+                                    ctx: ui.ctx().clone(),
                                     id: printer.id.clone(),
                                     host: printer.host.clone(),
                                     access_code: printer.access_code.clone(),
@@ -155,12 +158,13 @@ impl App {
                             let img_resp = ui.add(img);
                             super::ui_utils::draw_pause_overlay(ui, &img_resp);
 
-                            if img_resp.clicked() {
+                            if img_resp.clicked_by(egui::PointerButton::Secondary) {
                                 debug!("restarting webcam stream: {:?}", printer.id);
                                 self.stream_cmd_tx
                                     .as_ref()
                                     .unwrap()
                                     .send(crate::streaming::StreamCmd::StartRtsp {
+                                        ctx: ui.ctx().clone(),
                                         id: printer.id.clone(),
                                         host: printer.host.clone(),
                                         access_code: printer.access_code.clone(),
@@ -327,18 +331,6 @@ impl App {
                         let Some(extruder) = bambu.device.extruder.as_ref() else {
                             return;
                         };
-                        // let Some(nozzle_state) = extruder.get_state() else {
-                        //     return;
-                        // };
-
-                        // debug!(
-                        //     "extruder state: \n{:#?}\n{:#?}",
-                        //     extruder.info[0], extruder.info[1]
-                        // );
-
-                        // for i in 0..2 {
-                        //     let e = &extruder.info[i];
-                        // }
 
                         builder
                             .size(egui_extras::Size::relative(0.4))
@@ -347,11 +339,13 @@ impl App {
                             .cell_layout(layout)
                             .horizontal(|mut strip| {
                                 let current_nozzle = match extruder.switch_state {
-                                    ExtruderSwitchState::Idle => match extruder.current_extruder {
-                                        0 => "R",
-                                        1 => "L",
-                                        _ => "??",
-                                    },
+                                    ExtruderSwitchState::Idle => {
+                                        match extruder.current_extruder() {
+                                            0 => "R",
+                                            1 => "L",
+                                            _ => "??",
+                                        }
+                                    }
                                     ExtruderSwitchState::Busy => "B",
                                     ExtruderSwitchState::Switching => "S",
                                     ExtruderSwitchState::Failed => "F",
@@ -364,17 +358,23 @@ impl App {
                                     //     Color32::GREEN,
                                     //     "",
                                     // );
+
                                     ui.horizontal(|ui| {
                                         ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
                                         ui.add(
                                             Label::new(
                                                 // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
                                                 RichText::new(format!(
-                                                    "[{}] {:.1}°C/{}",
+                                                    "[{}] {}°C/{}",
                                                     current_nozzle,
-                                                    status.nozzle_temp,
-                                                    status.nozzle_temp_target as i64 // 500.0,
-                                                                                     // 500.0,
+                                                    extruder
+                                                        .get_current()
+                                                        .map(|e| e.temp)
+                                                        .unwrap_or(0),
+                                                    extruder
+                                                        .get_current()
+                                                        .map(|e| e.target_temp)
+                                                        .unwrap_or(0),
                                                 ))
                                                 .strong()
                                                 .size(font_size),
@@ -504,10 +504,132 @@ impl App {
                     });
                 }
 
-                /// temperatures 2: chamber, fans
-                strip.cell(|ui| {
-                    ui.label("TODO: Temperatures/Fans 2");
-                });
+                /// temperatures 2: other nozzle, fans
+                // ui.label("TODO: Temperatures/Fans 2");
+                if bambu_type == Some(BambuPrinterType::H2D) {
+                    strip.strip(|mut builder| {
+                        let font_size = 11.5;
+
+                        let Some(bambu) = &status.state_bambu else {
+                            error!("Bambu state not found: {:?}", printer.id);
+                            panic!();
+                        };
+
+                        let Some(extruder) = bambu.device.extruder.as_ref() else {
+                            return;
+                        };
+
+                        builder
+                            .size(egui_extras::Size::relative(0.28))
+                            .sizes(egui_extras::Size::relative(0.2), 3)
+                            .size(egui_extras::Size::remainder())
+                            .cell_layout(layout)
+                            .horizontal(|mut strip| {
+                                strip.cell(|ui| {
+                                    // ui.ctx().debug_painter().debug_rect(
+                                    //     ui.max_rect(),
+                                    //     Color32::GREEN,
+                                    //     "",
+                                    // );
+
+                                    ui.horizontal(|ui| {
+                                        ui.add(thumbnail_nozzle(status.nozzle_temp_target > 0.));
+                                        ui.add(
+                                            Label::new(
+                                                // RichText::new(format!("{:.1}°C", status.temp_nozzle.unwrap_or(0.)))
+                                                RichText::new(format!(
+                                                    "{}°C/{}",
+                                                    extruder
+                                                        .get_other()
+                                                        .map(|e| e.temp)
+                                                        .unwrap_or(0),
+                                                    extruder
+                                                        .get_other()
+                                                        .map(|e| e.target_temp)
+                                                        .unwrap_or(0),
+                                                    // 500,
+                                                    // 500,
+                                                ))
+                                                .strong()
+                                                .size(font_size),
+                                            )
+                                            .truncate(),
+                                        );
+                                    });
+                                });
+
+                                let airduct = bambu.device.airduct.as_ref().unwrap();
+
+                                strip.cell(|ui| {
+                                    ui.label(
+                                        RichText::new(format!(
+                                            "Part: {:>3}",
+                                            // bambu.cooling_fan_speed.unwrap_or_default()
+                                            airduct.parts[0].state as i64
+                                        ))
+                                        .strong()
+                                        .size(font_size),
+                                    );
+                                });
+
+                                strip.cell(|ui| {
+                                    ui.label(
+                                        RichText::new(format!(
+                                            "Aux: {:>3}",
+                                            // bambu.aux_fan_speed.unwrap_or_default()
+                                            airduct.parts[1].state as i64
+                                        ))
+                                        .strong()
+                                        .size(font_size),
+                                    );
+                                });
+
+                                strip.cell(|ui| {
+                                    ui.label(
+                                        RichText::new(format!(
+                                            "Cham: {:>3}",
+                                            // bambu.chamber_fan_speed.unwrap_or_default()
+                                            airduct.parts[2].state as i64
+                                        ))
+                                        .strong()
+                                        .size(font_size),
+                                    );
+                                });
+
+                                // parts[3] = heater?
+
+                                #[cfg(feature = "nope")]
+                                strip.cell(|ui| {
+                                    ui.horizontal(|ui| {
+                                        // ui.add(thumbnail_fan());
+
+                                        // debug!("cooling: {:?}", bambu.cooling_fan_speed);
+                                        // debug!("big_fan1: {:?}", bambu.aux_fan_speed);
+                                        // debug!("big_fan2: {:?}", bambu.chamber_fan_speed);
+
+                                        // let airduct = bambu.device.airduct.as_ref().unwrap();
+
+                                        // ui.label("")
+
+                                        // for (i, fan) in airduct.parts.iter().enumerate() {
+                                        //     debug!(
+                                        //         "Fan: {} ({}): {}, {}",
+                                        //         fan.air_type, fan.id, fan.func, fan.state,
+                                        //     );
+                                        // }
+                                    });
+                                });
+
+                                strip.cell(|ui| {
+                                    // ui.label("TODO");
+                                });
+                            });
+                    });
+                } else {
+                    strip.cell(|ui| {
+                        ui.label("TODO: Temperatures/Fans 2");
+                    });
+                }
 
                 /// Title
                 strip.cell(|ui| {

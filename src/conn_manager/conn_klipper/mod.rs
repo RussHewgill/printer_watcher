@@ -194,10 +194,10 @@ impl KlipperClient {
                     }
                 };
 
-                trace!(
-                    "got message: {}",
-                    serde_json::to_string_pretty(&json).unwrap()
-                );
+                // trace!(
+                //     "got message: {}",
+                //     serde_json::to_string_pretty(&json).unwrap()
+                // );
                 // self.tx.send((self.id.clone(), WorkerMsg::StatusUpdate(update))).unwrap();
 
                 self.handle_status(json).await?;

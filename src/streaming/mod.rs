@@ -25,6 +25,7 @@ pub enum StreamCmd {
     StartRtsp(PrinterId, TextureHandle, RtspCreds, egui::Context),
     #[cfg(feature = "gstreamer")]
     StartRtsp {
+        ctx: egui::Context,
         id: PrinterId,
         host: String,
         access_code: String,
@@ -109,9 +110,9 @@ impl StreamManager {
                         self.start_stream_rtsp(id, texture_handle, creds, ctx, self.worker_tx.clone()).await?;
                     }
                     #[cfg(feature = "gstreamer")]
-                    Some(StreamCmd::StartRtsp { id, host, access_code, serial, texture }) => {
+                    Some(StreamCmd::StartRtsp { ctx, id, host, access_code, serial, texture }) => {
                         debug!("starting RTSP stream for printer: {:?}", id);
-                        self.start_stream_bambu_rtsp(id, host, access_code, serial, texture, self.worker_tx.clone())?;
+                        self.start_stream_bambu_rtsp(ctx, id, host, access_code, serial, texture, self.worker_tx.clone(), self.cmd_tx.clone())?;
                     }
                     Some(StreamCmd::StartBambuStills { id, host, access_code, serial, texture }) => {
                         debug!("starting Bambu still stream");
@@ -144,6 +145,7 @@ impl StreamManager {
     #[cfg(feature = "gstreamer")]
     fn start_stream_bambu_rtsp(
         &mut self,
+        ctx: egui::Context,
         id: PrinterId,
         host: String,
         access_code: String,
@@ -151,6 +153,7 @@ impl StreamManager {
         texture: egui::TextureHandle,
         worker_tx: tokio::sync::mpsc::UnboundedSender<StreamWorkerMsg>,
         // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+        cmd_tx: tokio::sync::mpsc::UnboundedSender<StreamCmd>,
     ) -> Result<()> {
         let (kill_tx, kill_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
 
@@ -159,9 +162,11 @@ impl StreamManager {
         self.worker_channels
             .insert(id.clone(), (kill_tx, worker_cmd_tx));
 
+        let id2 = id.clone();
         std::thread::spawn(move || {
             let mut player = gstreamer_bambu::GStreamerPlayer::new(
-                id,
+                ctx.clone(),
+                id2,
                 access_code,
                 host,
                 322,
@@ -170,10 +175,17 @@ impl StreamManager {
                 worker_tx,
                 // kill_rx,
             );
-            if let Err(e) = player.init(kill_rx, worker_cmd_rx) {
+            if let Err(e) = player.init(&ctx, kill_rx, worker_cmd_rx) {
                 error!("error initializing gstreamer player: {:?}", e);
             }
         });
+
+        /// close the stream after 5 minutes
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            cmd_tx.send(StreamCmd::StopStream(id)).unwrap();
+        });
+
         Ok(())
     }
 

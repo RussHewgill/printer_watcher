@@ -9,6 +9,52 @@ use crate::conn_manager::conn_bambu::message::{PrintAms, PrintData, PrintVtTray,
 
 use super::PrinterState;
 
+mod helpers {
+    /// Extracts a specified number of bits from an integer, interpreting it based on the provided base.
+    ///
+    /// # Arguments
+    ///
+    /// * `num` - The number containing the bits.
+    /// * `start` - The starting bit position (0-indexed, from the right).
+    /// * `count` - The number of bits to extract.
+    /// * `base` - The base to interpret `num` (10 or 16). If 16, `num` is converted
+    ///           to a string and then parsed as hexadecimal (mimicking the C++ behavior).
+    ///
+    /// # Returns
+    ///
+    /// The extracted bits as an `i64`, or 0 if the base is unsupported, parsing fails, or an error occurs.
+    // fn get_flag_bits_from_int(num: i64, start: u64, count: u64, base: u64) -> Option<i64>
+    pub(super) fn get_flag_bits_from_int(num: i64, start: u64, count: u64) -> Option<i64> {
+        let base = 10;
+
+        if count == 0 || count > 64 || start >= 64 {
+            return None; // Avoid invalid shifts or mask creation
+        }
+
+        let value_res: Result<u64, std::num::ParseIntError> = match base {
+            10 => Ok(num as u64),
+            16 => {
+                // Note: This mimics the C++ logic of converting the integer to a string
+                // first, then parsing that string as hex. This might not be the
+                // intended behavior in all scenarios. Consider if `num` should
+                // already represent the hex value directly.
+                u64::from_str_radix(&num.to_string(), 16)
+            }
+            _ => return None, // Unsupported base
+        };
+
+        Some(value_res.map_or(0, |value| {
+            let mask = if count == 64 {
+                u64::MAX // Special case for 64 bits
+            } else {
+                (1u64 << count) - 1
+            };
+            // Perform the shift and mask
+            ((value >> start) & mask) as i64
+        }))
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct PrinterStateBambu {
     /// X1, P1, A1, etc
@@ -189,10 +235,6 @@ impl PrinterStateBambu {
         //     self.heatbreak_fan_speed = Some(t);
         // }
 
-        if let Some(t) = report.fan_gear {
-            self.fan_gear = Some(t);
-        }
-
         if let Some(t) = self.heatbreak_fan_speed.as_ref() {
             let t = (*t as f32 / 1.5).round() as i64 * 10;
             self.heatbreak_fan_speed = Some(t);
@@ -200,23 +242,36 @@ impl PrinterStateBambu {
 
         if let Some(t) = report.cooling_fan_speed.as_ref() {
             if let Some(t) = t.parse::<i64>().ok() {
+                // debug!("raw fan speed: {}", t);
                 let t = (t as f32 / 1.5).round() as i64 * 10;
-                self.cooling_fan_speed = Some(t);
+                // round(floor(cooling_fan_speed / float(1.5)) * float(25.5));
+
+                // let t = ((t as f32 / 1.5).floor() * 25.5).round() as i64;
+                // self.cooling_fan_speed = Some(t);
             }
         }
 
         if let Some(t) = report.big_fan1_speed.as_ref() {
             if let Some(t) = t.parse::<i64>().ok() {
-                let t = (t as f32 / 1.5).round() as i64 * 10;
+                // let t = (t as f32 / 1.5).round() as i64 * 10;
                 self.aux_fan_speed = Some(t);
             }
         }
 
         if let Some(t) = report.big_fan2_speed.as_ref() {
             if let Some(t) = t.parse::<i64>().ok() {
-                let t = (t as f32 / 1.5).round() as i64 * 10;
+                // let t = (t as f32 / 1.5).round() as i64 * 10;
                 self.chamber_fan_speed = Some(t);
             }
+        }
+
+        #[cfg(feature = "nope")]
+        if let Some(gear) = report.fan_gear {
+            self.fan_gear = Some(gear);
+
+            self.cooling_fan_speed = Some((gear & 0x00FF0000) >> 16);
+            self.aux_fan_speed = Some((gear & 0x0000FF00) >> 8);
+            self.chamber_fan_speed = Some((gear & 0x000000FF) >> 0);
         }
 
         if let Some(s) = report.ams_status {
@@ -651,12 +706,12 @@ pub enum AmsState {
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct Device {
-    // pub airduct: Option<Airduct>,
+    pub airduct: Option<h2d_airduct::H2DAirDuct>,
     // pub bed_temp: Option<i64>,
     // pub cam: Option<Cam>,
     // pub cham_temp: Option<i64>,
     // pub ext_tool: Option<ExtTool>,
-    pub extruder: Option<h2d_extruder::Extruder>,
+    pub extruder: Option<h2d_extruder::H2DExtruder>,
     // pub fan: Option<i64>,
     // pub laser: Option<LaserPower>,
     // pub nozzle: Option<Nozzle>,
@@ -665,24 +720,83 @@ pub struct Device {
     // pub type_field: Option<i64>,
 }
 
+pub mod h2d_airduct {
+    use anyhow::{anyhow, bail, ensure, Context, Result};
+    use tracing::{debug, error, info, trace, warn};
+
+    use serde::{Deserialize, Deserializer};
+
+    use super::helpers::get_flag_bits_from_int;
+
+    #[derive(Debug, Clone)]
+    pub struct H2DAirDuct {
+        current_mode: i64,
+        // modes: Vec<AirMode>,
+        pub parts: Vec<AirPart>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct AirPart {
+        pub air_type: i64,
+        pub id: i64,
+        pub func: i64,
+        pub state: i64,
+        pub range_start: i64,
+        pub range_end: i64,
+    }
+
+    impl<'de> serde::Deserialize<'de> for H2DAirDuct {
+        fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+            let s: serde_json::Value = Deserialize::deserialize(d)?;
+
+            let mut parts = vec![];
+
+            let Some(ps) = s.get("parts").and_then(|p| p.as_array()) else {
+                warn!("Missing parts in airduct: {:#?}", s);
+                return Err(serde::de::Error::custom("Missing parts in airduct"));
+            };
+
+            for (i, part) in ps.iter().enumerate() {
+                let range = part["range"].as_i64().unwrap_or(0);
+                let part = AirPart {
+                    air_type: part["type"].as_i64().unwrap_or(0),
+                    id: part["id"].as_i64().unwrap_or(0),
+                    func: part["func"].as_i64().unwrap_or(0),
+                    state: part["state"].as_i64().unwrap_or(0),
+                    range_start: get_flag_bits_from_int(range, 0, 16).unwrap_or(0),
+                    range_end: get_flag_bits_from_int(range, 16, 16).unwrap_or(0),
+                };
+                parts.push(part);
+            }
+
+            Ok(Self {
+                current_mode: s["modeCur"].as_i64().unwrap(),
+                parts,
+            })
+        }
+    }
+}
+
 pub mod h2d_extruder {
     use anyhow::{anyhow, bail, ensure, Context, Result};
     use tracing::{debug, error, info, trace, warn};
 
     use serde::{Deserialize, Deserializer};
 
+    use super::helpers::get_flag_bits_from_int;
+
     #[derive(Debug, Clone)]
-    pub struct Extruder {
+    pub struct H2DExtruder {
         /// 0 = Right
         /// 1 = Left
-        pub current_extruder: i64,
+        current_extruder: i64,
         pub switch_state: ExtruderSwitchState,
 
         pub left: ExtruderInfo,
         pub right: ExtruderInfo,
     }
 
-    impl<'de> serde::Deserialize<'de> for Extruder {
+    impl<'de> serde::Deserialize<'de> for H2DExtruder {
         fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
             let s: serde_json::Value = Deserialize::deserialize(d)?;
             // debug!("extruder = {}", serde_json::to_string_pretty(&s).unwrap());
@@ -780,63 +894,43 @@ pub mod h2d_extruder {
         }
     }
 
-    /// Extracts a specified number of bits from an integer, interpreting it based on the provided base.
-    ///
-    /// # Arguments
-    ///
-    /// * `num` - The number containing the bits.
-    /// * `start` - The starting bit position (0-indexed, from the right).
-    /// * `count` - The number of bits to extract.
-    /// * `base` - The base to interpret `num` (10 or 16). If 16, `num` is converted
-    ///           to a string and then parsed as hexadecimal (mimicking the C++ behavior).
-    ///
-    /// # Returns
-    ///
-    /// The extracted bits as an `i64`, or 0 if the base is unsupported, parsing fails, or an error occurs.
-    // fn get_flag_bits_from_int(num: i64, start: u64, count: u64, base: u64) -> Option<i64>
-    fn get_flag_bits_from_int(num: i64, start: u64, count: u64) -> Option<i64> {
-        let base = 10;
-
-        if count == 0 || count > 64 || start >= 64 {
-            return None; // Avoid invalid shifts or mask creation
+    impl H2DExtruder {
+        pub fn get_current(&self) -> Option<&ExtruderInfo> {
+            match self.current_extruder {
+                0 => Some(&self.right),
+                1 => Some(&self.left),
+                _ => None,
+                // _ => panic!("Invalid current extruder: {}", self.current_extruder),
+            }
         }
 
-        let value_res: Result<u64, std::num::ParseIntError> = match base {
-            10 => Ok(num as u64),
-            16 => {
-                // Note: This mimics the C++ logic of converting the integer to a string
-                // first, then parsing that string as hex. This might not be the
-                // intended behavior in all scenarios. Consider if `num` should
-                // already represent the hex value directly.
-                u64::from_str_radix(&num.to_string(), 16)
+        pub fn get_other(&self) -> Option<&ExtruderInfo> {
+            match self.current_extruder {
+                0 => Some(&self.left),
+                1 => Some(&self.right),
+                _ => None,
+                // _ => panic!("Invalid current extruder: {}", self.current_extruder),
             }
-            _ => return None, // Unsupported base
-        };
+        }
 
-        Some(value_res.map_or(0, |value| {
-            let mask = if count == 64 {
-                u64::MAX // Special case for 64 bits
-            } else {
-                (1u64 << count) - 1
-            };
-            // Perform the shift and mask
-            ((value >> start) & mask) as i64
-        }))
+        pub fn current_extruder(&self) -> i64 {
+            self.current_extruder
+        }
     }
 
     #[derive(Debug, Clone)]
     pub struct ExtruderInfo {
-        id: i64,
-        has_filament: bool,
-        buffer_has_filament: bool,
-        // nozzle_exist: bool,
-        temp: i64,
-        target_temp: i64,
-        ams_slot_pre: (i64, i64),
-        ams_slot_now: (i64, i64),
-        ams_slot_tar: (i64, i64),
-        nozzle_id: i64,
-        target_nozzle_id: i64,
+        pub id: i64,
+        pub has_filament: bool,
+        pub buffer_has_filament: bool,
+        // pub nozzle_exist: bool,
+        pub temp: i64,
+        pub target_temp: i64,
+        pub ams_slot_pre: (i64, i64),
+        pub ams_slot_now: (i64, i64),
+        pub ams_slot_tar: (i64, i64),
+        pub nozzle_id: i64,
+        pub target_nozzle_id: i64,
         // ams_stat: (),
     }
 
@@ -871,7 +965,7 @@ pub mod h2d_extruder {
     }
 
     #[cfg(feature = "nope")]
-    impl Extruder {
+    impl H2DExtruder {
         pub fn get_state(&self) -> Option<H2DNozzleState> {
             // seen:
             // Left:

@@ -117,6 +117,8 @@ impl App {
 
             ui.end_row();
         });
+
+        ui.separator();
     }
 
     #[cfg(feature = "nope")]

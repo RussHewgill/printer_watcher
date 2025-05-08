@@ -283,6 +283,10 @@ impl eframe::App for App {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     self.show_options(ui);
                 });
+
+                // egui::CentralPanel::default().show(ctx, |ui| {
+                //     ctx.texture_ui(ui);
+                // });
             }
         }
     }
@@ -308,8 +312,13 @@ impl App {
             .maintain_aspect_ratio(true)
             .corner_radius(egui::CornerRadius::same(4))
             .sense(egui::Sense::click());
-        if ui.add(img).clicked() {
+
+        let resp = ui.add(img);
+
+        if resp.clicked() {
             self.selected_stream = None;
+        } else if resp.hovered() {
+            ui.ctx().request_repaint();
         }
 
         //

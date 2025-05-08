@@ -132,3 +132,11 @@ pub fn draw_pause_overlay(ui: &mut egui::Ui, resp: &Response) {
         icon_color,
     );
 }
+
+pub fn draw_fan_speed(ui: &mut egui::Ui, resp: &Response, speed: f32) {
+    // let painter = ui.painter_at(resp.rect); // Get painter clipped to the image rect
+    // let rect = resp.rect;
+    // let center = rect.center();
+
+    unimplemented!()
+}

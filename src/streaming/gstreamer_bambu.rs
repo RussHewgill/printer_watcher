@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
 use parking_lot::Mutex;
-use std::{cell::LazyCell, io::Write, str::FromStr, sync::Arc};
+use std::{io::Write, str::FromStr, sync::Arc, sync::LazyLock};
 
 use gst::prelude::*;
 use gstreamer::{self as gst, glib::FlagsClass};
@@ -13,6 +13,12 @@ use gstreamer_video as gst_video;
 use crate::config::printer_id::PrinterId;
 
 use super::StreamCmd;
+
+// Global static to ensure GStreamer is initialized only once.
+static GSTREAMER_INIT: LazyLock<()> = LazyLock::new(|| {
+    gst::init().expect("Failed to initialize GStreamer");
+    debug!("GStreamer initialized.");
+});
 
 pub struct GStreamerPlayer {
     id: PrinterId,
@@ -28,6 +34,7 @@ pub struct GStreamerPlayer {
 
 impl GStreamerPlayer {
     pub fn new(
+        ctx: egui::Context,
         id: PrinterId,
         // username: &str,
         password: String,
@@ -42,12 +49,12 @@ impl GStreamerPlayer {
     ) -> Self {
         let access_code = std::env::var("RTSP_PASS").unwrap();
         let uri = format!(
-            // "rtsps://bblp:{}@192.168.0.23:322/streaming/live/1",
             "rtsps://bblp:{}@{}:{}/streaming/live/1",
             access_code, host, port
         );
 
         let panic_cmd = StreamCmd::StartRtsp {
+            ctx,
             id: id.clone(),
             host: host.to_string(),
             access_code: password.to_string(),
@@ -68,11 +75,13 @@ impl GStreamerPlayer {
 
     pub fn init(
         &mut self,
+        ctx: &egui::Context,
         kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
     ) -> Result<()> {
         let worker_tx = self.cmd_tx.clone();
         run_gstreamer(
+            ctx,
             self.id.clone(),
             // (276, 155),
             (1710, 960),
@@ -114,6 +123,7 @@ struct SelectedStream {
 }
 
 fn build_pipeline(
+    ctx: &egui::Context,
     desired_res: (u32, u32),
     uri: &str,
     // frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
@@ -353,6 +363,11 @@ fn build_pipeline(
         }
     });
 
+    // let mut size_rwlock = parking_lot::RwLock::new(None);
+    let img = egui::ColorImage::new([1680, 1080], egui::Color32::BLACK);
+
+    let img = Arc::new(Mutex::new(img));
+
     // Set up AppSink Callback
     let mut texture_handle_clone = texture_handle.clone();
     let frame_info_clone = frame_info.clone();
@@ -385,6 +400,17 @@ fn build_pipeline(
                     gst::FlowError::Error
                 })?;
 
+                // let img_size = if size_rwlock.read().is_none() {
+                //     size_rwlock
+                //         .write()
+                //         .replace([info.width() as _, info.height() as _]);
+                //     size_rwlock.read().unwrap().clone()
+                // } else {
+                //     size_rwlock.read().unwrap().clone()
+                // };
+
+                // debug!("img_size: {:?}", img_size);
+
                 let map = buffer.map_readable().map_err(|_| {
                     warn!("Appsink: Failed to map buffer readable");
                     gst::FlowError::Error
@@ -392,41 +418,23 @@ fn build_pipeline(
 
                 let frame_data = map.as_slice();
 
+                let mut img = img.lock();
+
+                img.as_raw_mut().copy_from_slice(frame_data);
+
+                let img: &egui::ColorImage = &img;
+
+                texture_handle_clone.set(img.clone(), Default::default());
+
+                #[cfg(feature = "nope")]
                 {
-                    // let mut buffer = frame_buffer_clone.lock();
-                    // let mut info_guard = frame_info_clone.lock();
-
-                    // warn!("TODO: copy frame data to buffer");
-                    // *buffer_guard = Some(frame_data.to_vec());
-
-                    // debug!(
-                    //     "Frame info updated: {}x{} Format: {:?}",
-                    //     info.width(),
-                    //     info.height(),
-                    //     info.format()
-                    // );
-                    // /// write frame data to file
-                    // let mut f = std::fs::File::create("test.dat").unwrap();
-                    // std::io::Write::write_all(&mut f, frame_data).unwrap();
-                    // panic!();
-
-                    let img_size = [info.width() as _, info.height() as _];
+                    // let img_size = [info.width() as _, info.height() as _];
                     let img = egui::ColorImage::from_rgba_unmultiplied(img_size, frame_data);
 
                     texture_handle_clone.set(img, Default::default());
-
-                    #[cfg(feature = "nope")]
-                    if let Some(buffer) = buffer.as_mut() {
-                        let img_size = [info.width() as _, info.height() as _];
-                        let img = egui::ColorImage::from_rgba_unmultiplied(img_size, frame_data);
-
-                        buffer.set(img, Default::default());
-                    }
-
-                    // if info_guard.as_ref().map_or(true, |i| i != &info) {
-                    //     *info_guard = Some(info);
-                    // }
                 }
+
+                drop(map);
 
                 Ok(gst::FlowSuccess::Ok)
             })
@@ -442,6 +450,7 @@ fn build_pipeline(
 }
 
 pub fn run_gstreamer(
+    ctx: &egui::Context,
     id: PrinterId,
     desired_res: (u32, u32),
     start_time: &std::time::Instant,
@@ -453,13 +462,16 @@ pub fn run_gstreamer(
     panic_cmd: StreamCmd,
 ) -> Result<()> {
     // TODO: Ensure GStreamer is initialized only once
-    gst::init()?;
+    // gst::init()?;
+
+    LazyLock::force(&GSTREAMER_INIT);
 
     let frame_info = Arc::new(Mutex::new(None::<gst_video::VideoInfo>));
 
     // let selected_stream_info = Arc::new(Mutex::new(None::<SelectedStream>));
 
     let pipeline_data = build_pipeline(
+        ctx,
         desired_res,
         &uri,
         texture_handle.clone(),
@@ -536,6 +548,8 @@ pub fn run_gstreamer(
         }
         debug!("Bus watcher thread finished.");
 
+        std::thread::sleep(std::time::Duration::from_secs(1));
+
         worker_tx
             .send(super::StreamWorkerMsg::Panic(id, panic_cmd))
             .unwrap();
@@ -568,27 +582,6 @@ pub fn run_gstreamer(
                 debug!("Kill channel closed, shutting down...");
                 break;
             }
-        }
-
-        // doesn't work, leaves stream lagging behind
-        #[cfg(feature = "nope")]
-        match cmd_rx.try_recv() {
-            Ok(super::SubStreamCmd::TogglePause) => {
-                if playing {
-                    playing = false;
-                    pipeline_data
-                        .pipeline
-                        .set_state(gst::State::Paused)
-                        .context("Failed to set pipeline state to Paused")?;
-                } else {
-                    playing = true;
-                    pipeline_data
-                        .pipeline
-                        .set_state(gst::State::Playing)
-                        .context("Failed to set pipeline state to Playing")?;
-                }
-            }
-            _ => {}
         }
     }
 

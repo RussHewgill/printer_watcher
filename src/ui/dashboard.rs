@@ -22,9 +22,6 @@ impl App {
         max_rect.set_width(width);
         max_rect.set_height(height);
 
-        // unimplemented!()
-        // ui.label("test");
-
         // for (pos, id) in self.printer_order.iter() {
         //     debug!("showing printer: {:?} at {:?}", id, pos);
         // }
@@ -34,7 +31,7 @@ impl App {
         // }
 
         let edge_padding = 0.;
-        let printer_padding = 0.;
+        let printer_padding = 1.;
 
         let offset_x = Vec2::new(width + printer_padding, 0.);
         let offset_y = Vec2::new(0., height + printer_padding);

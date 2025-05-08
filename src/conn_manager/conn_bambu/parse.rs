@@ -3,6 +3,17 @@ use super::message::Message;
 pub(crate) fn parse_message(message: &rumqttc::mqttbytes::v4::Publish) -> Message {
     let payload = &message.payload;
 
+    // let value: serde_json::Value = match serde_json::from_slice(payload) {
+    //     Ok(value) => {
+    //         tracing::debug!(
+    //             "Parsed JSON value: {}",
+    //             serde_json::to_string_pretty(&value).unwrap()
+    //         );
+    //         value
+    //     }
+    //     Err(_) => unimplemented!(),
+    // };
+
     if let Ok(parsed_message) = serde_json::from_slice::<Message>(&payload) {
         parsed_message
     } else {
