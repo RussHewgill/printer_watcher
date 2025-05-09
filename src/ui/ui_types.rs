@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -46,7 +49,9 @@ pub enum Thumbnail {
 #[derive(Clone)]
 pub struct WebcamTexture {
     pub texture: egui::TextureHandle,
-    pub enabled: bool,
+    // pub enabled: bool,
+    pub enabled: Arc<std::sync::atomic::AtomicBool>,
+    pub active: Arc<std::sync::atomic::AtomicBool>,
     pub first_start: bool,
 }
 
@@ -54,7 +59,9 @@ impl WebcamTexture {
     pub fn new(texture: egui::TextureHandle) -> Self {
         Self {
             texture,
-            enabled: false,
+            // enabled: false,
+            enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            active: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             first_start: true,
         }
     }

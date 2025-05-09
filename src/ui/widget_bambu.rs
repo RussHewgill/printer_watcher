@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
@@ -19,6 +21,7 @@ use crate::{
 };
 
 impl App {
+    #[cfg(feature = "nope")]
     pub fn show_printer_bambu(
         &mut self,
         ui: &mut egui::Ui,
@@ -98,7 +101,7 @@ impl App {
 
                     let size = Vec2::new(thumbnail_width, thumbnail_height);
 
-                    if entry.enabled {
+                    if entry.enabled.load(Ordering::SeqCst) {
                         let img = egui::Image::from_texture((entry.texture.id(), size))
                             .fit_to_exact_size(size)
                             .max_size(size)
@@ -123,7 +126,8 @@ impl App {
                                 texture: entry.texture.clone(),
                             })
                             .unwrap();
-                        entry.enabled = true;
+                        // entry.enabled = true;
+                        entry.enabled.store(true, Ordering::SeqCst);
                     } else {
                         if ui.button("Enable webcam").clicked() {
                             self.stream_cmd_tx
@@ -137,7 +141,8 @@ impl App {
                                     texture: entry.texture.clone(),
                                 })
                                 .unwrap();
-                            entry.enabled = true;
+                            // entry.enabled = true;
+                            entry.enabled.store(true, Ordering::SeqCst);
                         }
                     }
 

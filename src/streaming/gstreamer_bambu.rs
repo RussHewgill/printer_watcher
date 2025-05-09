@@ -2,7 +2,11 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
 use parking_lot::Mutex;
-use std::{io::Write, str::FromStr, sync::Arc, sync::LazyLock};
+use std::{
+    io::Write,
+    str::FromStr,
+    sync::{atomic::AtomicBool, Arc, LazyLock},
+};
 
 use gst::prelude::*;
 use gstreamer::{self as gst, glib::FlagsClass};
@@ -10,7 +14,7 @@ use gstreamer_app as gst_app;
 use gstreamer_rtsp as gst_rtsp;
 use gstreamer_video as gst_video;
 
-use crate::config::printer_id::PrinterId;
+use crate::{config::printer_id::PrinterId, ui::ui_types::WebcamTexture};
 
 use super::StreamCmd;
 
@@ -43,9 +47,11 @@ impl GStreamerPlayer {
         serial: String,
         // port: u16,
         texture_handle: egui::TextureHandle,
+        // texture_handle: WebcamTexture,
         // cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
         cmd_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
         // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
+        enabled: Arc<AtomicBool>,
     ) -> Self {
         let access_code = std::env::var("RTSP_PASS").unwrap();
         let uri = format!(
@@ -60,6 +66,7 @@ impl GStreamerPlayer {
             access_code: password.to_string(),
             serial,
             texture: texture_handle.clone(),
+            enabled: enabled.clone(),
         };
 
         Self {
@@ -460,6 +467,7 @@ pub fn run_gstreamer(
     mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
     mut worker_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
     panic_cmd: StreamCmd,
+    // enabled: Arc<AtomicBool>,
 ) -> Result<()> {
     // TODO: Ensure GStreamer is initialized only once
     // gst::init()?;
@@ -494,10 +502,11 @@ pub fn run_gstreamer(
 
     let bus_handle = std::thread::spawn(move || {
         for msg in bus.iter_timed(gst::ClockTime::NONE) {
-            if start_time2.elapsed() > std::time::Duration::from_secs(300) {
-                debug!("Bus watcher: timeout seconds elapsed, exiting.");
-                break;
-            };
+            // if start_time2.elapsed() > std::time::Duration::from_secs(300) {
+            //     enabled.store(false, std::sync::atomic::Ordering::Relaxed);
+            //     debug!("Bus watcher: timeout seconds elapsed, exiting.");
+            //     break;
+            // };
 
             let pipeline = match pipeline_weak.upgrade() {
                 Some(p) => p,

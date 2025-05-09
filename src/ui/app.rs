@@ -298,7 +298,7 @@ impl App {
             self.selected_stream = None;
             return;
         };
-        if !entry.enabled {
+        if !entry.enabled.load(std::sync::atomic::Ordering::SeqCst) {
             self.selected_stream = None;
         }
         let entry = entry.texture.clone();

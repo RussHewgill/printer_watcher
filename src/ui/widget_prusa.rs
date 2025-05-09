@@ -428,7 +428,7 @@ impl App {
                 let size = Vec2::new(thumbnail_width, thumbnail_height);
 
                 let mut start = false;
-                if entry.enabled {
+                if entry.enabled.load(std::sync::atomic::Ordering::SeqCst) {
                     // debug!("rtsp webcam enabled");
                     let img = egui::Image::from_texture((entry.texture.id(), size))
                         .fit_to_exact_size(size)

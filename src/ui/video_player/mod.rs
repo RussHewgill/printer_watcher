@@ -13,6 +13,7 @@ pub struct VideoPlayer {
     stream_tx: crossbeam_channel::Sender<crate::streaming::StreamCmd>,
 }
 
+#[cfg(feature = "nope")]
 impl VideoPlayer {
     #[cfg(feature = "gstreamer")]
     pub fn new(

@@ -17,7 +17,7 @@ use rtsp::{RtspCommand, RtspCreds};
 
 use egui::TextureHandle;
 
-use crate::config::printer_id::PrinterId;
+use crate::{config::printer_id::PrinterId, ui::ui_types::WebcamTexture};
 
 #[derive(Clone)]
 pub enum StreamCmd {
@@ -31,6 +31,8 @@ pub enum StreamCmd {
         access_code: String,
         serial: String,
         texture: TextureHandle,
+        // texture: WebcamTexture,
+        enabled: std::sync::Arc<std::sync::atomic::AtomicBool>,
     },
     StartBambuStills {
         id: PrinterId,
@@ -110,9 +112,19 @@ impl StreamManager {
                         self.start_stream_rtsp(id, texture_handle, creds, ctx, self.worker_tx.clone()).await?;
                     }
                     #[cfg(feature = "gstreamer")]
-                    Some(StreamCmd::StartRtsp { ctx, id, host, access_code, serial, texture }) => {
+                    Some(StreamCmd::StartRtsp { ctx, id, host, access_code, serial, texture, enabled }) => {
                         debug!("starting RTSP stream for printer: {:?}", id);
-                        self.start_stream_bambu_rtsp(ctx, id, host, access_code, serial, texture, self.worker_tx.clone(), self.cmd_tx.clone())?;
+                        self.start_stream_bambu_rtsp(
+                            ctx,
+                            id,
+                            host,
+                            access_code,
+                            serial,
+                            texture,
+                            self.worker_tx.clone(),
+                            self.cmd_tx.clone(),
+                            enabled,
+                        )?;
                     }
                     Some(StreamCmd::StartBambuStills { id, host, access_code, serial, texture }) => {
                         debug!("starting Bambu still stream");
@@ -151,9 +163,11 @@ impl StreamManager {
         access_code: String,
         serial: String,
         texture: egui::TextureHandle,
+        // texture: WebcamTexture,
         worker_tx: tokio::sync::mpsc::UnboundedSender<StreamWorkerMsg>,
         // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
         cmd_tx: tokio::sync::mpsc::UnboundedSender<StreamCmd>,
+        enabled: std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Result<()> {
         let (kill_tx, kill_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
 
@@ -163,6 +177,7 @@ impl StreamManager {
             .insert(id.clone(), (kill_tx, worker_cmd_tx));
 
         let id2 = id.clone();
+        let enabled2 = enabled.clone();
         std::thread::spawn(move || {
             let mut player = gstreamer_bambu::GStreamerPlayer::new(
                 ctx.clone(),
@@ -174,6 +189,7 @@ impl StreamManager {
                 texture,
                 worker_tx,
                 // kill_rx,
+                enabled2,
             );
             if let Err(e) = player.init(&ctx, kill_rx, worker_cmd_rx) {
                 error!("error initializing gstreamer player: {:?}", e);
@@ -183,6 +199,7 @@ impl StreamManager {
         /// close the stream after 5 minutes
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_secs(5));
+            enabled.store(false, std::sync::atomic::Ordering::Relaxed);
             cmd_tx.send(StreamCmd::StopStream(id)).unwrap();
         });
 

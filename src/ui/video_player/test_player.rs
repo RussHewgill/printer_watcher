@@ -8,6 +8,7 @@ pub struct TestVideoApp {
     pub stream_tx: crossbeam_channel::Sender<crate::streaming::StreamCmd>,
 }
 
+#[cfg(feature = "nope")]
 /// new
 impl TestVideoApp {
     pub fn new(
@@ -52,6 +53,7 @@ impl TestVideoApp {
     }
 }
 
+#[cfg(feature = "nope")]
 impl eframe::App for TestVideoApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {

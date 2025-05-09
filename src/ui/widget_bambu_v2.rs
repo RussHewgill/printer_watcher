@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use tracing::{debug, error, info, trace, warn};
 
@@ -106,7 +108,7 @@ impl App {
 
                         let size = Vec2::new(thumbnail_width, thumbnail_height);
 
-                        if entry.enabled {
+                        if entry.enabled.load(Ordering::SeqCst) {
                             let img = egui::Image::from_texture((entry.texture.id(), size))
                                 .fit_to_exact_size(size)
                                 .max_size(size)
@@ -130,7 +132,8 @@ impl App {
                                         printer.id.clone(),
                                     ))
                                     .unwrap();
-                                entry.enabled = false;
+                                // entry.enabled = false;
+                                entry.enabled.store(false, Ordering::SeqCst);
                             }
                         } else if self.options.auto_start_streams && entry.first_start {
                             self.stream_cmd_tx
@@ -143,9 +146,10 @@ impl App {
                                     access_code: printer.access_code.clone(),
                                     serial: printer.serial.clone(),
                                     texture: entry.texture.clone(),
+                                    enabled: entry.enabled.clone(),
                                 })
                                 .unwrap();
-                            entry.enabled = true;
+                            // entry.enabled = true;
                             entry.first_start = false;
                         } else {
                             // debug!("webcam not enabled: {:?}", printer.id);
@@ -170,9 +174,11 @@ impl App {
                                         access_code: printer.access_code.clone(),
                                         serial: printer.serial.clone(),
                                         texture: entry.texture.clone(),
+                                        enabled: entry.enabled.clone(),
                                     })
                                     .unwrap();
-                                entry.enabled = true;
+                                // entry.enabled = true;
+                                entry.enabled.store(true, Ordering::SeqCst);
                             }
                         }
 
@@ -201,7 +207,7 @@ impl App {
 
                         let size = Vec2::new(thumbnail_width, thumbnail_height);
 
-                        if entry.enabled {
+                        if entry.enabled.load(Ordering::SeqCst) {
                             let img = egui::Image::from_texture((entry.texture.id(), size))
                                 .fit_to_exact_size(size)
                                 .max_size(size)
@@ -226,7 +232,8 @@ impl App {
                                     texture: entry.texture.clone(),
                                 })
                                 .unwrap();
-                            entry.enabled = true;
+                            // entry.enabled = true;
+                            entry.enabled.store(true, Ordering::SeqCst);
                         } else {
                             if ui.button("Enable webcam").clicked() {
                                 self.stream_cmd_tx
@@ -240,7 +247,8 @@ impl App {
                                         texture: entry.texture.clone(),
                                     })
                                     .unwrap();
-                                entry.enabled = true;
+                                // entry.enabled = true;
+                                entry.enabled.store(true, Ordering::SeqCst);
                             }
                         }
                     });
