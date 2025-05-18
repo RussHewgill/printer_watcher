@@ -27,7 +27,8 @@ static GSTREAMER_INIT: LazyLock<()> = LazyLock::new(|| {
 pub struct GStreamerPlayer {
     id: PrinterId,
     pub uri: String,
-    texture_handle: egui::TextureHandle,
+    // texture_handle: egui::TextureHandle,
+    texture_handle: WebcamTexture,
     // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
     // cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
     cmd_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
@@ -46,12 +47,12 @@ impl GStreamerPlayer {
         port: u16,
         serial: String,
         // port: u16,
-        texture_handle: egui::TextureHandle,
-        // texture_handle: WebcamTexture,
+        // texture_handle: egui::TextureHandle,
+        texture_handle: WebcamTexture,
         // cmd_rx: crossbeam_channel::Receiver<crate::streaming::StreamCmd>,
         cmd_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,
         // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
-        enabled: Arc<AtomicBool>,
+        // enabled: Arc<AtomicBool>,
     ) -> Self {
         let access_code = std::env::var("RTSP_PASS").unwrap();
         let uri = format!(
@@ -66,7 +67,7 @@ impl GStreamerPlayer {
             access_code: password.to_string(),
             serial,
             texture: texture_handle.clone(),
-            enabled: enabled.clone(),
+            // enabled: enabled.clone(),
         };
 
         Self {
@@ -109,7 +110,8 @@ struct PipelineData {
     appsink: gst_app::AppSink,
     // frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
     // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
-    texture_handle: egui::TextureHandle,
+    // texture_handle: egui::TextureHandle,
+    texture_handle: WebcamTexture,
     // Keep track of width/height/format once known
     frame_info: Arc<Mutex<Option<gst_video::VideoInfo>>>,
 }
@@ -135,7 +137,8 @@ fn build_pipeline(
     uri: &str,
     // frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
     // texture_handle: Arc<Mutex<Option<egui::TextureHandle>>>,
-    texture_handle: egui::TextureHandle,
+    // texture_handle: egui::TextureHandle,
+    texture_handle: WebcamTexture,
     frame_info: Arc<Mutex<Option<gst_video::VideoInfo>>>,
     // selected_stream_info: Arc<Mutex<Option<SelectedStream>>>,
 ) -> Result<PipelineData> {
@@ -431,7 +434,9 @@ fn build_pipeline(
 
                 let img: &egui::ColorImage = &img;
 
-                texture_handle_clone.set(img.clone(), Default::default());
+                texture_handle_clone
+                    .texture
+                    .set(img.clone(), Default::default());
 
                 #[cfg(feature = "nope")]
                 {
@@ -462,7 +467,8 @@ pub fn run_gstreamer(
     desired_res: (u32, u32),
     start_time: &std::time::Instant,
     uri: &str,
-    texture_handle: egui::TextureHandle,
+    // texture_handle: egui::TextureHandle,
+    texture_handle: WebcamTexture,
     mut kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
     mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<super::SubStreamCmd>,
     mut worker_tx: tokio::sync::mpsc::UnboundedSender<super::StreamWorkerMsg>,

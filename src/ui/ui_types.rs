@@ -53,6 +53,7 @@ pub struct WebcamTexture {
     pub enabled: Arc<std::sync::atomic::AtomicBool>,
     pub active: Arc<std::sync::atomic::AtomicBool>,
     pub first_start: bool,
+    pub last_update: std::time::Instant,
 }
 
 impl WebcamTexture {
@@ -63,6 +64,7 @@ impl WebcamTexture {
             enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             active: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             first_start: true,
+            last_update: std::time::Instant::now(),
         }
     }
 }

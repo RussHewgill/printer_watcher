@@ -300,13 +300,15 @@ impl App {
         };
         if !entry.enabled.load(std::sync::atomic::Ordering::SeqCst) {
             self.selected_stream = None;
+            entry
+                .active
+                .store(false, std::sync::atomic::Ordering::SeqCst);
         }
-        let entry = entry.texture.clone();
 
         let size = ui.available_size();
 
         // let size = Vec2::new(thumbnail_width, thumbnail_height);
-        let img = egui::Image::from_texture((entry.id(), entry.size_vec2()))
+        let img = egui::Image::from_texture((entry.texture.id(), entry.texture.size_vec2()))
             // .fit_to_exact_size(size)
             .max_size(size)
             .maintain_aspect_ratio(true)
@@ -317,6 +319,9 @@ impl App {
 
         if resp.clicked() {
             self.selected_stream = None;
+            entry
+                .active
+                .store(false, std::sync::atomic::Ordering::SeqCst);
         } else if resp.hovered() {
             ui.ctx().request_repaint();
         }

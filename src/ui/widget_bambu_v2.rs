@@ -106,6 +106,26 @@ impl App {
                                 super::ui_types::WebcamTexture::new(texture)
                             });
 
+                        // every 30 seconds, fetch a thumbnail
+                        if entry.last_update.elapsed() > std::time::Duration::from_secs(30) {
+                            entry.last_update = std::time::Instant::now();
+
+                            self.stream_cmd_tx
+                                .as_ref()
+                                .unwrap()
+                                .send(crate::streaming::StreamCmd::StartRtsp {
+                                    ctx: ui.ctx().clone(),
+                                    id: printer.id.clone(),
+                                    host: printer.host.clone(),
+                                    access_code: printer.access_code.clone(),
+                                    serial: printer.serial.clone(),
+                                    texture: entry.clone(),
+                                    // enabled: entry.enabled.clone(),
+                                })
+                                .unwrap();
+                            entry.enabled.store(true, Ordering::SeqCst);
+                        }
+
                         let size = Vec2::new(thumbnail_width, thumbnail_height);
 
                         if entry.enabled.load(Ordering::SeqCst) {
@@ -124,6 +144,7 @@ impl App {
                             if img_resp.clicked_by(egui::PointerButton::Primary) {
                                 // debug!("webcam clicked");
                                 self.selected_stream = Some(printer.id.clone());
+                                entry.active.store(true, Ordering::SeqCst);
                             } else if img_resp.clicked_by(egui::PointerButton::Secondary) {
                                 self.stream_cmd_tx
                                     .as_ref()
@@ -145,11 +166,11 @@ impl App {
                                     host: printer.host.clone(),
                                     access_code: printer.access_code.clone(),
                                     serial: printer.serial.clone(),
-                                    texture: entry.texture.clone(),
-                                    enabled: entry.enabled.clone(),
+                                    texture: entry.clone(),
                                 })
                                 .unwrap();
                             // entry.enabled = true;
+                            entry.enabled.store(true, Ordering::SeqCst);
                             entry.first_start = false;
                         } else {
                             // debug!("webcam not enabled: {:?}", printer.id);
@@ -173,8 +194,8 @@ impl App {
                                         host: printer.host.clone(),
                                         access_code: printer.access_code.clone(),
                                         serial: printer.serial.clone(),
-                                        texture: entry.texture.clone(),
-                                        enabled: entry.enabled.clone(),
+                                        texture: entry.clone(),
+                                        // enabled: entry.enabled.clone(),
                                     })
                                     .unwrap();
                                 // entry.enabled = true;

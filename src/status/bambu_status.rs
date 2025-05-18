@@ -327,7 +327,10 @@ impl PrinterStateBambu {
                 let mut slots: [Option<AmsSlot>; 4] = Default::default();
 
                 for i in 0..4 {
-                    let slot = &unit.tray[i];
+                    // let slot = &unit.tray[i];
+                    let Some(slot) = unit.tray.get(i) else {
+                        continue;
+                    };
 
                     let Some(col) = slot.tray_color.clone() else {
                         slots[i] = None;
