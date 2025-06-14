@@ -6,17 +6,23 @@ Printer Watcher is a dashboard for monitoring the status of multiple printers.
 ## Features
 
 - Notifications on print error
-- 
+- Occasional bugs
 
 ## Instructions
 
-1. Create a file in the same directory as the program, named `config.yaml`
+1. Create a file in the same directory as the program, named `config.toml`
 2. Paste the following template into it:
 ```toml
 [[bambu]]
 id = "some_random_name"
 serial = "XXXXXXXXXXXXXXX"
 name = "Name"
+host = "XXX.XXX.XXX.XXX"
+access_code = "12341234"
+[[bambu]]
+id = "some_random_name2"
+serial = "XXXXXXXXXXXXXXX"
+name = "Nam2e"
 host = "XXX.XXX.XXX.XXX"
 access_code = "12341234"
 ```
@@ -26,7 +32,7 @@ access_code = "12341234"
 
 ## Credits
 
-Icons from [Icons8](https://icons8.com)
+(Some) Icons from [Icons8](https://icons8.com)
 
 ## If this is helpful to you, consider buying me a coffee:
 
