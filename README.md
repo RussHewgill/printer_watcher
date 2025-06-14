@@ -22,7 +22,7 @@ access_code = "12341234"
 [[bambu]]
 id = "some_random_name2"
 serial = "XXXXXXXXXXXXXXX"
-name = "Nam2e"
+name = "Name2"
 host = "XXX.XXX.XXX.XXX"
 access_code = "12341234"
 ```
