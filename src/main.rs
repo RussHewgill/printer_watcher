@@ -583,7 +583,7 @@ fn main() -> eframe::Result<()> {
             // .with_icon(icon)
             .with_inner_size([850.0, 750.0])
             .with_min_inner_size([550.0, 400.0]),
-        renderer: eframe::Renderer::Wgpu,
+        // renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
 

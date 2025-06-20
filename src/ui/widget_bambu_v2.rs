@@ -811,6 +811,7 @@ impl App {
 
                     if bambu_type == Some(BambuPrinterType::H2D) {
                         super::ams::paint_ams_h2d(ui, height, bambu);
+                        // trace!("AMS: {:#?}", bambu.ams);
                     } else {
                         // self.show_ams(ui, printer);
 

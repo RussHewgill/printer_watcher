@@ -3,7 +3,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use egui::{response, Color32, Layout, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 
-use crate::status::bambu_status::AmsUnit;
+use crate::status::bambu_status::{AmsCurrentSlot, AmsUnit};
 
 /// pretend that the configuration will always be one (external spool or AMS HT) + 1 AMS
 // #[cfg(feature = "nope")]
@@ -97,7 +97,14 @@ pub(super) fn paint_ams_h2d(
                         match left_ams {
                             Some((_, unit)) => {
                                 // debug!("Left AMS: {:?}", unit);
-                                _draw_ams_h2d(ui, &response, &painter, bambu, unit);
+                                _draw_ams_h2d(
+                                    ui,
+                                    &response,
+                                    &painter,
+                                    bambu,
+                                    unit,
+                                    ams.current_tray,
+                                );
                             }
                             None => {
                                 match external_left {
@@ -133,7 +140,14 @@ pub(super) fn paint_ams_h2d(
                         match right_ams {
                             Some((_, unit)) => {
                                 // debug!("Left AMS: {:?}", unit);
-                                _draw_ams_h2d(ui, &response, &painter, bambu, unit);
+                                _draw_ams_h2d(
+                                    ui,
+                                    &response,
+                                    &painter,
+                                    bambu,
+                                    unit,
+                                    ams.current_tray,
+                                );
                             }
                             None => {
                                 match external_right {
@@ -223,6 +237,7 @@ fn _draw_ams_h2d(
     painter: &egui::Painter,
     bambu: &crate::status::bambu_status::PrinterStateBambu,
     unit: &AmsUnit,
+    current_tray: Option<AmsCurrentSlot>,
 ) {
     let rect = response.rect;
 
@@ -238,15 +253,33 @@ fn _draw_ams_h2d(
 
         let rect = Rect::from_center_size(Pos2::new(x, y), Vec2::new(SLOT_SIZE.0, SLOT_SIZE.1));
 
+        let is_current = match current_tray {
+            Some(AmsCurrentSlot::Tray { ams_id, tray_id }) => {
+                unit.id == ams_id as i64 && i == tray_id as usize
+            }
+            _ => false,
+        };
+
         match slot {
             Some(slot) => {
                 painter.rect_filled(rect, 3, slot.color);
-                painter.rect_stroke(
-                    rect,
-                    3,
-                    Stroke::new(3., border_color),
-                    egui::StrokeKind::Inside,
-                );
+                if is_current {
+                    // let mut hsva: ecolor::HsvaGamma = slot.color.into();
+                    // hsva.v *= 0.7;
+                    // Stroke::new(10., Color32::from(hsva))
+
+                    let stroke = Stroke::new(
+                        5.,
+                        ui.style().visuals.widgets.noninteractive.fg_stroke.color,
+                    );
+
+                    let rect = rect.expand(1.);
+
+                    painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
+                } else {
+                    let stroke = Stroke::new(3., border_color);
+                    painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
+                };
             }
             None => {
                 painter.rect_stroke(
