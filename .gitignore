@@ -36,6 +36,7 @@ printer_watcher.exe
 test.py
 test.png
 test.*
+bambu_debug*
 
 !icon.png
 !assets/icons8-disconnected-100.png

@@ -147,6 +147,7 @@ gstreamer-rtsp = { version = "0.23.5", optional = true }
 
 crossbeam-channel = "0.5.15"
 parking_lot = "0.12.3"
+palette = "0.7.6"
 
 [patch.crates-io]
 

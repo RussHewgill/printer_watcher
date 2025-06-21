@@ -434,12 +434,102 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Bambu Dump MQTT Status to file
+#[tokio::main]
+#[cfg(feature = "nope")]
+async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+    logging::init_logs();
+
+    // let mut config = AppConfig::load_from_file("config.toml").unwrap_or_default();
+
+    // let client = conn_manager::conn_bambu::bambu_proto::BambuClient::new_and_init(config, printer_cfg, tx, cmd_rx, kill_rx)
+
+    // let errors = crate::conn_manager::conn_bambu::errors::test_errors().await?;
+
+    Ok(())
+}
+
+/// Color test
+#[cfg(feature = "nope")]
+fn main() {
+    logging::init_logs();
+
+    use palette::IntoColor;
+
+    // f930f3
+    let color = egui::Color32::from_hex("#f930f3").unwrap();
+
+    let mut hsv: ecolor::Hsva = color.into();
+
+    debug!("color = {:?}", color);
+
+    // let color = palette::Srgb::new(color.r(), color.g(), color.b());
+    // let color: palette::Srgb<f32> = color.into();
+    let color = palette::Hsv::new(hsv.h, hsv.s, hsv.v);
+    let mut color: palette::Hsl = color.into_color();
+
+    debug!("HSL color = {:?}", color);
+    // debug!("hue = {:?}", color.hue.into_positive_degrees());
+
+    if color.lightness > 0.4 {
+        color.lightness *= 0.7
+    } else {
+        color.lightness *= 1.4
+    };
+
+    debug!("HSL color = {:?}", color);
+
+    let color: palette::Srgb = color.into_color();
+    debug!("Srgb color = {:?}", color);
+
+    #[cfg(feature = "nope")]
+    {
+        let mut hsv: ecolor::Hsva = slot.color.into();
+
+        use palette::IntoColor;
+        let mut color: palette::Hsl = palette::Hsv::new(hsv.h, hsv.s, hsv.v).into_color();
+
+        if color.lightness > 0.5 {
+            color.lightness *= 0.7
+        } else {
+            color.lightness *= 1.4
+        };
+
+        let color: palette::Hsv = color.into_color();
+
+        let color = Color32::from(ecolor::Hsva::new(
+            // (color.hue.into_cartesian() + 1.0) / 2.,
+            (color.hue.into_degrees() + 180.) / 360.,
+            color.saturation,
+            color.value,
+            1.0,
+        ));
+    }
+
+    //
+}
+
 /// MARK: Main
 // #[allow(unreachable_code)]
 // #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
+
+    if cfg!(debug_assertions) {
+        /// move debug log file to bambu_debug.json.bak
+        let log_path = "bambu_debug.json";
+
+        if std::path::Path::new(log_path).exists() {
+            let backup_path = format!("{}.bak", log_path);
+            if std::fs::rename(log_path, &backup_path).is_err() {
+                error!("Failed to rename debug log file to {}", backup_path);
+            } else {
+                info!("Moved debug log file to {}", backup_path);
+            }
+        }
+    }
 
     let mut config = AppConfig::load_from_file("config.toml").unwrap_or_default();
     // let mut config = AppConfig::default();

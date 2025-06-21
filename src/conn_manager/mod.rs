@@ -249,7 +249,10 @@ impl PrinterConnManager {
                     warn!("printer error: {:?}", &printer.name().await);
 
                     if let PrinterState::Error(Some(error)) = &state.state {
+                        // debug!("error: {:?}", error);
+
                         if let Ok(e) = error.parse::<i64>() {
+                            // if let Ok(e) = i64::from_str_radix(src, radix)
                             let error = self
                                 .error_map
                                 .get_error(e as u64)
@@ -259,6 +262,7 @@ impl PrinterConnManager {
                                 &self.error_db,
                                 &printer.id(),
                                 &printer.name().await,
+                                e,
                                 error,
                             )
                             .await;
@@ -267,6 +271,7 @@ impl PrinterConnManager {
                                 &self.error_db,
                                 &printer.id(),
                                 &printer.name().await,
+                                -1,
                                 error,
                             )
                             .await;

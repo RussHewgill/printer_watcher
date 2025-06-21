@@ -6,6 +6,16 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 const ERRORS_URL: &'static str = "https://e.bambulab.com/query.php?lang=en";
 
+pub async fn test_errors() -> Result<()> {
+    let errors = fetch_error_codes().await?;
+
+    // debug!("errors: {:#?}", errors);
+
+    // let e =
+
+    Ok(())
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ErrorMap {
     device: std::collections::HashMap<u64, String>,

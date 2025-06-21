@@ -93,6 +93,29 @@ impl BambuListener {
                     }
                 }
                 Event::Incoming(Incoming::Publish(p)) => {
+                    if cfg!(debug_assertions) {
+                        let msg = serde_json::from_slice::<serde_json::Value>(&p.payload)
+                            .map_err(|e| anyhow!("Failed to parse JSON payload: {:?}", e))?;
+                        trace!("Incoming publish: {:?}", p);
+
+                        /// append the contents to the debug file
+                        let debug_file = std::fs::OpenOptions::new()
+                            .append(true)
+                            .create(true)
+                            .open("bambu_debug.json")
+                            .context("Failed to open bambu_debug.log")?;
+
+                        use std::io::Write;
+                        let mut writer = std::io::BufWriter::new(debug_file);
+                        writeln!(
+                            writer,
+                            "{}",
+                            serde_json::to_string_pretty(&msg)
+                                .context("Failed to serialize JSON payload")?
+                        )
+                        .unwrap();
+                    }
+
                     // debug!("incoming publish");
                     let msg = crate::conn_manager::conn_bambu::parse::parse_message(&p);
 

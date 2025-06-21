@@ -26,10 +26,14 @@ pub async fn alert_printer_error(
     error_db: &ErrorDb,
     printer_id: &PrinterId,
     name: &str,
+    code: i64,
     error: &str,
 ) {
     error_db
-        .insert(printer_id.inner(), &format!("error: {}", error))
+        .insert(
+            printer_id.inner(),
+            &format!("error (code {}): {}", code, error),
+        )
         .await
         .unwrap();
 

@@ -104,6 +104,7 @@ pub(super) fn paint_ams_h2d(
                                     bambu,
                                     unit,
                                     ams.current_tray,
+                                    bambu.device.extruder.as_ref(),
                                 );
                             }
                             None => {
@@ -147,6 +148,7 @@ pub(super) fn paint_ams_h2d(
                                     bambu,
                                     unit,
                                     ams.current_tray,
+                                    bambu.device.extruder.as_ref(),
                                 );
                             }
                             None => {
@@ -238,6 +240,7 @@ fn _draw_ams_h2d(
     bambu: &crate::status::bambu_status::PrinterStateBambu,
     unit: &AmsUnit,
     current_tray: Option<AmsCurrentSlot>,
+    extruder: Option<&crate::status::bambu_status::h2d_extruder::H2DExtruder>,
 ) {
     let rect = response.rect;
 
@@ -263,23 +266,39 @@ fn _draw_ams_h2d(
         match slot {
             Some(slot) => {
                 painter.rect_filled(rect, 3, slot.color);
+                // if is_current {
+                //     // let mut hsva: ecolor::HsvaGamma = slot.color.into();
+                //     // hsva.v *= 0.7;
+                //     // Stroke::new(10., Color32::from(hsva))
+
+                //     let stroke = Stroke::new(
+                //         5.,
+                //         ui.style().visuals.widgets.noninteractive.fg_stroke.color,
+                //     );
+
+                //     let rect = rect.expand(1.);
+
+                //     painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
+                // } else {
+                // };
+
                 if is_current {
-                    // let mut hsva: ecolor::HsvaGamma = slot.color.into();
-                    // hsva.v *= 0.7;
-                    // Stroke::new(10., Color32::from(hsva))
+                    // let color = Color32::BLACK;
+                    let color = make_border_color(slot.color);
 
-                    let stroke = Stroke::new(
-                        5.,
-                        ui.style().visuals.widgets.noninteractive.fg_stroke.color,
-                    );
+                    let stroke = Stroke::new(5., color);
+                    painter.rect_stroke(rect, 2, stroke, egui::StrokeKind::Inside);
 
-                    let rect = rect.expand(1.);
-
-                    painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
+                    // painter.circle_filled(
+                    //     // rect.center(),
+                    //     // rect.width() / 2. - 3.,
+                    //     // Color32::from_black_alpha(100),
+                    // );
+                    // painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
                 } else {
                     let stroke = Stroke::new(3., border_color);
                     painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
-                };
+                }
             }
             None => {
                 painter.rect_stroke(
@@ -293,4 +312,35 @@ fn _draw_ams_h2d(
     }
 
     // unimplemented!()
+}
+
+fn make_border_color(main_color: Color32) -> Color32 {
+    use palette::IntoColor;
+    let mut hsv: ecolor::Hsva = main_color.into();
+    let mut color: palette::Hsl = palette::Hsv::new(hsv.h, hsv.s, hsv.v).into_color();
+
+    // // this doesn't work for some reason
+    // let color = palette::Srgb::new(main_color.r(), main_color.g(), main_color.b());
+    // let color: palette::Srgb<f32> = color.into();
+    // let mut color: palette::Hsl = color.into_color();
+
+    let c0 = color;
+    if color.lightness > 0.5 {
+        color.lightness *= 0.7
+    } else {
+        color.lightness *= 1.4
+    };
+    // debug!("Original color: \n{:?}, new color: \n{:?}", c0, color);
+
+    let color: palette::Hsv = color.into_color();
+
+    let color = Color32::from(ecolor::Hsva::new(
+        // (color.hue.into_cartesian() + 1.0) / 2.,
+        color.hue.into_positive_degrees() / 360.,
+        color.saturation,
+        color.value,
+        1.0,
+    ));
+
+    color
 }
