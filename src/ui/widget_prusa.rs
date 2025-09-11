@@ -233,7 +233,19 @@ impl App {
                                         .strong()
                                         // .text_style(Text)
                                         .size(text_size_eta),
-                                ));
+                                ))
+                                .on_hover_text({
+                                    let (dt0, dt1) = super::ui_utils::time_until_10_8(time_finish);
+
+                                    RichText::new(format!(
+                                        "To 10PM: {:02}h{:02}min\nTo 8AM:  {:02}h{:02}min",
+                                        dt0.num_hours(),
+                                        dt0.num_minutes() % 60,
+                                        dt1.num_hours(),
+                                        dt1.num_minutes() % 60,
+                                    ))
+                                    .monospace()
+                                });
                             });
 
                             /// Prusa doesn't tell what layer it's on?

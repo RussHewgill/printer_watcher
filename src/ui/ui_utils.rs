@@ -3,6 +3,8 @@ use tracing::{debug, error, info, trace, warn};
 
 use egui::{Color32, CornerRadius, Rect, Response, UiBuilder, Vec2};
 
+use chrono::{DateTime, Local, TimeDelta};
+
 pub fn put_ui(
     ui: &mut egui::Ui,
     // ui: &mut egui::Ui,
@@ -139,4 +141,32 @@ pub fn draw_fan_speed(ui: &mut egui::Ui, resp: &Response, speed: f32) {
     // let center = rect.center();
 
     unimplemented!()
+}
+
+pub fn time_until_10_8(now: DateTime<Local>) -> (TimeDelta, TimeDelta) {
+    // let now = chrono::Local::now();
+    let target = now
+        .date_naive()
+        .and_hms_opt(22, 0, 0)
+        .unwrap()
+        .and_local_timezone(now.timezone())
+        .unwrap();
+
+    // If it's already past 10 PM, calculate for next day
+    let dt0 = if now.time() >= chrono::NaiveTime::from_hms_opt(22, 0, 0).unwrap() {
+        target + chrono::Duration::days(1) - now
+    } else {
+        target - now
+    };
+
+    let target2 = (now + chrono::Duration::days(1))
+        .date_naive()
+        .and_hms_opt(8, 0, 0)
+        .unwrap()
+        .and_local_timezone(now.timezone())
+        .unwrap();
+
+    let dt1 = target2 - now;
+
+    (dt0, dt1)
 }
