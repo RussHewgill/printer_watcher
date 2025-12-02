@@ -67,6 +67,10 @@ jobs:
         version: '1.26.1'
         arch: 'x86'
 
+    - run: |
+        echo $env:GSTREAMER_1_0_ROOT_MSVC_X86
+      if: contains(matrix.platform.name, 'Windows')
+
     - name: Build
       uses: houseabsolute/actions-rust-cross@v0.0.12
       with:
