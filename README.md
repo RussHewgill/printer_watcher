@@ -8,6 +8,12 @@ Printer Watcher is a dashboard for monitoring the status of multiple printers.
 - Notifications on print error
 - Occasional bugs
 
+## Installation
+
+1. Download the app from the [releases](github.com/RussHewgill/printer_watcher/releases/latest) page. (printer_watcher for MacOS, printer_watcher.exe for windows)
+2. Put the app in a folder somewhere
+3. Install [GStreamer](https://gstreamer.freedesktop.org/documentation/installing/index.html?gi-language=c) and add it to the system PATH
+
 ## Instructions
 
 1. Create a file in the same directory as the program, named `config.toml`
