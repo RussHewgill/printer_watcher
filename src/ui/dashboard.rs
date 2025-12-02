@@ -6,6 +6,7 @@ use egui::{Color32, Response, Stroke, UiBuilder, Vec2};
 use crate::{
     config::{printer_config::PrinterConfig, printer_id::PrinterId},
     status::PrinterState,
+    ui::ui_types::StatusColors,
 };
 
 use super::{app::App, ui_types::GridLocation};
@@ -226,16 +227,23 @@ impl App {
 
         let color = if let Some(status) = self.printer_states.get(&id) {
             match &status.state {
-                PrinterState::Paused => Color32::from_rgb(173, 125, 90),
-                PrinterState::Printing => Color32::from_rgb(121, 173, 116),
-                PrinterState::Error(_) => Color32::from_rgb(173, 125, 90),
-                PrinterState::Idle | PrinterState::Finished => Color32::from_rgb(158, 44, 150),
-                PrinterState::Busy => Color32::from_rgb(73, 84, 218),
-                // PrinterState::Disconnected => Color32::from_rgb(191, 0, 5),
-                PrinterState::Disconnected => Color32::from_rgb(0, 0, 0),
-                // _ => Color32::from_gray(127),
-                // _ => Color32::GREEN,
-                PrinterState::Unknown(_) => Color32::YELLOW,
+                // PrinterState::Paused => Color32::from_rgb(173, 125, 90),
+                // PrinterState::Printing => Color32::from_rgb(121, 173, 116),
+                // PrinterState::Error(_) => Color32::from_rgb(173, 125, 90),
+                // PrinterState::Idle | PrinterState::Finished => Color32::from_rgb(158, 44, 150),
+                // PrinterState::Busy => Color32::from_rgb(73, 84, 218),
+                // // PrinterState::Disconnected => Color32::from_rgb(191, 0, 5),
+                // PrinterState::Disconnected => Color32::from_rgb(0, 0, 0),
+                // // _ => Color32::from_gray(127),
+                // // _ => Color32::GREEN,
+                // PrinterState::Unknown(_) => Color32::YELLOW,
+                PrinterState::Paused => StatusColors::PAUSED,
+                PrinterState::Printing => StatusColors::PRINTING,
+                PrinterState::Error(_) => StatusColors::ERROR,
+                PrinterState::Idle | PrinterState::Finished => StatusColors::IDLE,
+                PrinterState::Busy => StatusColors::BUSY,
+                PrinterState::Disconnected => StatusColors::DISCONNECTED,
+                PrinterState::Unknown(_) => StatusColors::UNKNOWN,
             }
         } else {
             // debug!("no state");

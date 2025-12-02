@@ -4,9 +4,23 @@ use std::{
 };
 
 use chrono::{DateTime, Local, NaiveTime};
+use egui::Color32;
 use serde::{Deserialize, Serialize};
 
 use crate::config::printer_id::PrinterId;
+
+pub struct StatusColors;
+
+impl StatusColors {
+    pub const PAUSED: Color32 = Color32::from_rgb(173, 125, 90);
+    pub const PRINTING: Color32 = Color32::from_rgb(121, 173, 116);
+    pub const ERROR: Color32 = Color32::from_rgb(173, 125, 90);
+    pub const IDLE: Color32 = Color32::from_rgb(158, 44, 150);
+    pub const BUSY: Color32 = Color32::from_rgb(73, 84, 218);
+    // pub const DISCONNECTED: Color32 = Color32::from_rgb(0, 0, 0);
+    pub const DISCONNECTED: Color32 = Color32::RED;
+    pub const UNKNOWN: Color32 = Color32::YELLOW;
+}
 
 #[derive(PartialEq, Deserialize, Serialize)]
 pub enum Tab {
