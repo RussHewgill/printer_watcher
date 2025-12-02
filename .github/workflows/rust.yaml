@@ -65,10 +65,10 @@ jobs:
       if: contains(matrix.platform.name, 'Windows')
       with:
         version: '1.26.1'
-        arch: 'x86'
+        arch: 'x86_64'
 
     - run: |
-        echo $env:GSTREAMER_1_0_ROOT_MSVC_X86
+        echo $env:GSTREAMER_1_0_ROOT_MSVC_X86_64
       if: contains(matrix.platform.name, 'Windows')
 
     - name: Build
