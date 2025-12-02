@@ -59,6 +59,14 @@ jobs:
       run: brew install gstreamer gst-plugins-base gst-plugins-good
       if: contains(matrix.platform.name, 'Darwin')
 
+    - name: Setup GStreamer
+      id:   setup_gstreamer
+      uses: blinemedical/setup-gstreamer@1.0
+      if: contains(matrix.platform.name, 'Windows')
+      with:
+        version: '1.19.90'
+        arch: 'x86'
+
     - name: Build
       uses: houseabsolute/actions-rust-cross@v0.0.12
       with:
