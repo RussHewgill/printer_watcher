@@ -19,12 +19,12 @@ jobs:
           #   name: Printer-Watcher-Linux-x86_64-gnu.tar.gz
           #   command: build
 
-          - os_name: macOS-x86_64
+          - os_name: macOS-aarch64
             os: macOS-latest
             # target: x86_64-apple-darwin
             target: aarch64-apple-darwin
             bin: printer_watcher
-            name: Printer-Watcher-Darwin-x86_64.tar.gz
+            name: Printer-Watcher-Darwin-aarch64.tar.gz
             command: build
 
           - os_name: Windows-x86_64
@@ -53,6 +53,10 @@ jobs:
 
     - name: Install openssl on macOS
       run: brew install openssl@3
+      if: contains(matrix.platform.name, 'Darwin')
+
+    - name: Install GStreamer on macOS
+      run: brew install gstreamer gst-plugins-base gst-plugins-good
       if: contains(matrix.platform.name, 'Darwin')
 
     - name: Build
