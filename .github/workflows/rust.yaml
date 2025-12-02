@@ -64,7 +64,7 @@ jobs:
       uses: blinemedical/setup-gstreamer@v1.4.0
       if: contains(matrix.platform.name, 'Windows')
       with:
-        version: '1.19.90'
+        version: '1.26.1'
         arch: 'x86'
 
     - name: Build
