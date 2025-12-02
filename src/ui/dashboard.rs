@@ -54,7 +54,7 @@ impl App {
                     ..Default::default()
                 };
 
-                ui.allocate_new_ui(builder, |ui| {
+                ui.scope_builder(builder, |ui| {
                     // ui.allocate_ui_at_rect(max_rect_row, |ui| {
                     /// Set colors
                     let prev_inactive = ui.visuals().widgets.inactive.bg_stroke;

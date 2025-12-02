@@ -94,7 +94,7 @@ impl App {
                             .webcam_textures
                             .entry(printer.id.clone())
                             .or_insert_with(|| {
-                                let image = egui::ColorImage::new(
+                                let image = egui::ColorImage::filled(
                                     [1680, 1080],
                                     egui::Color32::from_gray(220),
                                 );
@@ -214,7 +214,7 @@ impl App {
                             .webcam_textures
                             .entry(printer.id.clone())
                             .or_insert_with(|| {
-                                let image = egui::ColorImage::new(
+                                let image = egui::ColorImage::filled(
                                     [1920, 1080],
                                     egui::Color32::from_gray(220),
                                 );

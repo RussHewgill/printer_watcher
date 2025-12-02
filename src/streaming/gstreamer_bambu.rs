@@ -375,7 +375,7 @@ fn build_pipeline(
     });
 
     // let mut size_rwlock = parking_lot::RwLock::new(None);
-    let img = egui::ColorImage::new([1680, 1080], egui::Color32::BLACK);
+    let img = egui::ColorImage::filled([1680, 1080], egui::Color32::BLACK);
 
     let img = Arc::new(Mutex::new(img));
 
