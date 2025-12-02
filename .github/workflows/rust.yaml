@@ -21,7 +21,8 @@ jobs:
 
           - os_name: macOS-x86_64
             os: macOS-latest
-            target: x86_64-apple-darwin
+            # target: x86_64-apple-darwin
+            target: aarch64-apple-darwin
             bin: printer_watcher
             name: Printer-Watcher-Darwin-x86_64.tar.gz
             command: build
