@@ -11,6 +11,7 @@ use crate::config::printer_id::PrinterId;
 #[derive(PartialEq, Deserialize, Serialize)]
 pub enum Tab {
     Dashboard,
+    QuickView,
     Graphs,
     Printers,
     Projects,

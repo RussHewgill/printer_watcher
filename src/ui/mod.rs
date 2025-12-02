@@ -11,6 +11,7 @@ pub mod widget_klipper;
 // pub mod widget_octo;
 mod ams;
 pub mod printer_header;
+pub mod quick_view;
 pub mod widget_bambu_v2;
 pub mod widget_prusa;
 

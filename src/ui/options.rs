@@ -127,6 +127,12 @@ impl App {
         });
 
         ui.separator();
+
+        // if ui.button("Save raw printer MQTT to file").clicked() {
+        //     unimplemented!();
+        // }
+
+        // ui.separator();
     }
 
     #[cfg(feature = "nope")]

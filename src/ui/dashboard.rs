@@ -98,7 +98,12 @@ impl App {
                                     // let resp = self.printer_widget(ui, pos, &printer);
                                     self.printer_widget(ui, pos, &printer);
                                 } else {
-                                    ui.label("Printer not found");
+                                    self.printer_widget_header_notfound(ui, id, &printer, pos);
+
+                                    // ui.label(format!(
+                                    //     "Printer not found: {}",
+                                    //     printer.name_blocking()
+                                    // ));
                                     // ui.allocate_space(Vec2::new(w, h));
                                     // ui.allocate_space(ui.available_size());
                                     return;

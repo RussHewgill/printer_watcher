@@ -14,6 +14,60 @@ use super::{
 };
 
 impl App {
+    pub fn printer_widget_header_notfound(
+        &self,
+        ui: &mut egui::Ui,
+        // status: &GenericPrinterState,
+        id: PrinterId,
+        printer: &crate::config::printer_config::PrinterConfig,
+        pos: GridLocation,
+        // printer_type: PrinterType,
+    ) -> Response {
+        let icon_size = 24.;
+
+        let size = Vec2::new(ui.available_width() - 12., icon_size);
+
+        let resp = crate::ui::ui_utils::put_ui(ui, size, None, |ui| {
+            let resp = ui
+                .horizontal(|ui| {
+                    // ui.menu_image_button(icon_menu_with_size(icon_size - 4.), |ui| {
+                    //     ui.label("Menu");
+                    //     // self.printer_menu(ui, status, printer);
+                    // });
+
+                    ui.dnd_drag_source(
+                        egui::Id::new(format!("{:?}_drag_src_{}_{}", id, pos.col, pos.row)),
+                        GridLocation {
+                            col: pos.col,
+                            row: pos.row,
+                        },
+                        |ui| {
+                            // printer_state_icon(ui, icon_size, &status.state);
+                            // printer_type_icon(ui, icon_size, printer_type);
+                            ui.add(
+                                Label::new(
+                                    RichText::new(&format!(
+                                        "Printer not found: {}",
+                                        printer.name_blocking(),
+                                        // status.state.to_text()
+                                    ))
+                                    .strong(),
+                                )
+                                .truncate(),
+                            );
+                            ui.allocate_space(Vec2::new(ui.available_width() - icon_size, 0.));
+                        },
+                    )
+                    .response
+                })
+                .response;
+
+            resp
+        });
+
+        resp
+    }
+
     /// MARK: Header
     // #[cfg(feature = "nope")]
     pub fn printer_widget_header(
@@ -71,9 +125,9 @@ impl App {
             resp
         });
 
-        resp.context_menu(|ui| {
-            ui.label("Context menu");
-        });
+        // resp.context_menu(|ui| {
+        //     ui.label("Context menu");
+        // });
 
         #[cfg(feature = "nope")]
         crate::ui::ui_utils::put_ui(ui, size, None, |ui| {

@@ -278,6 +278,11 @@ impl eframe::App for App {
                     });
                 }
             }
+            Tab::QuickView => {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    self.show_quick_view(ui);
+                });
+            }
             Tab::Graphs => {
                 // egui::CentralPanel::default().show(ctx, |ui| {
                 //     self.show_graphs(ui);
