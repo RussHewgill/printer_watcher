@@ -3,6 +3,7 @@ use std::{
     sync::Arc,
 };
 
+use chrono::{DateTime, Local, NaiveTime};
 use serde::{Deserialize, Serialize};
 
 use crate::config::printer_id::PrinterId;
@@ -122,6 +123,9 @@ pub struct AppOptions {
     // pub selected_printer: Option<PrinterId>,
     // pub selected_printer_cfg: Option<NewPrinterEntry>,
     pub auto_start_streams: bool,
+
+    // pub times: (DateTime<Local>, DateTime<Local>),
+    pub times: (NaiveTime, NaiveTime),
 }
 
 impl Default for AppOptions {
@@ -132,6 +136,10 @@ impl Default for AppOptions {
             // selected_printer: None,
             // selected_printer_cfg: None,
             auto_start_streams: true,
+            times: (
+                NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
+                NaiveTime::from_hms_opt(12 + 10, 0, 0).unwrap(),
+            ),
         }
     }
 }

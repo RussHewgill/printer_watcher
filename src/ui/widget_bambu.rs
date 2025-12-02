@@ -571,7 +571,7 @@ pub fn paint_ams(
     let y2_height = small_circle_r * 2. + circle_stroke * 2. + 2.;
 
     if num_units == 0 {
-        error!("No units found in ams status");
+        // error!("No units found in ams status");
         return;
     } else if num_units == 1 {
         // let unit = &ams.units[&0];

@@ -116,6 +116,14 @@ impl App {
             }
 
             ui.end_row();
+
+            // ui.label("Wake time: ");
+
+            // ui.end_row();
+
+            // ui.label("Bed time: ");
+
+            // ui.end_row();
         });
 
         ui.separator();

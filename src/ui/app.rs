@@ -216,6 +216,12 @@ impl eframe::App for App {
                     .unwrap();
 
                 // If it's already past 10 PM, calculate for next day
+                // let dt0 = if now.time() >= self.options.times.1 {
+                //     target + chrono::Duration::days(1) - now
+                // } else {
+                //     target - now
+                // };
+
                 let dt0 = if now.time() >= chrono::NaiveTime::from_hms_opt(22, 0, 0).unwrap() {
                     target + chrono::Duration::days(1) - now
                 } else {
@@ -227,6 +233,13 @@ impl eframe::App for App {
                     dt0.num_hours(),
                     dt0.num_minutes() % 60
                 ));
+
+                // ui.label(format!(
+                //     "Time to {}: {:02}h{:02}min",
+                //     self.options.times.1.format("%-I%p"),
+                //     dt0.num_hours(),
+                //     dt0.num_minutes() % 60
+                // ));
 
                 let target = (now + chrono::Duration::days(1))
                     .date_naive()

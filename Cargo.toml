@@ -31,27 +31,27 @@ gstreamer = [
 dotenvy = "0.15.0"
 anyhow = "1"
 vergen = { version = "8.3", features = ["git", "gitcl"] }
-winresource = "0.1.17"
+winresource = "0.1.28"
 
 [dependencies]
 anyhow = "1.0.83"
 dotenvy = "0.15.0"
 serde = { version = "1.0.219", features = ["derive"] }
-tokio = { version = "1.44.2", features = ["full"] }
+tokio = { version = "1.48.0", features = ["full"] }
 tracing = "0.1.41"
-tracing-appender = "0.2.3"
+tracing-appender = "0.2.4"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.19", features = [
+tracing-subscriber = { version = "0.3.22", features = [
     "local-time",
     "env-filter",
     "json",
     "registry",
 ] }
-serde_json = "1.0.140"
-futures = { version = "0.3.30", default-features = false }
+serde_json = "1.0.145"
+futures = { version = "0.3.31", default-features = false }
 # serde_yaml = "0.9.34"
 # rusqlite = { version = "0.32.1", features = ["bundled"] }
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.8.6", features = [
     "runtime-tokio",
     "sqlite",
     "derive",
@@ -61,15 +61,15 @@ sqlx = { version = "0.8", features = [
 
 nanoid = "0.4.0"
 byteorder = "1.5.0"
-bitreader = "0.3.10"
+bitreader = "0.3.11"
 paste = "1.0"
 url = "2.5.2"
-borsh = { version = "1.5.0", features = ["derive"] }
-chrono = { version = "0.4.38", features = ["serde"] }
+borsh = { version = "1.6.0", features = ["derive"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 cocoon = "0.4.3"
 dashmap = "6.1.0"
 
-tokio-tungstenite = { version = "0.24.0", features = [
+tokio-tungstenite = { version = "0.28.0", features = [
     "rustls",
     "tokio-rustls",
     "rustls-native-certs",
@@ -81,9 +81,9 @@ rumqttc = { version = "0.24.0", default-features = false, features = [
     # "use-native-tls",
     "use-rustls",
 ] }
-rustls-native-certs = "0.8.0"
+rustls-native-certs = "0.8.2"
 # parking_lot = "0.12.2"
-reqwest = { version = "0.12.8", features = [
+reqwest = { version = "0.12.24", features = [
     "rustls-tls",
     # "rustls-tls-native-roots",
     "json",
@@ -92,12 +92,12 @@ reqwest = { version = "0.12.8", features = [
 rustls-pemfile = "2.2.0"
 # rustls = "0.22.4"
 cookie = "0.18.1"
-rand = "0.8.5"
+rand = "0.9.2"
 base64 = "0.22.1"
-regex = "1.11.0"
+regex = "1.12.2"
 # strum = { version = "0.26.2", features = ["derive"] }
 
-retina = { version = "0.4.13", optional = true }
+retina = { version = "0.4.15", optional = true }
 
 # notify-rust = { version = "4.11.0", features = ["async"] }
 
@@ -113,20 +113,20 @@ egui_extras = { version = "0.31.1", features = [
 ] }
 egui-phosphor = { version = "0.9.0", features = ["fill"] }
 # ffmpeg-next = { version = "7.0.2", optional = true }
-ffmpeg-the-third = { version = "3.0.1", optional = true }
+ffmpeg-the-third = { version = "4.0.1", optional = true }
 image = { version = "0.25.6", features = ["jpeg", "png", "pnm"] }
 pretty-hex = "0.4.1"
 bytes = "1.6.0"
-h264-reader = "0.7.0"
-atomic = "0.5.3"
+h264-reader = "0.8.0"
+atomic = "0.6.1"
 # jsonrpc = "0.18.0"
 # jsonrpsee = { version = "0.24.0", features = [
 #     "ws-client",
 #     "client-ws-transport-no-tls",
 # ] }
-toml = "0.8.19"
+toml = "0.9.8"
 # toml_edit = { version = "0.22.15", features = ["serde"] }
-notify-rust = { version = "4.11.3", features = ["async"] }
+notify-rust = { version = "4.11.7", features = ["async"] }
 
 # iced = { version = "0.12.1", features = ["advanced", "lazy", "image"] }
 # iced_winit = "0.12.2"
@@ -136,17 +136,17 @@ notify-rust = { version = "4.11.3", features = ["async"] }
 # "grid",
 # ] }
 
-glib = { version = "0.20.9", optional = true }
-gio = { version = "0.20.9", optional = true }
-gstreamer = { version = "0.23.5", optional = true }
-gstreamer-app = { version = "0.23.5", optional = true }
-gstreamer-video = { version = "0.23.5", optional = true }
-gstreamer-rtsp = { version = "0.23.5", optional = true }
+glib = { version = "0.21.4", optional = true }
+gio = { version = "0.21.4", optional = true }
+gstreamer = { version = "0.24.3", optional = true }
+gstreamer-app = { version = "0.24.2", optional = true }
+gstreamer-video = { version = "0.24.3", optional = true }
+gstreamer-rtsp = { version = "0.24.2", optional = true }
 # gstreamer-rtsp-server = { version = "0.23.5", optional = true }
 # gstreamer-pbutils = { version = "0.23.5", optional = true }
 
 crossbeam-channel = "0.5.15"
-parking_lot = "0.12.3"
+parking_lot = "0.12.5"
 palette = "0.7.6"
 
 [patch.crates-io]

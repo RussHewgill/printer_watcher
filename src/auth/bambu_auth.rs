@@ -85,8 +85,8 @@ impl AuthDb {
     const DB_PATH: &'static str = "auth.db";
 
     pub fn empty() -> Self {
-        let key = rand::thread_rng().gen::<[u8; 32]>();
-        let seed = rand::thread_rng().gen::<[u8; 32]>();
+        let key = rand::rng().random::<[u8; 32]>();
+        let seed = rand::rng().random::<[u8; 32]>();
         let mut cocoon = MiniCocoon::from_key(&key, &seed);
         Self {
             cached_token: None,
@@ -105,13 +105,13 @@ impl AuthDb {
             file.read_exact(&mut key)?;
             key
         } else {
-            let key = rand::thread_rng().gen::<[u8; 32]>();
+            let key = rand::rng().random::<[u8; 32]>();
             use std::io::Write;
             let mut file = File::create(&key_path)?;
             file.write_all(&key)?;
             key
         };
-        let seed = rand::thread_rng().gen::<[u8; 32]>();
+        let seed = rand::rng().random::<[u8; 32]>();
 
         let mut cocoon = MiniCocoon::from_key(&key, &seed);
 

@@ -54,7 +54,8 @@ impl GStreamerPlayer {
         // kill_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
         // enabled: Arc<AtomicBool>,
     ) -> Self {
-        let access_code = std::env::var("RTSP_PASS").unwrap();
+        // let access_code = std::env::var("RTSP_PASS").unwrap();
+        let access_code = &password;
         let uri = format!(
             "rtsps://bblp:{}@{}:{}/streaming/live/1",
             access_code, host, port
