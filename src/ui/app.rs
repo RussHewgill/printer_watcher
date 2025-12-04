@@ -39,6 +39,9 @@ pub struct App {
     pub printer_states: Arc<DashMap<PrinterId, GenericPrinterState>>,
 
     pub printer_order: HashMap<GridLocation, PrinterId>,
+
+    pub disabled_printers: HashSet<PrinterId>,
+
     #[serde(skip)]
     pub unplaced_printers: Vec<PrinterId>,
 
@@ -200,7 +203,7 @@ impl eframe::App for App {
 
                 ui.separator();
 
-                self.show_quick_view(ui);
+                // self.show_quick_view(ui);
             });
         });
 
@@ -284,9 +287,9 @@ impl eframe::App for App {
                 }
             }
             Tab::QuickView => {
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    self.show_quick_view(ui);
-                });
+                // egui::CentralPanel::default().show(ctx, |ui| {
+                //     self.show_quick_view(ui);
+                // });
             }
             Tab::Graphs => {
                 // egui::CentralPanel::default().show(ctx, |ui| {

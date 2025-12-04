@@ -128,11 +128,25 @@ impl App {
 
         ui.separator();
 
+        // self.show_disabled_printers(ui);
+
+        // ui.separator();
+
         // if ui.button("Save raw printer MQTT to file").clicked() {
         //     unimplemented!();
         // }
 
         // ui.separator();
+    }
+
+    fn show_disabled_printers(&mut self, ui: &mut egui::Ui) {
+        ui.label("Disabled Printers:");
+
+        egui::Grid::new("options_grid").show(ui, |ui| {
+            for printer_id in self.disabled_printers.iter() {
+                ui.end_row();
+            }
+        });
     }
 
     #[cfg(feature = "nope")]

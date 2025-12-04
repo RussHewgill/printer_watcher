@@ -27,7 +27,8 @@ impl App {
                 let Some(printer) = self.config.get_printer(&id) else {
                     // warn!("Printer not found: {:?}", id);
                     // return (None, None);
-                    unimplemented!()
+                    // unimplemented!()
+                    continue;
                 };
 
                 let color = if let Some(status) = self.printer_states.get(&id) {
