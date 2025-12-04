@@ -796,7 +796,7 @@ pub mod h2d_extruder {
         current_extruder: i64,
         pub switch_state: ExtruderSwitchState,
 
-        pub left: ExtruderInfo,
+        pub left: Option<ExtruderInfo>,
         pub right: ExtruderInfo,
     }
 
@@ -846,8 +846,10 @@ pub mod h2d_extruder {
                 }
             };
 
-            let left = {
-                let left = s.pointer("/info/1").unwrap_or_default();
+            let left: Option<ExtruderInfo> = 'l: {
+                let Some(left) = s.pointer("/info/1") else {
+                    break 'l None;
+                };
                 let info = left["info"].as_i64().unwrap_or(0);
                 let temp = left["temp"].as_i64().unwrap_or(0);
 
@@ -855,8 +857,12 @@ pub mod h2d_extruder {
                 let snow = left["snow"].as_i64().unwrap_or(0);
                 let star = left["star"].as_i64().unwrap_or(0);
 
-                ExtruderInfo {
-                    id: left["id"].as_i64().unwrap(),
+                let Some(id) = left["id"].as_i64() else {
+                    break 'l None;
+                };
+
+                Some(ExtruderInfo {
+                    id,
                     has_filament: get_flag_bits_from_int(info, 1, 1) == Some(1),
                     buffer_has_filament: get_flag_bits_from_int(info, 2, 1) == Some(1),
                     temp: get_flag_bits_from_int(temp, 0, 16).unwrap(),
@@ -877,7 +883,7 @@ pub mod h2d_extruder {
 
                     nozzle_id: left["hnow"].as_i64().unwrap_or(0),
                     target_nozzle_id: left["htar"].as_i64().unwrap_or(0),
-                }
+                })
             };
 
             let state = s.pointer("/state").unwrap().as_i64().unwrap();
@@ -902,7 +908,7 @@ pub mod h2d_extruder {
         pub fn get_current(&self) -> Option<&ExtruderInfo> {
             match self.current_extruder {
                 0 => Some(&self.right),
-                1 => Some(&self.left),
+                1 => self.left.as_ref(),
                 _ => None,
                 // _ => panic!("Invalid current extruder: {}", self.current_extruder),
             }
@@ -910,7 +916,7 @@ pub mod h2d_extruder {
 
         pub fn get_other(&self) -> Option<&ExtruderInfo> {
             match self.current_extruder {
-                0 => Some(&self.left),
+                0 => self.left.as_ref(),
                 1 => Some(&self.right),
                 _ => None,
                 // _ => panic!("Invalid current extruder: {}", self.current_extruder),
