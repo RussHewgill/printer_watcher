@@ -132,6 +132,24 @@ impl App {
 
         // ui.separator();
 
+        if ui
+            .add(egui::Slider::new(&mut self.options.times_opt.0, 0..=23).text("Wake time"))
+            .changed()
+        {
+            self.options.times.0 =
+                chrono::NaiveTime::from_hms_opt(self.options.times_opt.0, 0, 0).unwrap();
+        }
+
+        if ui
+            .add(egui::Slider::new(&mut self.options.times_opt.1, 0..=23).text("Bed time"))
+            .changed()
+        {
+            self.options.times.1 =
+                chrono::NaiveTime::from_hms_opt(self.options.times_opt.1, 0, 0).unwrap();
+        }
+
+        ui.separator();
+
         // if ui.button("Save raw printer MQTT to file").clicked() {
         //     unimplemented!();
         // }

@@ -5,6 +5,8 @@ use egui::{Color32, CornerRadius, Rect, Response, UiBuilder, Vec2};
 
 use chrono::{DateTime, Local, TimeDelta};
 
+use crate::ui::app::App;
+
 pub fn put_ui(
     ui: &mut egui::Ui,
     // ui: &mut egui::Ui,
@@ -143,30 +145,31 @@ pub fn draw_fan_speed(ui: &mut egui::Ui, resp: &Response, speed: f32) {
     unimplemented!()
 }
 
-pub fn time_until_10_8(now: DateTime<Local>) -> (TimeDelta, TimeDelta) {
-    // let now = chrono::Local::now();
-    let target = now
-        .date_naive()
-        .and_hms_opt(22, 0, 0)
-        .unwrap()
-        .and_local_timezone(now.timezone())
-        .unwrap();
+impl App {
+    pub fn time_until_bed_wake(&self, time: DateTime<Local>) -> (TimeDelta, TimeDelta) {
+        let target_bed = time
+            .date_naive()
+            .and_hms_opt(self.options.times_opt.1, 0, 0)
+            .unwrap()
+            .and_local_timezone(time.timezone())
+            .unwrap();
 
-    // If it's already past 10 PM, calculate for next day
-    let dt0 = if now.time() >= chrono::NaiveTime::from_hms_opt(22, 0, 0).unwrap() {
-        target + chrono::Duration::days(1) - now
-    } else {
-        target - now
-    };
+        // If it's already past 10 PM, calculate for next day
+        let dt_bed = if time.time() >= chrono::NaiveTime::from_hms_opt(22, 0, 0).unwrap() {
+            target_bed + chrono::Duration::days(1) - time
+        } else {
+            target_bed - time
+        };
 
-    let target2 = (now + chrono::Duration::days(1))
-        .date_naive()
-        .and_hms_opt(8, 0, 0)
-        .unwrap()
-        .and_local_timezone(now.timezone())
-        .unwrap();
+        let target_wake = (time + chrono::Duration::days(1))
+            .date_naive()
+            .and_hms_opt(self.options.times_opt.0, 0, 0)
+            .unwrap()
+            .and_local_timezone(time.timezone())
+            .unwrap();
 
-    let dt1 = target2 - now;
+        let dt_wake = target_wake - time;
 
-    (dt0, dt1)
+        (dt_bed, dt_wake)
+    }
 }

@@ -42,6 +42,8 @@ pub struct App {
 
     pub disabled_printers: HashSet<PrinterId>,
 
+    pub time_am_pm: (Option<()>, Option<()>),
+
     #[serde(skip)]
     pub unplaced_printers: Vec<PrinterId>,
 
@@ -209,62 +211,80 @@ impl eframe::App for App {
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                // let now = chrono::Local::now();
-
-                // /// time from now until 10pm
-                // let dt0 = now.date_naive().and_hms(22, 0, 0);
-                // let dt0 = dt0 - now;
-
                 let now = chrono::Local::now();
-                let target = now
-                    .date_naive()
-                    .and_hms_opt(22, 0, 0)
-                    .unwrap()
-                    .and_local_timezone(now.timezone())
-                    .unwrap();
 
-                // If it's already past 10 PM, calculate for next day
-                // let dt0 = if now.time() >= self.options.times.1 {
-                //     target + chrono::Duration::days(1) - now
-                // } else {
-                //     target - now
-                // };
-
-                let dt0 = if now.time() >= chrono::NaiveTime::from_hms_opt(22, 0, 0).unwrap() {
-                    target + chrono::Duration::days(1) - now
-                } else {
-                    target - now
-                };
+                let (dt_bedtime, dt_waketime) = self.time_until_bed_wake(now);
 
                 ui.label(format!(
-                    "Time to 10PM: {:02}h{:02}min",
-                    dt0.num_hours(),
-                    dt0.num_minutes() % 60
+                    "Time to {}: {:02}h{:02}min",
+                    self.options.times.1.format("%I%p"),
+                    dt_bedtime.num_hours(),
+                    dt_bedtime.num_minutes() % 60
                 ));
-
-                // ui.label(format!(
-                //     "Time to {}: {:02}h{:02}min",
-                //     self.options.times.1.format("%-I%p"),
-                //     dt0.num_hours(),
-                //     dt0.num_minutes() % 60
-                // ));
-
-                let target = (now + chrono::Duration::days(1))
-                    .date_naive()
-                    .and_hms_opt(8, 0, 0)
-                    .unwrap()
-                    .and_local_timezone(now.timezone())
-                    .unwrap();
-
-                let dt0 = target - now;
 
                 ui.separator();
 
                 ui.label(format!(
-                    "Time to 8AM tomorrow: {:02}h{:02}min",
-                    dt0.num_hours(),
-                    dt0.num_minutes() % 60
+                    "Time to {}: {:02}h{:02}min",
+                    self.options.times.0.format("%I%p"),
+                    dt_waketime.num_hours(),
+                    dt_waketime.num_minutes() % 60
                 ));
+
+                //
+            });
+
+            #[cfg(feature = "nope")]
+            ui.horizontal(|ui| {
+                let now = chrono::Local::now();
+
+                // target is bedtime today, or bedtime tomorrow if past 10PM
+                // bedtime is self.options.times.1
+
+                let target_bedtime = now
+                    .date_naive()
+                    .and_hms_opt(self.options.times_opt.1, 0, 0)
+                    .unwrap()
+                    .and_local_timezone(now.timezone())
+                    .unwrap();
+
+                let dt_bedtime = if now.time() >= chrono::NaiveTime::from_hms_opt(22, 0, 0).unwrap()
+                {
+                    target_bedtime + chrono::Duration::days(1) - now
+                } else {
+                    target_bedtime - now
+                };
+
+                ui.label(format!(
+                    "Time to {}: {:02}h{:02}min",
+                    self.options.times.1.format("%I%p"),
+                    dt_bedtime.num_hours(),
+                    dt_bedtime.num_minutes() % 60
+                ));
+
+                let target = (now + chrono::Duration::days(1))
+                    .date_naive()
+                    .and_hms_opt(self.options.times_opt.0, 0, 0)
+                    .unwrap()
+                    .and_local_timezone(now.timezone())
+                    .unwrap();
+
+                let dt_waketime = target - now;
+
+                ui.separator();
+
+                ui.label(format!(
+                    "Time to {}: {:02}h{:02}min",
+                    self.options.times.0.format("%I%p"),
+                    dt_waketime.num_hours(),
+                    dt_waketime.num_minutes() % 60
+                ));
+
+                // ui.label(format!(
+                //     "Time to 8AM tomorrow: {:02}h{:02}min",
+                //     dt0.num_hours(),
+                //     dt0.num_minutes() % 60
+                // ));
             });
         });
 
