@@ -714,6 +714,7 @@ pub struct Device {
     // pub cam: Option<Cam>,
     // pub cham_temp: Option<i64>,
     // pub ext_tool: Option<ExtTool>,
+    #[serde(default)]
     pub extruder: Option<h2d_extruder::H2DExtruder>,
     // pub fan: Option<i64>,
     // pub laser: Option<LaserPower>,
@@ -846,7 +847,7 @@ pub mod h2d_extruder {
             };
 
             let left = {
-                let left = s.pointer("/info/1").unwrap();
+                let left = s.pointer("/info/1").unwrap_or_default();
                 let info = left["info"].as_i64().unwrap_or(0);
                 let temp = left["temp"].as_i64().unwrap_or(0);
 
