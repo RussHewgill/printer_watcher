@@ -242,17 +242,20 @@ impl App {
                                 self.selected_stream = Some(printer.id.clone());
                             }
                         } else if self.options.auto_start_streams {
-                            self.stream_cmd_tx
-                                .as_ref()
-                                .unwrap()
-                                .send(crate::streaming::StreamCmd::StartBambuStills {
+                            if let Err(e) = self.stream_cmd_tx.as_ref().unwrap().send(
+                                crate::streaming::StreamCmd::StartBambuStills {
                                     id: printer.id.clone(),
                                     host: printer.host.clone(),
                                     access_code: printer.access_code.clone(),
                                     serial: printer.serial.clone(),
                                     texture: entry.texture.clone(),
-                                })
-                                .unwrap();
+                                },
+                            ) {
+                                error!(
+                                    "failed to start bambu stills stream for printer {:?}: {:?}",
+                                    printer.id, e
+                                );
+                            };
                             // entry.enabled = true;
                             entry.enabled.store(true, Ordering::SeqCst);
                         } else {

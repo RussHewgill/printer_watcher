@@ -140,7 +140,11 @@ impl StreamManager {
                     Some(StreamCmd::StopStream(id)) => {
                         debug!("stopping stream for printer: {:?}", id);
                         if let Some((tx, _)) = self.worker_channels.remove(&id) {
-                            tx.send(()).unwrap();
+                            // tx.send(()).unwrap();
+                            let Ok(_) = tx.send(()) else {
+                                error!("failed to send kill signal to stream worker for printer: {:?}", id);
+                                continue;
+                            };
                         }
                     }
                     Some(StreamCmd::TogglePauseStream(id)) => {
