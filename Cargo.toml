@@ -7,9 +7,9 @@ edition = "2021"
 debug = true
 
 [features]
-default = []
+# default = []
 # default = ["retina"]
-# default = ["gstreamer"]
+default = ["gstreamer"]
 # default = ["rtsp"]
 # rtsp = ["ffmpeg-next"]
 retina = ["dep:retina"]
