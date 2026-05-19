@@ -515,7 +515,8 @@ fn main() {
 // #[cfg(feature = "nope")]
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
-    logging::init_logs();
+
+    // logging::init_logs();
 
     if cfg!(debug_assertions) {
         /// move debug log file to bambu_debug.json.bak
