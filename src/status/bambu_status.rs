@@ -462,7 +462,8 @@ pub enum BambuPrinterType {
     P1S,
     A1,
     A1m,
-    H2D,
+    H2,
+    H3,
     Unknown,
 }
 

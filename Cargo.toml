@@ -12,7 +12,7 @@ debug = true
 default = ["gstreamer"]
 # default = ["rtsp"]
 # rtsp = ["ffmpeg-next"]
-retina = ["dep:retina"]
+# retina = ["dep:retina"]
 # retina = ["dep:retina", "rtsp"]
 # rtsp = []
 rtsp = ["ffmpeg-the-third"]
@@ -97,7 +97,7 @@ base64 = "0.22.1"
 regex = "1.12.2"
 # strum = { version = "0.26.2", features = ["derive"] }
 
-retina = { version = "0.4.15", optional = true }
+# retina = { version = "0.4.15", optional = true }
 
 # notify-rust = { version = "4.11.0", features = ["async"] }
 

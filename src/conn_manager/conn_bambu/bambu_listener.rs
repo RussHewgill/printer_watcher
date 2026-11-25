@@ -323,10 +323,12 @@ fn get_bambu_type(modules: &[super::message::InfoModule]) -> Option<BambuPrinter
     let mut out = None;
 
     for m in modules.iter() {
-        // debug!("Module: {:#?}", m);
-        if m.name == "mc" {
-            if m.hw_ver == "MC09" {
-                return Some(BambuPrinterType::H2D);
+        if let Some(name) = m.product_name.as_ref() {
+            match name.as_str() {
+                "Bambu Lab H2D" => return Some(BambuPrinterType::H2),
+                "Bambu Lab H2C" => return Some(BambuPrinterType::H2),
+                "Bambu Lab H3C" => return Some(BambuPrinterType::H3),
+                _ => {}
             }
         }
     }

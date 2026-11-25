@@ -81,8 +81,15 @@ impl App {
                     warn!("Printer not found: {:?}", printer.id);
                     panic!();
                 };
+
+                let live_view = match bambu_type {
+                    Some(BambuPrinterType::H2) => true,
+                    Some(BambuPrinterType::H3) => true,
+                    _ => false,
+                };
+
                 /// thumbnail/webcam
-                if bambu_type == Some(BambuPrinterType::H2D) {
+                if live_view {
                     #[cfg(not(feature = "gstreamer"))]
                     strip.cell(|ui| {
                         ui.label("Webcam disabled");
@@ -351,7 +358,7 @@ impl App {
                 });
 
                 /// temperatures: nozzles, bed, chamber
-                if bambu_type == Some(BambuPrinterType::H2D) {
+                if bambu_type == Some(BambuPrinterType::H2) {
                     strip.strip(|mut builder| {
                         let font_size = 11.5;
 
@@ -538,7 +545,7 @@ impl App {
 
                 /// temperatures 2: other nozzle, fans
                 // ui.label("TODO: Temperatures/Fans 2");
-                if bambu_type == Some(BambuPrinterType::H2D) {
+                if bambu_type == Some(BambuPrinterType::H2) {
                     strip.strip(|mut builder| {
                         let font_size = 11.5;
 
@@ -824,7 +831,7 @@ impl App {
 
                     let height = 44.;
 
-                    if bambu_type == Some(BambuPrinterType::H2D) {
+                    if bambu_type == Some(BambuPrinterType::H2) {
                         super::ams::paint_ams_h2d(ui, height, bambu);
                         // trace!("AMS: {:#?}", bambu.ams);
                     } else {

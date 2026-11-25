@@ -33,7 +33,7 @@ pub fn fake_printer(
 
     let mut st = crate::status::bambu_status::PrinterStateBambu::default();
 
-    st.printer_type = Some(crate::status::bambu_status::BambuPrinterType::H2D);
+    st.printer_type = Some(crate::status::bambu_status::BambuPrinterType::H2);
 
     st.ams_status = Some(768);
     st.ams = Some(AmsStatus {

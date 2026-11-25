@@ -254,7 +254,7 @@ pub struct InfoData {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InfoModule {
     pub name: String,
-    pub project_name: Option<String>,
+    pub product_name: Option<String>,
     pub sw_ver: String,
     pub hw_ver: String,
     pub sn: String,
