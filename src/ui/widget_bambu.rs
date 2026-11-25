@@ -604,7 +604,7 @@ pub fn paint_ams(
                         c,
                         circle_r,
                         slot.color,
-                        egui::Stroke::new(2., circle_stroke_color),
+                        egui::Stroke::new(2.0f32, circle_stroke_color),
                     );
 
                     if let Some(AmsCurrentSlot::Tray { ams_id, tray_id }) = ams.current_tray {
@@ -672,7 +672,7 @@ pub fn paint_ams(
 
         let c0 = rect.center_top();
         let c1 = rect.center_top() + Vec2::new(0., small_circle_r * 2. + 2.);
-        painter.line_segment([c0, c1], egui::Stroke::new(1.0, Color32::from_gray(180)));
+        painter.line_segment([c0, c1], egui::Stroke::new(1.0f32, Color32::from_gray(180)));
 
         if num_units > 2 {
             // let top = y2 - small_circle_r;
@@ -689,7 +689,7 @@ pub fn paint_ams(
             // let c0 = rect.center_top() + Vec2::new(0., top);
             // let c1 = rect.center_top() + Vec2::new(0., top + small_circle_r * 1. + 2.);
 
-            painter.line_segment([c0, c1], egui::Stroke::new(1.0, Color32::from_gray(180)));
+            painter.line_segment([c0, c1], egui::Stroke::new(1.0f32, Color32::from_gray(180)));
             // painter.line_segment([c0, c1], egui::Stroke::new(1.0, Color32::RED));
         }
     } else {

@@ -125,8 +125,8 @@ pub struct PrintAms {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrintAmsData {
     pub id: String,
-    pub humidity: String,
-    pub temp: String,
+    // pub humidity: String,
+    // pub temp: String,
     pub info: Option<String>,
     pub tray: Vec<PrintTray>,
 }

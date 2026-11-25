@@ -361,8 +361,8 @@ impl PrinterStateBambu {
                     AmsUnit {
                         id,
                         info,
-                        humidity: unit.humidity.parse().unwrap_or(0),
-                        temp: unit.temp.parse().unwrap_or(0.),
+                        // humidity: unit.humidity.parse().unwrap_or(0),
+                        // temp: unit.temp.parse().unwrap_or(0.),
                         slots,
                     },
                 );
@@ -408,9 +408,9 @@ impl PrinterStateBambu {
             }
         }
 
-        if let Some(ams0) = ams.ams.as_ref().and_then(|a| a.get(0)) {
-            out.humidity = Some(ams0.humidity.clone());
-        }
+        // if let Some(ams0) = ams.ams.as_ref().and_then(|a| a.get(0)) {
+        //     out.humidity = Some(ams0.humidity.clone());
+        // }
 
         Ok(out)
     }
@@ -529,8 +529,8 @@ impl AmsCurrentSlot {
 #[derive(Debug, Default, Clone)]
 pub struct AmsUnit {
     pub id: i64,
-    pub humidity: i64,
-    pub temp: f64,
+    // pub humidity: i64,
+    // pub temp: f64,
     pub info: Option<i64>,
     pub slots: [Option<AmsSlot>; 4],
 }

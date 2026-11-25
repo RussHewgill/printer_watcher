@@ -5,7 +5,7 @@ use egui::{Color32, CornerRadius, Rect, Response, UiBuilder, Vec2};
 
 use chrono::{DateTime, Local, TimeDelta};
 
-use crate::ui::app::App;
+use crate::{config::printer_id::PrinterId, ui::app::App};
 
 pub fn put_ui(
     ui: &mut egui::Ui,
@@ -171,5 +171,13 @@ impl App {
         let dt_wake = target_wake - time;
 
         (dt_bed, dt_wake)
+    }
+
+    pub fn set_printer_enabled(&mut self, printer_id: &PrinterId, enable: bool) {
+        if enable {
+            self.disabled_printers.remove(&printer_id);
+        } else {
+            self.disabled_printers.insert(printer_id.clone());
+        }
     }
 }

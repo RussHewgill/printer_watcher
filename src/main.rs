@@ -417,6 +417,7 @@ fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
     logging::init_logs();
 
+    #[cfg(feature = "nope")]
     let json = {
         let json = r#"{
     }
@@ -427,15 +428,38 @@ fn main() -> Result<()> {
     // let json: crate::status::bambu_status::PrinterStateBambu = serde_json::from_str(json)?;
 
     // let json: crate::status::bambu_status::h2d_extruder::H2DExtruder = serde_json::from_str(json)?;
-    let json: crate::status::bambu_status::h2d_airduct::H2DAirDuct = serde_json::from_str(json)?;
+    // let json: crate::status::bambu_status::h2d_airduct::H2DAirDuct = serde_json::from_str(json)?;
 
-    debug!("json = {:#?}", json);
+    let json = std::fs::read_to_string("test_json.json").unwrap();
+    // let json = std::fs::read_to_string("h3c_ams.json").unwrap();
+
+    // let json: serde_json::Value = serde_json::from_str(&json)?;
+    // debug!("json = {:#?}", json);
+
+    let parsed =
+        serde_json::from_slice::<conn_manager::conn_bambu::message::Message>(&json.as_bytes());
+    // let parsed =
+    //     serde_json::from_slice::<conn_manager::conn_bambu::message::PrintAms>(&json.as_bytes());
+
+    // #[cfg(feature = "nope")]
+    let parsed_message = match parsed {
+        Ok(parsed_message) => {
+            debug!("Parsed message: {:#?}", parsed_message);
+            parsed_message
+        }
+        Err(err) => {
+            error!("Failed to parse JSON message: {:?}", err);
+            return Ok(());
+        }
+    };
+
+    // debug!("parsed_message = {:#?}", parsed_message);
 
     Ok(())
 }
 
 /// Bambu Dump MQTT Status to file
-#[tokio::main]
+// #[tokio::main]
 #[cfg(feature = "nope")]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
@@ -516,7 +540,7 @@ fn main() {
 fn main() -> eframe::Result<()> {
     let _ = dotenvy::dotenv();
 
-    // logging::init_logs();
+    logging::init_logs();
 
     if cfg!(debug_assertions) {
         /// move debug log file to bambu_debug.json.bak

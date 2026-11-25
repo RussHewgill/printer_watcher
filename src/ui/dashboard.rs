@@ -50,6 +50,14 @@ impl App {
                 let pos = GridLocation { col: x, row: y };
                 let (id, color) = self.get_printer_id_color(pos);
 
+                if let Some(id) = id.as_ref() {
+                    if self.disabled_printers.contains(&id) {
+                        unimplemented!();
+                        // max_rect_row = max_rect_row.translate(offset_x);
+                        // continue;
+                    }
+                }
+
                 let builder = UiBuilder {
                     max_rect: Some(max_rect_row),
                     ..Default::default()
@@ -61,8 +69,8 @@ impl App {
                     let prev_inactive = ui.visuals().widgets.inactive.bg_stroke;
                     let prev_active = ui.visuals().widgets.active.bg_stroke;
                     if let Some(color) = color {
-                        ui.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(4., color);
-                        ui.visuals_mut().widgets.active.bg_stroke = Stroke::new(4., color);
+                        ui.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(4.0f32, color);
+                        ui.visuals_mut().widgets.active.bg_stroke = Stroke::new(4.0f32, color);
                     } else {
                         ui.visuals_mut().widgets.inactive.bg_stroke.width = 4.;
                         ui.visuals_mut().widgets.active.bg_stroke.width = 4.;
@@ -185,6 +193,8 @@ impl App {
               // }
         }
     }
+
+    // fn disabled_printer_widget
 
     fn place_printers(&mut self) {
         loop {

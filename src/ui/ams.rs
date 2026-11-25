@@ -214,7 +214,7 @@ fn _draw_external_spool_h2d(
     painter.rect_stroke(
         rect,
         3,
-        Stroke::new(3., border_color),
+        Stroke::new(3.0f32, border_color),
         egui::StrokeKind::Inside,
     );
 
@@ -286,7 +286,7 @@ fn _draw_ams_h2d(
                     // let color = Color32::BLACK;
                     let color = make_border_color(slot.color);
 
-                    let stroke = Stroke::new(5., color);
+                    let stroke = Stroke::new(5.0f32, color);
                     painter.rect_stroke(rect, 2, stroke, egui::StrokeKind::Inside);
 
                     // painter.circle_filled(
@@ -296,7 +296,7 @@ fn _draw_ams_h2d(
                     // );
                     // painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
                 } else {
-                    let stroke = Stroke::new(3., border_color);
+                    let stroke = Stroke::new(3.0f32, border_color);
                     painter.rect_stroke(rect, 3, stroke, egui::StrokeKind::Inside);
                 }
             }
@@ -304,7 +304,7 @@ fn _draw_ams_h2d(
                 painter.rect_stroke(
                     rect,
                     3,
-                    Stroke::new(3.0, border_color),
+                    Stroke::new(3.0f32, border_color),
                     egui::StrokeKind::Inside,
                 );
             }

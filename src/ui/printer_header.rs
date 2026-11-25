@@ -126,7 +126,11 @@ impl App {
         });
 
         // resp.context_menu(|ui| {
-        //     ui.label("Context menu");
+        //     if ui.label("Disable printer").clicked() {
+        //         // self.disable_printer(id);
+        //         // self.set_printer_enabled(printer_id, enable);
+        //         // ui.close_menu();
+        //     }
         // });
 
         #[cfg(feature = "nope")]

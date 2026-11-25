@@ -37,6 +37,8 @@ test.py
 test.png
 test.*
 bambu_debug*
+*.json
+*.bak*
 
 !icon.png
 !assets/icons8-disconnected-100.png
